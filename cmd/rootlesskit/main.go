@@ -162,7 +162,7 @@ func child(clicontext *cli.Context) error {
 	os.Unsetenv(ChildMagicEnvKey)
 	fullArgs := clicontext.Args()
 	var args []string
-	if len(fullArgs) > 2 {
+	if len(fullArgs) > 1 {
 		args = fullArgs[1:]
 	}
 	cmd := exec.Command(fullArgs[0], args...)
