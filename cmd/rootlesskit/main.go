@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,8 +14,9 @@ import (
 	"github.com/urfave/cli"
 )
 
-const ChildMagicEnvKey = "_ROOTLESSKIT_CHILD"
-const ChildMagicEnvValue = "undocumented magic value"
+const PipeFDEnvKey = "_ROOTLESSKIT_PIPEFD_UNDOCUMENTED"
+
+var MagicPacket = []byte{0x42}
 
 func main() {
 	debug := false
@@ -55,10 +57,14 @@ func main() {
 }
 
 func amIChild() bool {
-	return os.Getenv(ChildMagicEnvKey) == ChildMagicEnvValue
+	return os.Getenv(PipeFDEnvKey) != ""
 }
 
 func parent(clicontext *cli.Context) error {
+	pipeR, pipeW, err := os.Pipe()
+	if err != nil {
+		return err
+	}
 	cmd := exec.Command("/proc/self/exe", os.Args[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags:   syscall.CLONE_NEWUSER,
@@ -67,13 +73,21 @@ func parent(clicontext *cli.Context) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, ChildMagicEnvKey+"="+ChildMagicEnvValue)
+	cmd.ExtraFiles = []*os.File{pipeR}
+	cmd.Env = append(os.Environ(), PipeFDEnvKey+"=3")
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "failed to start the child")
 	}
 	if err := setupUIDGIDMap(cmd.Process.Pid); err != nil {
 		return errors.Wrap(err, "failed to setup UID/GID map")
+	}
+
+	// wake up the child
+	if _, err := pipeW.Write(MagicPacket); err != nil {
+		return err
+	}
+	if err := pipeW.Close(); err != nil {
+		return err
 	}
 	if err := cmd.Wait(); err != nil {
 		return errors.Wrap(err, "children exited")
@@ -158,8 +172,31 @@ func setupUIDGIDMap(pid int) error {
 	return nil
 }
 
+func childWaitForParentSync(pipeFDStr string) error {
+	pipeFD, err := strconv.Atoi(pipeFDStr)
+	if err != nil {
+		return errors.Wrapf(err, "unexpected fd value: %s", pipeFDStr)
+	}
+	pipeR := os.NewFile(uintptr(pipeFD), "")
+	buf := make([]byte, len(MagicPacket))
+	if _, err := pipeR.Read(buf); err != nil {
+		return errors.Wrapf(err, "failed to read fd %d", pipeFD)
+	}
+	if bytes.Compare(MagicPacket, buf) != 0 {
+		return errors.Errorf("expected magic packet %v, got %v", MagicPacket, buf)
+	}
+	return pipeR.Close()
+}
+
 func child(clicontext *cli.Context) error {
-	os.Unsetenv(ChildMagicEnvKey)
+	pipeFDStr := os.Getenv(PipeFDEnvKey)
+	if pipeFDStr == "" {
+		return errors.Errorf("%s is not set", PipeFDEnvKey)
+	}
+	os.Unsetenv(PipeFDEnvKey)
+	if err := childWaitForParentSync(pipeFDStr); err != nil {
+		return err
+	}
 	fullArgs := clicontext.Args()
 	var args []string
 	if len(fullArgs) > 1 {
