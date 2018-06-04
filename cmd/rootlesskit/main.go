@@ -10,9 +10,12 @@ import (
 
 	"github.com/AkihiroSuda/rootlesskit/pkg/child"
 	"github.com/AkihiroSuda/rootlesskit/pkg/parent"
+	"github.com/AkihiroSuda/rootlesskit/pkg/util"
 )
 
 func main() {
+	pipeFDEnvKey := "_ROOTLESSKIT_PIPEFD_UNDOCUMENTED"
+	iAmChild := os.Getenv(pipeFDEnvKey) != ""
 	debug := false
 	app := cli.NewApp()
 	app.Name = "rootlesskit"
@@ -34,10 +37,8 @@ func main() {
 		if clicontext.NArg() < 1 {
 			return errors.New("no command specified")
 		}
-		pipeFDEnvKey := "_ROOTLESSKIT_PIPEFD_UNDOCUMENTED"
 		magicPacket := []byte{0x42}
-		amIChild := os.Getenv(pipeFDEnvKey) != ""
-		if amIChild {
+		if iAmChild {
 			return child.Child(pipeFDEnvKey, magicPacket, clicontext.Args())
 		}
 		parentOpt, err := createParentOpt(clicontext)
@@ -47,13 +48,21 @@ func main() {
 		return parent.Parent(pipeFDEnvKey, magicPacket, parentOpt)
 	}
 	if err := app.Run(os.Args); err != nil {
-		if debug {
-			fmt.Fprintf(os.Stderr, "error: %+v\n", err)
-		} else {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		id := "parent"
+		if iAmChild {
+			id = "child " // padded to len("parent")
 		}
-		// TODO: propagate the exit code from the real process
-		os.Exit(1)
+		if debug {
+			fmt.Fprintf(os.Stderr, "[rootlesskit:%s] error: %+v\n", id, err)
+		} else {
+			fmt.Fprintf(os.Stderr, "[rootlesskit:%s] error: %v\n", id, err)
+		}
+		// propagate the exit code
+		code, ok := util.GetExecExitStatus(err)
+		if !ok {
+			code = 1
+		}
+		os.Exit(code)
 	}
 }
 

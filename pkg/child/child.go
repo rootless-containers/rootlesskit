@@ -51,5 +51,8 @@ func Child(pipeFDEnvKey string, magicPacket []byte, targetCmd []string) error {
 	if err != nil {
 		return err
 	}
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, "command %v exited", targetCmd)
+	}
+	return nil
 }
