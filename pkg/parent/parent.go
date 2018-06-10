@@ -10,7 +10,15 @@ import (
 	"github.com/pkg/errors"
 )
 
+type NetworkMode int
+
+const (
+	HostNetwork NetworkMode = iota
+	VDEPlugSlirp
+)
+
 type Opt struct {
+	NetworkMode
 }
 
 func Parent(pipeFDEnvKey string, magicPacket []byte, opt *Opt) error {
@@ -26,6 +34,9 @@ func Parent(pipeFDEnvKey string, magicPacket []byte, opt *Opt) error {
 		Cloneflags:   syscall.CLONE_NEWUSER,
 		Unshareflags: syscall.CLONE_NEWNS,
 	}
+	if opt.NetworkMode != HostNetwork {
+		cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
+	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -36,6 +47,14 @@ func Parent(pipeFDEnvKey string, magicPacket []byte, opt *Opt) error {
 	}
 	if err := setupUIDGIDMap(cmd.Process.Pid); err != nil {
 		return errors.Wrap(err, "failed to setup UID/GID map")
+	}
+	switch opt.NetworkMode {
+	case VDEPlugSlirp:
+		cleanupVDEPlugSlirp, err := setupVDEPlugSlirp(cmd.Process.Pid)
+		defer cleanupVDEPlugSlirp()
+		if err != nil {
+			return errors.Wrap(err, "failed to setup vdeplug_slirp")
+		}
 	}
 
 	// wake up the child

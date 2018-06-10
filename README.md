@@ -2,8 +2,10 @@
 
 `rootlesskit` does `unshare` and `newuidmap/newgidmap` in a single command.
 
+`rootlesskit` also supports network namespace isolation and userspace NAT using ["slirp"](#slirp).
+
 Plan:
-* Support netns with userspace NAT using `netstack` or `slirp`
+* Support netns with userspace NAT using `netstack` (No extra binary will be needed)
 * Support netns with kernel NAT using SUID-enabled `lxc-user-nic``
   * We might also need some SUID binary for port forwarding
 * Some cgroups stuff
@@ -44,3 +46,35 @@ rootlesskit$ mount -t tmpfs none /anywhere
 rootlesskit$ touch /note_that_you_are_not_real_root
 touch: cannot touch '/note_that_you_are_not_real_root': Permission denied
 ```
+
+## Slirp
+
+Dependencies:
+* https://github.com/rd235/s2argv-execs
+* https://github.com/rd235/vdeplug4 (depends on `s2argv-execs`)
+* https://github.com/rd235/libslirp
+* https://github.com/rd235/vdeplug_slirp (depends on `vdeplug4` and `libslirp`)
+
+Usage:
+
+```
+$ rootlesskit --net=vdeplug_slirp bash
+rootlesskit$ ip a
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether da:67:9b:30:19:b9 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.2.100/24 scope global tap0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::d867:9bff:fe30:19b9/64 scope link 
+       valid_lft forever preferred_lft forever
+rootlesskit$ ip route
+default via 10.0.2.2 dev tap0 
+10.0.2.0/24 dev tap0 proto kernel scope link src 10.0.2.100 
+rootlesskit$ cat /etc/resolv.conf 
+nameserver 10.0.2.3
+```
+
+Remarks:
+* Port forwarding is not supported yet
+* ICMP (ping) is not supported

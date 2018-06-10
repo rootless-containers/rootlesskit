@@ -26,6 +26,11 @@ func main() {
 			Usage:       "debug mode",
 			Destination: &debug,
 		},
+		cli.StringFlag{
+			Name:  "net",
+			Usage: "host, vdeplug_slirp",
+			Value: "host",
+		},
 	}
 	app.Before = func(context *cli.Context) error {
 		if debug {
@@ -68,5 +73,13 @@ func main() {
 
 func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 	opt := &parent.Opt{}
+	switch net := clicontext.String("net"); net {
+	case "host":
+		opt.NetworkMode = parent.HostNetwork
+	case "vdeplug_slirp":
+		opt.NetworkMode = parent.VDEPlugSlirp
+	default:
+		return nil, errors.Errorf("unknown network mode: %s", net)
+	}
 	return opt, nil
 }

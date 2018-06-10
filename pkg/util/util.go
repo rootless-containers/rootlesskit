@@ -1,6 +1,7 @@
 package util
 
 import (
+	"io"
 	"os/exec"
 	"syscall"
 
@@ -21,4 +22,22 @@ func GetExecExitStatus(err error) (int, bool) {
 		return 0, false
 	}
 	return status.ExitStatus(), true
+}
+
+func Execs(o io.Writer, env []string, cmds [][]string) error {
+	for _, cmd := range cmds {
+		var args []string
+		if len(cmd) > 1 {
+			args = cmd[1:]
+		}
+		x := exec.Command(cmd[0], args...)
+		x.Stdin = nil
+		x.Stdout = o
+		x.Stderr = o
+		x.Env = env
+		if err := x.Run(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
