@@ -1,6 +1,9 @@
 package parent
 
 import (
+	"encoding/binary"
+	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -8,20 +11,15 @@ import (
 
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/pkg/errors"
-)
 
-type NetworkMode int
-
-const (
-	HostNetwork NetworkMode = iota
-	VDEPlugSlirp
+	"github.com/AkihiroSuda/rootlesskit/pkg/common"
 )
 
 type Opt struct {
-	NetworkMode
+	common.NetworkMode
 }
 
-func Parent(pipeFDEnvKey string, magicPacket []byte, opt *Opt) error {
+func Parent(pipeFDEnvKey string, opt *Opt) error {
 	if opt == nil {
 		opt = &Opt{}
 	}
@@ -34,7 +32,7 @@ func Parent(pipeFDEnvKey string, magicPacket []byte, opt *Opt) error {
 		Cloneflags:   syscall.CLONE_NEWUSER,
 		Unshareflags: syscall.CLONE_NEWNS,
 	}
-	if opt.NetworkMode != HostNetwork {
+	if opt.NetworkMode != common.HostNetwork {
 		cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
 	}
 	cmd.Stdin = os.Stdin
@@ -48,9 +46,12 @@ func Parent(pipeFDEnvKey string, magicPacket []byte, opt *Opt) error {
 	if err := setupUIDGIDMap(cmd.Process.Pid); err != nil {
 		return errors.Wrap(err, "failed to setup UID/GID map")
 	}
+	msg := common.Message{
+		NetworkMode: opt.NetworkMode,
+	}
 	switch opt.NetworkMode {
-	case VDEPlugSlirp:
-		cleanupVDEPlugSlirp, err := setupVDEPlugSlirp(cmd.Process.Pid)
+	case common.VDEPlugSlirp:
+		cleanupVDEPlugSlirp, err := setupVDEPlugSlirp(cmd.Process.Pid, &msg)
 		defer cleanupVDEPlugSlirp()
 		if err != nil {
 			return errors.Wrap(err, "failed to setup vdeplug_slirp")
@@ -58,7 +59,7 @@ func Parent(pipeFDEnvKey string, magicPacket []byte, opt *Opt) error {
 	}
 
 	// wake up the child
-	if _, err := pipeW.Write(magicPacket); err != nil {
+	if err := writeMessage(pipeW, &msg); err != nil {
 		return err
 	}
 	if err := pipeW.Close(); err != nil {
@@ -68,6 +69,17 @@ func Parent(pipeFDEnvKey string, magicPacket []byte, opt *Opt) error {
 		return errors.Wrap(err, "children exited")
 	}
 	return nil
+}
+
+func writeMessage(w io.Writer, msg *common.Message) error {
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	h := make([]byte, 4)
+	binary.LittleEndian.PutUint32(h, uint32(len(b)))
+	_, err = w.Write(append(h, b...))
+	return err
 }
 
 func newuidmapArgs() ([]string, error) {
