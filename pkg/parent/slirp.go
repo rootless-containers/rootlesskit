@@ -7,11 +7,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/moby/vpnkit/go/pkg/vpnkit"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 
-	"github.com/AkihiroSuda/rootlesskit/pkg/util"
+	"github.com/AkihiroSuda/rootlesskit/pkg/common"
 )
 
 // setupVDEPlugSlirp setups network via vdeplug_slirp.
@@ -21,29 +23,17 @@ import (
 // TODO:
 //  * support port forwarding
 //  * use netlink
-func setupVDEPlugSlirp(pid int) (func() error, error) {
-	const (
-		tap     = "tap0"
-		ip      = "10.0.2.100"
-		netmask = "24"
-		gateway = "10.0.2.2"
-		dns     = "10.0.2.3"
-	)
-	logrus.Debugf("vdeplug_slirp: tap=%s, ip=%s/%s, gateway=%s, dns=%s", tap, ip, netmask, gateway, dns)
+func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
+	tap := "tap0"
 	var cleanups []func() error
-	cmds := [][]string{
-		nsenter(pid, []string{"ip", "tuntap", "add", "name", tap, "mode", "tap"}),
-		nsenter(pid, []string{"ip", "link", "set", tap, "up"}),
+	if err := prepareTap(pid, tap); err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)
 	}
-	if err := util.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-		return cleanup(cleanups), errors.Wrapf(err, "executing %v", cmds)
-	}
-
 	slirpCtx, slirpCancel := context.WithCancel(context.Background())
 	cleanups = append(cleanups, func() error { slirpCancel(); return nil })
 	slirpCmd := exec.CommandContext(slirpCtx, "vde_plug", "vxvde://", "slirp://")
 	if err := slirpCmd.Start(); err != nil {
-		return cleanup(cleanups), errors.Wrapf(err, "executing %v", slirpCmd)
+		return common.Seq(cleanups), errors.Wrapf(err, "executing %v", slirpCmd)
 	}
 
 	tapCtx, tapCancel := context.WithCancel(context.Background())
@@ -52,42 +42,83 @@ func setupVDEPlugSlirp(pid int) (func() error, error) {
 		"=", "nsenter", "--", "-t", strconv.Itoa(pid), "-n", "-U", "--preserve-credentials",
 		"vde_plug", "tap://"+tap)
 	if err := tapCmd.Start(); err != nil {
-		return cleanup(cleanups), errors.Wrapf(err, "executing %v", tapCmd)
+		return common.Seq(cleanups), errors.Wrapf(err, "executing %v", tapCmd)
 	}
+	// TODO: support configuration
+	msg.IP = "10.0.2.100"
+	msg.Netmask = 24
+	msg.Gateway = "10.0.2.2"
+	msg.DNS = "10.0.2.3"
+	msg.VDEPlugTap = tap
+	return common.Seq(cleanups), nil
+}
 
-	tempDir, err := ioutil.TempDir("", "rootlesskit-slirp")
+func setupVPNKit(pid int, msg *common.Message) (func() error, error) {
+	var cleanups []func() error
+	tempDir, err := ioutil.TempDir("", "rootlesskit-vpnkit")
 	if err != nil {
-		return cleanup(cleanups), errors.Wrapf(err, "creating %s", tempDir)
+		return common.Seq(cleanups), errors.Wrapf(err, "creating %s", tempDir)
 	}
 	cleanups = append(cleanups, func() error { return os.RemoveAll(tempDir) })
-	resolvConf := filepath.Join(tempDir, "resolv.conf")
-	if err := ioutil.WriteFile(resolvConf, []byte("nameserver "+dns), 0644); err != nil {
-		return cleanup(cleanups), errors.Wrapf(err, "writing %s", resolvConf)
+	vpnkitSocket := filepath.Join(tempDir, "socket")
+	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())
+	cleanups = append(cleanups, func() error { vpnkitCancel(); return nil })
+	vpnkitCmd := exec.CommandContext(vpnkitCtx, "vpnkit", "--ethernet", vpnkitSocket)
+	if err := vpnkitCmd.Start(); err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "executing %v", vpnkitCmd)
 	}
-	cmds = [][]string{
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cleanups = append(cleanups, func() error { cancel(); return nil })
+	vmnet, err := waitForVPNKit(ctx, vpnkitSocket)
+	if err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "connecting to %s", vpnkitSocket)
+	}
+	cleanups = append(cleanups, func() error { return vmnet.Close() })
+	vifUUID := uuid.New()
+	vif, err := vmnet.ConnectVif(vifUUID)
+	if err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "connecting to %s with uuid %s", vpnkitSocket, vifUUID)
+	}
+	// TODO: support configuration
+	msg.IP = vif.IP.String()
+	msg.Netmask = 24
+	msg.Gateway = "192.168.65.1"
+	msg.DNS = "192.168.65.1"
+	msg.VPNKitMAC = vif.ClientMAC.String()
+	msg.VPNKitSocket = vpnkitSocket
+	msg.VPNKitUUID = vifUUID.String()
+	return common.Seq(cleanups), nil
+}
+
+func waitForVPNKit(ctx context.Context, socket string) (*vpnkit.Vmnet, error) {
+	retried := 0
+	for {
+		vmnet, err := vpnkit.NewVmnet(ctx, socket)
+		if err == nil {
+			return vmnet, nil
+		}
+		sleepTime := (retried % 100) * 10 * int(time.Microsecond)
+		select {
+		case <-ctx.Done():
+			return nil, errors.Wrapf(ctx.Err(), "last error: %v", err)
+		case <-time.After(time.Duration(sleepTime)):
+		}
+		retried++
+	}
+}
+
+func prepareTap(pid int, tap string) error {
+	cmds := [][]string{
+		nsenter(pid, []string{"ip", "tuntap", "add", "name", tap, "mode", "tap"}),
 		nsenter(pid, []string{"ip", "link", "set", tap, "up"}),
-		nsenter(pid, []string{"ip", "addr", "add", ip + "/" + netmask, "dev", tap}),
-		nsenter(pid, []string{"ip", "route", "add", "default", "via", gateway, "dev", tap}),
-		nsenter(pid, []string{"mount", "--bind", resolvConf, "/etc/resolv.conf"}),
 	}
-	if err := util.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-		return cleanup(cleanups), errors.Wrapf(err, "executing %v", cmds)
+	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
+		return errors.Wrapf(err, "executing %v", cmds)
 	}
-	return cleanup(cleanups), nil
+	return nil
 }
 
 func nsenter(pid int, cmd []string) []string {
 	pidS := strconv.Itoa(pid)
 	return append([]string{"nsenter", "-t", pidS, "-n", "-m", "-U", "--preserve-credentials"}, cmd...)
-}
-
-func cleanup(cleanups []func() error) func() error {
-	return func() error {
-		for _, c := range cleanups {
-			if cerr := c(); cerr != nil {
-				return cerr
-			}
-		}
-		return nil
-	}
 }
