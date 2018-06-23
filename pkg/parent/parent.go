@@ -56,6 +56,12 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to setup vdeplug_slirp")
 		}
+	case common.VPNKit:
+		cleanupVPNKit, err := setupVPNKit(cmd.Process.Pid, &msg)
+		defer cleanupVPNKit()
+		if err != nil {
+			return errors.Wrap(err, "failed to setup vpnkit")
+		}
 	}
 
 	// wake up the child
@@ -101,10 +107,10 @@ func newuidmapArgs() ([]string, error) {
 	for _, sub := range subs {
 		res = append(res, []string{
 			strconv.Itoa(last),
-			strconv.Itoa(sub.SubID),
-			strconv.Itoa(sub.Count),
+			strconv.Itoa(int(sub.SubID)),
+			strconv.Itoa(int(sub.Count)),
 		}...)
-		last += sub.Count
+		last += int(sub.Count)
 	}
 	return res, nil
 }
@@ -128,10 +134,10 @@ func newgidmapArgs() ([]string, error) {
 	for _, sub := range subs {
 		res = append(res, []string{
 			strconv.Itoa(last),
-			strconv.Itoa(sub.SubID),
-			strconv.Itoa(sub.Count),
+			strconv.Itoa(int(sub.SubID)),
+			strconv.Itoa(int(sub.Count)),
 		}...)
-		last += sub.Count
+		last += int(sub.Count)
 	}
 	return res, nil
 }

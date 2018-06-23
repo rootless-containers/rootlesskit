@@ -49,6 +49,15 @@ touch: cannot touch '/note_that_you_are_not_real_root': Permission denied
 
 ## Slirp
 
+Remarks:
+* Port forwarding is not supported yet
+* ICMP (ping) is not supported
+
+Currently there are two slirp implementations supported by rootlesskit:
+* [vdeplug_slirp](#vdeplug_slirp)
+* [VPNKit](#vpnkit)
+
+### vdeplug_slirp
 Dependencies:
 * https://github.com/rd235/s2argv-execs
 * https://github.com/rd235/vdeplug4 (depends on `s2argv-execs`)
@@ -75,6 +84,13 @@ rootlesskit$ cat /etc/resolv.conf
 nameserver 10.0.2.3
 ```
 
-Remarks:
-* Port forwarding is not supported yet
-* ICMP (ping) is not supported
+### VPNKit
+Dependencies:
+* https://github.com/moby/vpnkit
+
+Usage:
+
+```
+$ rootlesskit --net=vpnkit bash
+...
+```

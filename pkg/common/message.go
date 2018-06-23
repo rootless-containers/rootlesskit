@@ -4,9 +4,12 @@ package common
 // as JSON, with uint32le length header.
 type Message struct {
 	NetworkMode
-	Tap     string
-	IP      string
-	Netmask int
-	Gateway string
-	DNS     string
+	IP           string
+	Netmask      int
+	Gateway      string
+	DNS          string
+	VDEPlugTap   string
+	VPNKitMAC    string
+	VPNKitSocket string
+	VPNKitUUID   string
 }

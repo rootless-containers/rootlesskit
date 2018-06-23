@@ -2,10 +2,15 @@ package parent
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
+	"time"
 
+	"github.com/google/uuid"
+	"github.com/moby/vpnkit/go/pkg/vpnkit"
 	"github.com/pkg/errors"
 
 	"github.com/AkihiroSuda/rootlesskit/pkg/common"
@@ -39,13 +44,67 @@ func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
 	if err := tapCmd.Start(); err != nil {
 		return common.Seq(cleanups), errors.Wrapf(err, "executing %v", tapCmd)
 	}
-	msg.Tap = tap
 	// TODO: support configuration
 	msg.IP = "10.0.2.100"
 	msg.Netmask = 24
 	msg.Gateway = "10.0.2.2"
 	msg.DNS = "10.0.2.3"
+	msg.VDEPlugTap = tap
 	return common.Seq(cleanups), nil
+}
+
+func setupVPNKit(pid int, msg *common.Message) (func() error, error) {
+	var cleanups []func() error
+	tempDir, err := ioutil.TempDir("", "rootlesskit-vpnkit")
+	if err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "creating %s", tempDir)
+	}
+	cleanups = append(cleanups, func() error { return os.RemoveAll(tempDir) })
+	vpnkitSocket := filepath.Join(tempDir, "socket")
+	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())
+	cleanups = append(cleanups, func() error { vpnkitCancel(); return nil })
+	vpnkitCmd := exec.CommandContext(vpnkitCtx, "vpnkit", "--ethernet", vpnkitSocket)
+	if err := vpnkitCmd.Start(); err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "executing %v", vpnkitCmd)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	cleanups = append(cleanups, func() error { cancel(); return nil })
+	vmnet, err := waitForVPNKit(ctx, vpnkitSocket)
+	if err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "connecting to %s", vpnkitSocket)
+	}
+	cleanups = append(cleanups, func() error { return vmnet.Close() })
+	vifUUID := uuid.New()
+	vif, err := vmnet.ConnectVif(vifUUID)
+	if err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "connecting to %s with uuid %s", vpnkitSocket, vifUUID)
+	}
+	// TODO: support configuration
+	msg.IP = vif.IP.String()
+	msg.Netmask = 24
+	msg.Gateway = "192.168.65.1"
+	msg.DNS = "192.168.65.1"
+	msg.VPNKitMAC = vif.ClientMAC.String()
+	msg.VPNKitSocket = vpnkitSocket
+	msg.VPNKitUUID = vifUUID.String()
+	return common.Seq(cleanups), nil
+}
+
+func waitForVPNKit(ctx context.Context, socket string) (*vpnkit.Vmnet, error) {
+	retried := 0
+	for {
+		vmnet, err := vpnkit.NewVmnet(ctx, socket)
+		if err == nil {
+			return vmnet, nil
+		}
+		sleepTime := (retried % 100) * 10 * int(time.Microsecond)
+		select {
+		case <-ctx.Done():
+			return nil, errors.Wrapf(ctx.Err(), "last error: %v", err)
+		case <-time.After(time.Duration(sleepTime)):
+		}
+		retried++
+	}
 }
 
 func prepareTap(pid int, tap string) error {

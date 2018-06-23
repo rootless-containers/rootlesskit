@@ -2,10 +2,46 @@
 
 
 [[projects]]
+  name = "github.com/Microsoft/go-winio"
+  packages = ["."]
+  revision = "7da180ee92d8bd8bb8c37fc560e673e6557c392f"
+  version = "v0.4.7"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/docker/go-p9p"
+  packages = ["."]
+  revision = "64abb42af527ed0dacbef777a5dbe36e3b1147f0"
+
+[[projects]]
+  name = "github.com/google/uuid"
+  packages = ["."]
+  revision = "064e2069ce9c359c118179501254f67d7d37ba24"
+  version = "0.2"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/jamescun/tuntap"
+  packages = ["."]
+  revision = "434f1022c06e56e7e283a2dbe05b1481201fb5fe"
+
+[[projects]]
+  name = "github.com/moby/datakit"
+  packages = ["api/go-datakit"]
+  revision = "857df397f139d293a698047c136756b7b5ec2bb2"
+  version = "0.12.1"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/moby/vpnkit"
+  packages = ["go/pkg/vpnkit"]
+  revision = "2d23d332c2232cbde1f9d0243e29b5635092de13"
+
+[[projects]]
   branch = "master"
   name = "github.com/opencontainers/runc"
   packages = ["libcontainer/user"]
-  revision = "ecd55a4135e0a26de884ce436442914f945b1e76"
+  revision = "ad0f5255060d36872be04de22f8731f38ef2d7b1"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -29,7 +65,7 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
-  revision = "ab813273cd59e1333f7ae7bff5d027d4aadf528c"
+  revision = "a49355c7e3f8fe157a85be2f77e6e269a0f89602"
 
 [[projects]]
   branch = "master"
@@ -38,11 +74,11 @@
     "unix",
     "windows"
   ]
-  revision = "c11f84a56e43e20a78cee75a7c034031ecf57d1f"
+  revision = "63fc586f45fe72d95d5240a5d5eb95e6503907d3"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "80d3cc9d0315b3ff91194968f6ebcc5241fb0af4ff3b298a51333d233395f088"
+  inputs-digest = "171f4cb02e03d42ac7412b9beaf4ce6895c503e7156086c20b9696ccec853cc4"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -5,6 +5,7 @@ type NetworkMode int
 const (
 	HostNetwork NetworkMode = iota
 	VDEPlugSlirp
+	VPNKit
 )
 
 func Seq(fns []func() error) func() error {
