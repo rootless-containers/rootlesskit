@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"syscall"
 
@@ -73,28 +72,17 @@ func createCmd(targetCmd []string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func activateTap(tap, ip string, netmask int, gateway, dns string) (func() error, error) {
-	var cleanups []func() error
-	tempDir, err := ioutil.TempDir("", "rootlesskit-dns")
-	if err != nil {
-		return common.Seq(cleanups), errors.Wrapf(err, "creating %s", tempDir)
-	}
-	cleanups = append(cleanups, func() error { return os.RemoveAll(tempDir) })
-	resolvConf := filepath.Join(tempDir, "resolv.conf")
-	if err := ioutil.WriteFile(resolvConf, []byte("nameserver "+dns), 0644); err != nil {
-		return common.Seq(cleanups), errors.Wrapf(err, "writing %s", resolvConf)
-	}
+func activateTap(tap, ip string, netmask int, gateway string) error {
 	// TODO: use netlink
 	cmds := [][]string{
 		{"ip", "link", "set", tap, "up"},
 		{"ip", "addr", "add", ip + "/" + strconv.Itoa(netmask), "dev", tap},
 		{"ip", "route", "add", "default", "via", gateway, "dev", tap},
-		{"mount", "--bind", resolvConf, "/etc/resolv.conf"},
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-		return common.Seq(cleanups), errors.Wrapf(err, "executing %v", cmds)
+		return errors.Wrapf(err, "executing %v", cmds)
 	}
-	return common.Seq(cleanups), nil
+	return nil
 }
 
 func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (string, error) {
@@ -154,9 +142,9 @@ func vif2tap(w io.Writer, vif *vpnkit.Vif) {
 	}
 }
 
-func setupNet(msg *common.Message) (func() error, error) {
+func setupNet(msg *common.Message, tempDir string) error {
 	if msg.NetworkMode == common.HostNetwork {
-		return common.Seq(nil), nil
+		return nil
 	}
 	tap := ""
 	switch msg.NetworkMode {
@@ -169,21 +157,21 @@ func setupNet(msg *common.Message) (func() error, error) {
 			msg.VPNKitSocket,
 			msg.VPNKitUUID)
 		if err != nil {
-			return common.Seq(nil), err
+			return err
 		}
 	default:
-		return common.Seq(nil), errors.Errorf("invalid network mode: %+v", msg.NetworkMode)
+		return errors.Errorf("invalid network mode: %+v", msg.NetworkMode)
 	}
 	if tap == "" {
-		return common.Seq(nil), errors.New("empty tap")
+		return errors.New("empty tap")
 	}
-	var cleanups []func() error
-	tapCleanup, err := activateTap(tap, msg.IP, msg.Netmask, msg.Gateway, msg.DNS)
-	cleanups = append(cleanups, tapCleanup)
-	if err != nil {
-		return common.Seq(cleanups), err
+	if err := activateTap(tap, msg.IP, msg.Netmask, msg.Gateway); err != nil {
+		return err
 	}
-	return common.Seq(cleanups), nil
+	if err := mountResolvConf(tempDir, msg.DNS); err != nil {
+		return err
+	}
+	return nil
 }
 
 func Child(pipeFDEnvKey string, targetCmd []string) error {
@@ -192,14 +180,17 @@ func Child(pipeFDEnvKey string, targetCmd []string) error {
 		return errors.Errorf("%s is not set", pipeFDEnvKey)
 	}
 	os.Unsetenv(pipeFDEnvKey)
+	tempDir, err := ioutil.TempDir("", "rootlesskit-child")
+	if err != nil {
+		return errors.Wrap(err, "creating temp dir")
+	}
+	defer os.RemoveAll(tempDir)
 	msg, err := waitForParentSync(pipeFDStr)
 	if err != nil {
 		return err
 	}
 	logrus.Debugf("child: got msg from parent: %+v", msg)
-	cleanupNet, err := setupNet(msg)
-	defer cleanupNet()
-	if err != nil {
+	if err := setupNet(msg, tempDir); err != nil {
 		return err
 	}
 	cmd, err := createCmd(targetCmd)
