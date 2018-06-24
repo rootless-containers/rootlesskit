@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/moby/vpnkit/go/pkg/vpnkit"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	"github.com/AkihiroSuda/rootlesskit/pkg/common"
 )
@@ -30,17 +31,29 @@ func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
 		return common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)
 	}
 	slirpCtx, slirpCancel := context.WithCancel(context.Background())
-	cleanups = append(cleanups, func() error { slirpCancel(); return nil })
 	slirpCmd := exec.CommandContext(slirpCtx, "vde_plug", "vxvde://", "slirp://")
+	cleanups = append(cleanups, func() error {
+		logrus.Debugf("killing vde_plug(slirp)")
+		slirpCancel()
+		wErr := slirpCmd.Wait()
+		logrus.Debugf("killed vde_plug(slirp): %v", wErr)
+		return nil
+	})
 	if err := slirpCmd.Start(); err != nil {
 		return common.Seq(cleanups), errors.Wrapf(err, "executing %v", slirpCmd)
 	}
 
 	tapCtx, tapCancel := context.WithCancel(context.Background())
-	cleanups = append(cleanups, func() error { tapCancel(); return nil })
 	tapCmd := exec.CommandContext(tapCtx, "vde_plug", "vxvde://",
 		"=", "nsenter", "--", "-t", strconv.Itoa(pid), "-n", "-U", "--preserve-credentials",
 		"vde_plug", "tap://"+tap)
+	cleanups = append(cleanups, func() error {
+		logrus.Debugf("killing vde_plug(tap)")
+		tapCancel()
+		wErr := tapCmd.Wait()
+		logrus.Debugf("killed vde_plug(tap): %v", wErr)
+		return nil
+	})
 	if err := tapCmd.Start(); err != nil {
 		return common.Seq(cleanups), errors.Wrapf(err, "executing %v", tapCmd)
 	}
@@ -62,8 +75,14 @@ func setupVPNKit(pid int, msg *common.Message) (func() error, error) {
 	cleanups = append(cleanups, func() error { return os.RemoveAll(tempDir) })
 	vpnkitSocket := filepath.Join(tempDir, "socket")
 	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())
-	cleanups = append(cleanups, func() error { vpnkitCancel(); return nil })
 	vpnkitCmd := exec.CommandContext(vpnkitCtx, "vpnkit", "--ethernet", vpnkitSocket)
+	cleanups = append(cleanups, func() error {
+		logrus.Debugf("killing vpnkit")
+		vpnkitCancel()
+		wErr := vpnkitCmd.Wait()
+		logrus.Debugf("killed vpnkit: %v", wErr)
+		return nil
+	})
 	if err := vpnkitCmd.Start(); err != nil {
 		return common.Seq(cleanups), errors.Wrapf(err, "executing %v", vpnkitCmd)
 	}
