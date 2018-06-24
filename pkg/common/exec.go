@@ -35,6 +35,9 @@ func Execs(o io.Writer, env []string, cmds [][]string) error {
 		x.Stdout = o
 		x.Stderr = o
 		x.Env = env
+		x.SysProcAttr = &syscall.SysProcAttr{
+			Pdeathsig: syscall.SIGKILL,
+		}
 		if err := x.Run(); err != nil {
 			return err
 		}

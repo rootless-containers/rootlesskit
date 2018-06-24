@@ -29,6 +29,7 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	}
 	cmd := exec.Command("/proc/self/exe", os.Args[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig:    syscall.SIGKILL,
 		Cloneflags:   syscall.CLONE_NEWUSER,
 		Unshareflags: syscall.CLONE_NEWNS,
 	}

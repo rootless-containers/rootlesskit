@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,6 +33,9 @@ func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
 	}
 	slirpCtx, slirpCancel := context.WithCancel(context.Background())
 	slirpCmd := exec.CommandContext(slirpCtx, "vde_plug", "vxvde://", "slirp://")
+	slirpCmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig: syscall.SIGKILL,
+	}
 	cleanups = append(cleanups, func() error {
 		logrus.Debugf("killing vde_plug(slirp)")
 		slirpCancel()
@@ -47,6 +51,9 @@ func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
 	tapCmd := exec.CommandContext(tapCtx, "vde_plug", "vxvde://",
 		"=", "nsenter", "--", "-t", strconv.Itoa(pid), "-n", "-U", "--preserve-credentials",
 		"vde_plug", "tap://"+tap)
+	tapCmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig: syscall.SIGKILL,
+	}
 	cleanups = append(cleanups, func() error {
 		logrus.Debugf("killing vde_plug(tap)")
 		tapCancel()
@@ -76,6 +83,9 @@ func setupVPNKit(pid int, msg *common.Message) (func() error, error) {
 	vpnkitSocket := filepath.Join(tempDir, "socket")
 	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())
 	vpnkitCmd := exec.CommandContext(vpnkitCtx, "vpnkit", "--ethernet", vpnkitSocket)
+	vpnkitCmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig: syscall.SIGKILL,
+	}
 	cleanups = append(cleanups, func() error {
 		logrus.Debugf("killing vpnkit")
 		vpnkitCancel()
