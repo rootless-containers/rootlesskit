@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -30,6 +31,11 @@ func main() {
 			Name:  "net",
 			Usage: "host, vdeplug_slirp, vpnkit",
 			Value: "host",
+		},
+		cli.StringFlag{
+			Name:  "vpnkit-binary",
+			Usage: "path of VPNKit binary for --net=vpnkit",
+			Value: "vpnkit",
 		},
 	}
 	app.Before = func(context *cli.Context) error {
@@ -88,6 +94,10 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 	var err error
 	opt.NetworkMode, err = parseNetworkMode(clicontext.String("net"))
 	if err != nil {
+		return nil, err
+	}
+	opt.VPNKit.Binary = clicontext.String("vpnkit-binary")
+	if _, err := exec.LookPath(opt.VPNKit.Binary); err != nil {
 		return nil, err
 	}
 	return opt, nil

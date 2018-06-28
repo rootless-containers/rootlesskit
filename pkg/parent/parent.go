@@ -17,6 +17,11 @@ import (
 
 type Opt struct {
 	common.NetworkMode
+	VPNKit VPNKitOpt
+}
+
+type VPNKitOpt struct {
+	Binary string
 }
 
 func Parent(pipeFDEnvKey string, opt *Opt) error {
@@ -58,7 +63,7 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 			return errors.Wrap(err, "failed to setup vdeplug_slirp")
 		}
 	case common.VPNKit:
-		cleanupVPNKit, err := setupVPNKit(cmd.Process.Pid, &msg)
+		cleanupVPNKit, err := setupVPNKit(cmd.Process.Pid, &msg, opt.VPNKit)
 		defer cleanupVPNKit()
 		if err != nil {
 			return errors.Wrap(err, "failed to setup vpnkit")

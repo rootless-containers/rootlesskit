@@ -73,7 +73,10 @@ func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
 	return common.Seq(cleanups), nil
 }
 
-func setupVPNKit(pid int, msg *common.Message) (func() error, error) {
+func setupVPNKit(pid int, msg *common.Message, vo VPNKitOpt) (func() error, error) {
+	if vo.Binary == "" {
+		vo.Binary = "vpnkit"
+	}
 	var cleanups []func() error
 	tempDir, err := ioutil.TempDir("", "rootlesskit-vpnkit")
 	if err != nil {
@@ -82,7 +85,7 @@ func setupVPNKit(pid int, msg *common.Message) (func() error, error) {
 	cleanups = append(cleanups, func() error { return os.RemoveAll(tempDir) })
 	vpnkitSocket := filepath.Join(tempDir, "socket")
 	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())
-	vpnkitCmd := exec.CommandContext(vpnkitCtx, "vpnkit", "--ethernet", vpnkitSocket)
+	vpnkitCmd := exec.CommandContext(vpnkitCtx, vo.Binary, "--ethernet", vpnkitSocket)
 	vpnkitCmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
