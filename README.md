@@ -52,6 +52,7 @@ touch: cannot touch '/note_that_you_are_not_real_root': Permission denied
 Remarks:
 * Port forwarding is not supported yet
 * ICMP (ping) is not supported
+* Specifying `--copy-up=/etc` is highly recommended unless `/etc/resolv.conf` is statically configured. Otherwise `/etc/resolv.conf` will be invalidated when it is recreated on the host.
 
 Currently there are two slirp implementations supported by rootlesskit:
 * `--net=vpnkit`, using [VPNKit](https://github.com/moby/vpnkit) (Recommended)
@@ -60,7 +61,7 @@ Currently there are two slirp implementations supported by rootlesskit:
 Usage:
 
 ```console
-$ rootlesskit --net=vpnkit bash
+$ rootlesskit --net=vpnkit --copy-up=/etc bash
 rootlesskit# ip a
 1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00

@@ -37,6 +37,15 @@ func main() {
 			Usage: "path of VPNKit binary for --net=vpnkit",
 			Value: "vpnkit",
 		},
+		cli.StringSliceFlag{
+			Name:  "copy-up",
+			Usage: "Mount a filesystem and copy-up the contents. e.g. \"--tmpfs-copy-up=/etc\" (typically required for non-host network)",
+		},
+		cli.StringFlag{
+			Name:  "copy-up-mode",
+			Usage: "tmpfs+symlink",
+			Value: "tmpfs+symlink",
+		},
 	}
 	app.Before = func(context *cli.Context) error {
 		if debug {
@@ -88,6 +97,14 @@ func parseNetworkMode(s string) (common.NetworkMode, error) {
 		return -1, errors.Errorf("unknown network mode: %s", s)
 	}
 }
+func parseCopyUpMode(s string) (common.CopyUpMode, error) {
+	switch s {
+	case "tmpfs+symlink":
+		return common.TmpfsWithSymlinkCopyUp, nil
+	default:
+		return -1, errors.Errorf("unknown tmpfs copy-up mode: %s", s)
+	}
+}
 
 func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 	opt := &parent.Opt{}
@@ -100,5 +117,10 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 	if _, err := exec.LookPath(opt.VPNKit.Binary); err != nil {
 		return nil, err
 	}
+	opt.CopyUpMode, err = parseCopyUpMode(clicontext.String("copy-up-mode"))
+	if err != nil {
+		return nil, err
+	}
+	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
 	return opt, nil
 }

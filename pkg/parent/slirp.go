@@ -24,7 +24,6 @@ import (
 // For avoiding LGPL infection, slirp is called via vde_plug binary.
 // TODO:
 //  * support port forwarding
-//  * use netlink
 func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
 	tap := "tap0"
 	var cleanups []func() error

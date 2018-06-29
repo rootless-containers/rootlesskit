@@ -3,6 +3,7 @@ package common
 // Message is sent from the parent to the child
 // as JSON, with uint32le length header.
 type Message struct {
+	// Network settings
 	NetworkMode
 	IP           string
 	Netmask      int
@@ -12,4 +13,7 @@ type Message struct {
 	VPNKitMAC    string
 	VPNKitSocket string
 	VPNKitUUID   string
+	// CopyUp settings
+	CopyUpMode
+	CopyUpDirs []string
 }

@@ -10,44 +10,34 @@ import (
 	"github.com/AkihiroSuda/rootlesskit/pkg/common"
 )
 
-func mountResolvConf(tempDir, dns string) error {
-	myResolvConf := filepath.Join(tempDir, "resolv.conf")
-	if err := ioutil.WriteFile(myResolvConf, []byte("nameserver "+dns+"\n"), 0644); err != nil {
-		return errors.Wrapf(err, "writing %s", myResolvConf)
-	}
-	hostResolvConf, err := filepath.EvalSymlinks("/etc/resolv.conf")
-	if err != nil {
-		return errors.Wrap(err, "evaluating /etc/resolv.conf on the initial namespace")
-	}
-	if filepath.Dir(hostResolvConf) == "/run/systemd/resolve" {
-		return mountResolvConfWithSystemdHack(myResolvConf, hostResolvConf)
-	}
-	return mountResolvConfWithoutSystemdHack(myResolvConf, hostResolvConf)
+func generateResolvConf(dns string) []byte {
+	return []byte("nameserver " + dns + "\n")
 }
 
-func mountResolvConfWithoutSystemdHack(myResolvConf, hostResolvConf string) error {
-	cmds := [][]string{
-		{"mount", "--bind", myResolvConf, "/etc/resolv.conf"},
-	}
-	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-		return errors.Wrapf(err, "executing %v", cmds)
+func writeResolvConf(dns string) error {
+	// remove copied-up link
+	_ = os.Remove("/etc/resolv.conf")
+	if err := ioutil.WriteFile("/etc/resolv.conf", generateResolvConf(dns), 0644); err != nil {
+		return errors.Wrapf(err, "writing %s", "/etc/resolv.conf")
 	}
 	return nil
 }
 
-// mountResolvConfWithSystemdHack mounts resolv.conf with systemd-specific hack.
+// mountResolvConf does not work when /etc/resolv.conf is a managed by
+// systemd or NetworkManager, because our bind-mounted /etc/resolv.conf (in our namespaces)
+// is unexpectedly unmounted when /etc/resolv.conf is recreated in the initial initial namespace.
 //
-// When /etc/resolv.conf is a symlink to ../run/systemd/resolve/stub-resolv.conf,
-// our bind-mounted /etc/resolv.conf (in our namespaces) is unexpectedly unmounted
-// when /run/systemd/resolve/stub-resolv.conf is recreated.
+// If /etc/resolv.conf is a symlink, e.g. to ../run/systemd/resolve/stub-resolv.conf,
+// our bind-mounted /etc/resolv.conf is still unmounted when /run/systemd/resolve/stub-resolv.conf is recreated.
 //
-// So we mask /run/systemd/resolve using tmpfs.
-// See https://github.com/AkihiroSuda/rootlesskit/issues/4
-func mountResolvConfWithSystemdHack(myResolvConf, hostResolvConf string) error {
+// Use writeResolvConf with copying-up /etc for most cases.
+func mountResolvConf(tempDir, dns string) error {
+	myResolvConf := filepath.Join(tempDir, "resolv.conf")
+	if err := ioutil.WriteFile(myResolvConf, generateResolvConf(dns), 0644); err != nil {
+		return errors.Wrapf(err, "writing %s", myResolvConf)
+	}
 	cmds := [][]string{
-		{"mount", "-t", "tmpfs", "none", filepath.Dir(hostResolvConf)},
-		{"touch", hostResolvConf},
-		{"mount", "--bind", myResolvConf, hostResolvConf},
+		{"mount", "--bind", myResolvConf, "/etc/resolv.conf"},
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
 		return errors.Wrapf(err, "executing %v", cmds)

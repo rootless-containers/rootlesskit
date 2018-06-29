@@ -6,6 +6,7 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 func GetExecExitStatus(err error) (int, bool) {
@@ -38,6 +39,7 @@ func Execs(o io.Writer, env []string, cmds [][]string) error {
 		x.SysProcAttr = &syscall.SysProcAttr{
 			Pdeathsig: syscall.SIGKILL,
 		}
+		logrus.Debugf("executing %v", cmd)
 		if err := x.Run(); err != nil {
 			return err
 		}

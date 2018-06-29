@@ -18,6 +18,8 @@ import (
 type Opt struct {
 	common.NetworkMode
 	VPNKit VPNKitOpt
+	common.CopyUpMode
+	CopyUpDirs []string
 }
 
 type VPNKitOpt struct {
@@ -54,6 +56,8 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	}
 	msg := common.Message{
 		NetworkMode: opt.NetworkMode,
+		CopyUpMode:  opt.CopyUpMode,
+		CopyUpDirs:  opt.CopyUpDirs,
 	}
 	switch opt.NetworkMode {
 	case common.VDEPlugSlirp:

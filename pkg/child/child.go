@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"syscall"
 
@@ -73,7 +74,6 @@ func createCmd(targetCmd []string) (*exec.Cmd, error) {
 }
 
 func activateTap(tap, ip string, netmask int, gateway string) error {
-	// TODO: use netlink
 	cmds := [][]string{
 		{"ip", "link", "set", tap, "up"},
 		{"ip", "addr", "add", ip + "/" + strconv.Itoa(netmask), "dev", tap},
@@ -142,7 +142,7 @@ func vif2tap(w io.Writer, vif *vpnkit.Vif) {
 	}
 }
 
-func setupNet(msg *common.Message, tempDir string) error {
+func setupNet(msg *common.Message, tempDir string, etcWasCopied bool) error {
 	if msg.NetworkMode == common.HostNetwork {
 		return nil
 	}
@@ -168,10 +168,76 @@ func setupNet(msg *common.Message, tempDir string) error {
 	if err := activateTap(tap, msg.IP, msg.Netmask, msg.Gateway); err != nil {
 		return err
 	}
-	if err := mountResolvConf(tempDir, msg.DNS); err != nil {
-		return err
+	if etcWasCopied {
+		if err := writeResolvConf(msg.DNS); err != nil {
+			return err
+		}
+	} else {
+		logrus.Warn("Mounting /etc/resolv.conf without copying-up /etc. " +
+			"Note that /etc/resolv.conf in the namespace will be unmounted when it is recreated on the host. " +
+			"Unless /etc/resolv.conf is statically configured, copying-up /etc is highly recommended. " +
+			"Please refer to RootlessKit documentation for further information.")
+		if err := mountResolvConf(tempDir, msg.DNS); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+func setupCopyUp(msg *common.Message, tempDir string) ([]string, error) {
+	switch msg.CopyUpMode {
+	case common.TmpfsWithSymlinkCopyUp:
+	default:
+		return nil, errors.Errorf("invalid copy-up mode: %+v", msg.CopyUpMode)
+	}
+	var copied []string
+	for _, d := range msg.CopyUpDirs {
+		d := filepath.Clean(d)
+		bind0, err := ioutil.TempDir(tempDir, "bind")
+		if err != nil {
+			return copied, errors.Wrapf(err, "creating a directory under %s", tempDir)
+		}
+		cmds := [][]string{
+			// TODO: read-only bind (does not work well for /run)
+			{"mount", "--rbind", d, bind0},
+			{"mount", "-n", "-t", "tmpfs", "none", d},
+		}
+		if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
+			return copied, errors.Wrapf(err, "executing %v", cmds)
+		}
+		bind1, err := ioutil.TempDir(d, ".ro")
+		if err != nil {
+			return copied, errors.Wrapf(err, "creating a directory under %s", d)
+		}
+		cmds = [][]string{
+			{"mount", "-n", "--move", bind0, bind1},
+		}
+		if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
+			return copied, errors.Wrapf(err, "executing %v", cmds)
+		}
+		files, err := ioutil.ReadDir(bind1)
+		if err != nil {
+			return copied, errors.Wrapf(err, "reading dir %s", bind1)
+		}
+		for _, f := range files {
+			fFull := filepath.Join(bind1, f.Name())
+			var symlinkSrc string
+			if f.Mode()&os.ModeSymlink != 0 {
+				symlinkSrc, err = os.Readlink(fFull)
+				if err != nil {
+					return copied, errors.Wrapf(err, "reading dir %s", fFull)
+				}
+			} else {
+				symlinkSrc = filepath.Join(filepath.Base(bind1), f.Name())
+			}
+			symlinkDst := filepath.Join(d, f.Name())
+			if err := os.Symlink(symlinkSrc, symlinkDst); err != nil {
+				return copied, errors.Wrapf(err, "symlinking %s to %s", symlinkSrc, symlinkDst)
+			}
+		}
+		copied = append(copied, d)
+	}
+	return copied, nil
 }
 
 func Child(pipeFDEnvKey string, targetCmd []string) error {
@@ -190,7 +256,18 @@ func Child(pipeFDEnvKey string, targetCmd []string) error {
 		return err
 	}
 	logrus.Debugf("child: got msg from parent: %+v", msg)
-	if err := setupNet(msg, tempDir); err != nil {
+	copied, err := setupCopyUp(msg, tempDir)
+	if err != nil {
+		return err
+	}
+	etcWasCopied := false
+	for _, d := range copied {
+		if d == "/etc" {
+			etcWasCopied = true
+			break
+		}
+	}
+	if err := setupNet(msg, tempDir, etcWasCopied); err != nil {
 		return err
 	}
 	cmd, err := createCmd(targetCmd)
