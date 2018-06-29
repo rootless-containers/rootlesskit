@@ -54,43 +54,60 @@ Remarks:
 * ICMP (ping) is not supported
 
 Currently there are two slirp implementations supported by rootlesskit:
-* [vdeplug_slirp](#vdeplug_slirp)
-* [VPNKit](#vpnkit)
+* `--net=vpnkit`, using [VPNKit](https://github.com/moby/vpnkit) (Recommended)
+* `--net=vdeplug_slirp`, using [vdeplug_slirp](https://github.com/rd235/vdeplug_slirp)
 
-### vdeplug_slirp
-Dependencies:
+Usage:
+
+```console
+$ rootlesskit --net=vpnkit bash
+rootlesskit# ip a
+1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 02:50:00:00:00:01 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.65.3/24 scope global tap0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::50:ff:fe00:1/64 scope link tentative
+       valid_lft forever preferred_lft forever
+rootlesskit$ ip r
+default via 192.168.65.1 dev tap0
+192.168.65.0/24 dev tap0 proto kernel scope link src 192.168.65.3
+rootlesskit$ cat /etc/resolv.conf 
+nameserver 192.168.65.1
+rootlesskit$ curl https://www.google.com
+<!doctype html><html ...>...</html>
+```
+
+Default network configuration for `--net=vpnkit`:
+* IP: 192.168.65.3/24
+* Gateway: 192.168.65.1
+* DNS: 192.168.65.1
+* Host: 192.168.65.2
+
+Default network configuration for `--net=vdeplug_slirp`:
+* IP: 10.0.2.100/24
+* Gateway: 10.0.2.2
+* DNS: 10.0.2.3
+* Host: 10.0.2.2, 10.0.2.3
+
+### Annex: how to install `--net=vpnkit`
+
+See also https://github.com/moby/vpnkit
+
+```console
+$ git checkout https://github.com/moby/vpnkit.git
+$ cd vpnkit
+$ make
+$ cp vpnkit.exe ~/bin
+```
+
+### Annex: how to install `--net=vdeplug_slirp`
+
+You need to install the following components:
+
 * https://github.com/rd235/s2argv-execs
 * https://github.com/rd235/vdeplug4 (depends on `s2argv-execs`)
 * https://github.com/rd235/libslirp
 * https://github.com/rd235/vdeplug_slirp (depends on `vdeplug4` and `libslirp`)
 
-Usage:
-
-```
-$ rootlesskit --net=vdeplug_slirp bash
-rootlesskit$ ip a
-1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-2: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
-    link/ether da:67:9b:30:19:b9 brd ff:ff:ff:ff:ff:ff
-    inet 10.0.2.100/24 scope global tap0
-       valid_lft forever preferred_lft forever
-    inet6 fe80::d867:9bff:fe30:19b9/64 scope link 
-       valid_lft forever preferred_lft forever
-rootlesskit$ ip route
-default via 10.0.2.2 dev tap0 
-10.0.2.0/24 dev tap0 proto kernel scope link src 10.0.2.100 
-rootlesskit$ cat /etc/resolv.conf 
-nameserver 10.0.2.3
-```
-
-### VPNKit
-Dependencies:
-* https://github.com/moby/vpnkit
-
-Usage:
-
-```
-$ rootlesskit --net=vpnkit bash
-...
-```
