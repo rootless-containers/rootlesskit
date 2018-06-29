@@ -31,8 +31,15 @@ func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
 	if err := prepareTap(pid, tap); err != nil {
 		return common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)
 	}
+	tempDir, err := ioutil.TempDir("", "rootlesskit-vdeplug-slirp")
+	if err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "creating %s", tempDir)
+	}
+	cleanups = append(cleanups, func() error { return os.RemoveAll(tempDir) })
+	socket := filepath.Join(tempDir, "socket")
+	socketURL := "ptp://" + socket
 	slirpCtx, slirpCancel := context.WithCancel(context.Background())
-	slirpCmd := exec.CommandContext(slirpCtx, "vde_plug", "vxvde://", "slirp://")
+	slirpCmd := exec.CommandContext(slirpCtx, "vde_plug", "slirp://", socketURL)
 	slirpCmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
@@ -48,7 +55,7 @@ func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
 	}
 
 	tapCtx, tapCancel := context.WithCancel(context.Background())
-	tapCmd := exec.CommandContext(tapCtx, "vde_plug", "vxvde://",
+	tapCmd := exec.CommandContext(tapCtx, "vde_plug", socketURL,
 		"=", "nsenter", "--", "-t", strconv.Itoa(pid), "-n", "-U", "--preserve-credentials",
 		"vde_plug", "tap://"+tap)
 	tapCmd.SysProcAttr = &syscall.SysProcAttr{
