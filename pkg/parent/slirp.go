@@ -2,7 +2,6 @@ package parent
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,12 +29,7 @@ func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
 	if err := prepareTap(pid, tap); err != nil {
 		return common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)
 	}
-	tempDir, err := ioutil.TempDir("", "rootlesskit-vdeplug-slirp")
-	if err != nil {
-		return common.Seq(cleanups), errors.Wrapf(err, "creating %s", tempDir)
-	}
-	cleanups = append(cleanups, func() error { return os.RemoveAll(tempDir) })
-	socket := filepath.Join(tempDir, "socket")
+	socket := filepath.Join(msg.StateDir, "vdeplug-ptp.sock")
 	socketURL := "ptp://" + socket
 	slirpCtx, slirpCancel := context.WithCancel(context.Background())
 	slirpCmd := exec.CommandContext(slirpCtx, "vde_plug", "slirp://", socketURL)
@@ -84,12 +78,7 @@ func setupVPNKit(pid int, msg *common.Message, vo VPNKitOpt) (func() error, erro
 		vo.Binary = "vpnkit"
 	}
 	var cleanups []func() error
-	tempDir, err := ioutil.TempDir("", "rootlesskit-vpnkit")
-	if err != nil {
-		return common.Seq(cleanups), errors.Wrapf(err, "creating %s", tempDir)
-	}
-	cleanups = append(cleanups, func() error { return os.RemoveAll(tempDir) })
-	vpnkitSocket := filepath.Join(tempDir, "socket")
+	vpnkitSocket := filepath.Join(msg.StateDir, "vpnkit-ethernet.sock")
 	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())
 	vpnkitCmd := exec.CommandContext(vpnkitCtx, vo.Binary, "--ethernet", vpnkitSocket)
 	vpnkitCmd.SysProcAttr = &syscall.SysProcAttr{

@@ -47,11 +47,44 @@ rootlesskit$ touch /note_that_you_are_not_real_root
 touch: cannot touch '/note_that_you_are_not_real_root': Permission denied
 ```
 
+```console
+$ rootlesskit --help
+NAME:
+   rootlesskit - the gate to the rootless world
+
+USAGE:
+   rootlesskit [global options] command [command options] [arguments...]
+
+VERSION:
+   0.0.0
+
+COMMANDS:
+     help, h  Shows a list of commands or help for one command
+
+GLOBAL OPTIONS:
+   --debug                debug mode
+   --state-dir value      state directory
+   --net value            host, vdeplug_slirp, vpnkit (default: "host")
+   --vpnkit-binary value  path of VPNKit binary for --net=vpnkit (default: "vpnkit")
+   --copy-up value        mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
+   --copy-up-mode value   tmpfs+symlink (default: "tmpfs+symlink")
+   --help, -h             show help
+   --version, -v          print the version
+```
+
+
+## State directory
+
+The following files will be created in the `--state-dir` directory:
+* `lock`: lock file
+* `child_pid`: decimal PID text that can be used for `nsenter(1)`.
+
+Undocumented files are subject to change.
+
 ## Slirp
 
 Remarks:
-* Port forwarding is not supported yet
-* ICMP (ping) is not supported
+* Routing ICMP (ping) is not supported
 * Specifying `--copy-up=/etc` is highly recommended unless `/etc/resolv.conf` is statically configured. Otherwise `/etc/resolv.conf` will be invalidated when it is recreated on the host.
 
 Currently there are two slirp implementations supported by rootlesskit:
@@ -61,7 +94,7 @@ Currently there are two slirp implementations supported by rootlesskit:
 Usage:
 
 ```console
-$ rootlesskit --net=vpnkit --copy-up=/etc bash
+$ rootlesskit --state=/run/user/1001/rootlesskit/foo --net=vpnkit --copy-up=/etc bash
 rootlesskit$ ip a
 1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
@@ -92,6 +125,12 @@ Default network configuration for `--net=vdeplug_slirp`:
 * DNS: 10.0.2.3
 * Host: 10.0.2.2, 10.0.2.3
 
+Port forwarding:
+```console
+$ pid=$(cat /run/user/1001/rootlesskit/foo/child_pid)
+$ socat -t -- TCP-LISTEN:8080,reuseaddr,fork EXEC:"nsenter -U -n -t $pid socat -t -- STDIN TCP4\:127.0.0.1\:80"
+``
+
 ### Annex: how to install `--net=vpnkit`
 
 See also https://github.com/moby/vpnkit
@@ -111,4 +150,3 @@ You need to install the following components:
 * https://github.com/rd235/vdeplug4 (depends on `s2argv-execs`)
 * https://github.com/rd235/libslirp
 * https://github.com/rd235/vdeplug_slirp (depends on `vdeplug4` and `libslirp`)
-

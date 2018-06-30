@@ -56,6 +56,12 @@
   version = "v1.0.5"
 
 [[projects]]
+  name = "github.com/theckman/go-flock"
+  packages = ["."]
+  revision = "b139a2487364247d91814e4a7c7b8fdc69e342b2"
+  version = "v0.4.0"
+
+[[projects]]
   name = "github.com/urfave/cli"
   packages = ["."]
   revision = "cfb38830724cc34fedffe9a2a29fb54fa9169cd1"
@@ -79,6 +85,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "171f4cb02e03d42ac7412b9beaf4ce6895c503e7156086c20b9696ccec853cc4"
+  inputs-digest = "dd1fc09fac1d01b1cace87be609ac0b5f37adf835846e6188f92ecdbba8167c3"
   solver-name = "gps-cdcl"
   solver-version = 1

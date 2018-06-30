@@ -28,6 +28,10 @@ func main() {
 			Destination: &debug,
 		},
 		cli.StringFlag{
+			Name:  "state-dir",
+			Usage: "state directory",
+		},
+		cli.StringFlag{
 			Name:  "net",
 			Usage: "host, vdeplug_slirp, vpnkit",
 			Value: "host",
@@ -109,6 +113,7 @@ func parseCopyUpMode(s string) (common.CopyUpMode, error) {
 func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 	opt := &parent.Opt{}
 	var err error
+	opt.StateDir = clicontext.String("state-dir")
 	opt.NetworkMode, err = parseNetworkMode(clicontext.String("net"))
 	if err != nil {
 		return nil, err

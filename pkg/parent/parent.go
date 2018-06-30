@@ -4,18 +4,22 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"syscall"
 
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/pkg/errors"
+	"github.com/theckman/go-flock"
 
 	"github.com/AkihiroSuda/rootlesskit/pkg/common"
 )
 
 type Opt struct {
+	StateDir string
 	common.NetworkMode
 	VPNKit VPNKitOpt
 	common.CopyUpMode
@@ -26,10 +30,39 @@ type VPNKitOpt struct {
 	Binary string
 }
 
+// Documented state files. Undocumented ones are subject to change.
+const (
+	StateFileLock     = "lock"
+	StateFileChildPID = "child_pid" // decimal pid number text
+)
+
 func Parent(pipeFDEnvKey string, opt *Opt) error {
 	if opt == nil {
 		opt = &Opt{}
 	}
+	if opt.StateDir == "" {
+		var err error
+		opt.StateDir, err = ioutil.TempDir("", "rootlesskit")
+		if err != nil {
+			return errors.Wrap(err, "creating a state directory")
+		}
+	} else {
+		if err := os.MkdirAll(opt.StateDir, 0755); err != nil {
+			return errors.Wrapf(err, "creating a state directory %s", opt.StateDir)
+		}
+	}
+	lockPath := filepath.Join(opt.StateDir, StateFileLock)
+	lock := flock.NewFlock(lockPath)
+	locked, err := lock.TryLock()
+	if err != nil {
+		return errors.Wrapf(err, "failed to lock %s", lockPath)
+	}
+	if !locked {
+		return errors.Errorf("failed to lock %s, another RootlessKit is running with the same state directory?", lockPath)
+	}
+	defer os.RemoveAll(opt.StateDir)
+	defer lock.Unlock()
+
 	pipeR, pipeW, err := os.Pipe()
 	if err != nil {
 		return err
@@ -51,10 +84,15 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "failed to start the child")
 	}
+	childPIDPath := filepath.Join(opt.StateDir, StateFileChildPID)
+	if err := ioutil.WriteFile(childPIDPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0444); err != nil {
+		return errors.Wrapf(err, "failed to write the child PID %d to %s", cmd.Process.Pid, childPIDPath)
+	}
 	if err := setupUIDGIDMap(cmd.Process.Pid); err != nil {
 		return errors.Wrap(err, "failed to setup UID/GID map")
 	}
 	msg := common.Message{
+		StateDir:    opt.StateDir,
 		NetworkMode: opt.NetworkMode,
 		CopyUpMode:  opt.CopyUpMode,
 		CopyUpDirs:  opt.CopyUpDirs,

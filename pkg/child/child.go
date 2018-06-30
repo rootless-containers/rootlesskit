@@ -54,6 +54,9 @@ func waitForParentSync(pipeFDStr string) (*common.Message, error) {
 	if err := pipeR.Close(); err != nil {
 		return nil, errors.Wrapf(err, "failed to close fd %d", pipeFD)
 	}
+	if msg.StateDir == "" {
+		return nil, errors.New("got empty StateDir")
+	}
 	return &msg, nil
 }
 
@@ -153,7 +156,7 @@ func vif2tap(w io.Writer, vif *vpnkit.Vif) {
 	}
 }
 
-func setupNet(msg *common.Message, tempDir string, etcWasCopied bool) error {
+func setupNet(msg *common.Message, etcWasCopied bool) error {
 	if msg.NetworkMode == common.HostNetwork {
 		return nil
 	}
@@ -191,25 +194,32 @@ func setupNet(msg *common.Message, tempDir string, etcWasCopied bool) error {
 			"Note that /etc/resolv.conf in the namespace will be unmounted when it is recreated on the host. " +
 			"Unless /etc/resolv.conf is statically configured, copying-up /etc is highly recommended. " +
 			"Please refer to RootlessKit documentation for further information.")
-		if err := mountResolvConf(tempDir, msg.DNS); err != nil {
+		if err := mountResolvConf(msg.StateDir, msg.DNS); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func setupCopyUp(msg *common.Message, tempDir string) ([]string, error) {
+func setupCopyUp(msg *common.Message) ([]string, error) {
 	switch msg.CopyUpMode {
 	case common.TmpfsWithSymlinkCopyUp:
 	default:
 		return nil, errors.Errorf("invalid copy-up mode: %+v", msg.CopyUpMode)
 	}
+	// we create bind0 outside of msg.StateDir so as to allow
+	// copying up /run with stateDir=/run/user/1001/rootlesskit/default.
+	bind0, err := ioutil.TempDir("/tmp", "rootlesskit-b")
+	if err != nil {
+		return nil, errors.Wrap(err, "creating bind0 directory under /tmp")
+	}
+	defer os.RemoveAll(bind0)
 	var copied []string
 	for _, d := range msg.CopyUpDirs {
 		d := filepath.Clean(d)
-		bind0, err := ioutil.TempDir(tempDir, "bind")
-		if err != nil {
-			return copied, errors.Wrapf(err, "creating a directory under %s", tempDir)
+		if d == "/tmp" {
+			// TODO: we can support copy-up /tmp by changing bind0TempDir
+			return copied, errors.New("/tmp cannot be copied up")
 		}
 		cmds := [][]string{
 			// TODO: read-only bind (does not work well for /run)
@@ -260,17 +270,12 @@ func Child(pipeFDEnvKey string, targetCmd []string) error {
 		return errors.Errorf("%s is not set", pipeFDEnvKey)
 	}
 	os.Unsetenv(pipeFDEnvKey)
-	tempDir, err := ioutil.TempDir("", "rootlesskit-child")
-	if err != nil {
-		return errors.Wrap(err, "creating temp dir")
-	}
-	defer os.RemoveAll(tempDir)
 	msg, err := waitForParentSync(pipeFDStr)
 	if err != nil {
 		return err
 	}
 	logrus.Debugf("child: got msg from parent: %+v", msg)
-	copied, err := setupCopyUp(msg, tempDir)
+	copied, err := setupCopyUp(msg)
 	if err != nil {
 		return err
 	}
@@ -281,7 +286,7 @@ func Child(pipeFDEnvKey string, targetCmd []string) error {
 			break
 		}
 	}
-	if err := setupNet(msg, tempDir, etcWasCopied); err != nil {
+	if err := setupNet(msg, etcWasCopied); err != nil {
 		return err
 	}
 	cmd, err := createCmd(targetCmd)
