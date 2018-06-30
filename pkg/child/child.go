@@ -76,6 +76,25 @@ func createCmd(targetCmd []string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
+// mountSysfs is needed for mounting /sys/class/net
+// when netns is unshared.
+func mountSysfs() error {
+	tmp, err := ioutil.TempDir("/tmp", "rksys")
+	if err != nil {
+		return errors.Wrap(err, "creating a directory under /tmp")
+	}
+	defer os.RemoveAll(tmp)
+	cmds := [][]string{
+		{"mount", "--rbind", "/sys/fs/cgroup", tmp},
+		{"mount", "-t", "sysfs", "none", "/sys"},
+		{"mount", "-n", "--move", tmp, "/sys/fs/cgroup"},
+	}
+	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
+		return errors.Wrapf(err, "executing %v", cmds)
+	}
+	return nil
+}
+
 func activateLoopback() error {
 	cmds := [][]string{
 		{"ip", "link", "set", "lo", "up"},
@@ -159,6 +178,10 @@ func vif2tap(w io.Writer, vif *vpnkit.Vif) {
 func setupNet(msg *common.Message, etcWasCopied bool) error {
 	if msg.NetworkMode == common.HostNetwork {
 		return nil
+	}
+	// for /sys/class/net
+	if err := mountSysfs(); err != nil {
+		return err
 	}
 	if err := activateLoopback(); err != nil {
 		return err
