@@ -73,6 +73,16 @@ func createCmd(targetCmd []string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
+func activateLoopback() error {
+	cmds := [][]string{
+		{"ip", "link", "set", "lo", "up"},
+	}
+	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
+		return errors.Wrapf(err, "executing %v", cmds)
+	}
+	return nil
+}
+
 func activateTap(tap, ip string, netmask int, gateway string) error {
 	cmds := [][]string{
 		{"ip", "link", "set", tap, "up"},
@@ -146,6 +156,9 @@ func vif2tap(w io.Writer, vif *vpnkit.Vif) {
 func setupNet(msg *common.Message, tempDir string, etcWasCopied bool) error {
 	if msg.NetworkMode == common.HostNetwork {
 		return nil
+	}
+	if err := activateLoopback(); err != nil {
+		return err
 	}
 	tap := ""
 	switch msg.NetworkMode {
