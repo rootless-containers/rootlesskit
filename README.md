@@ -129,7 +129,7 @@ Port forwarding:
 ```console
 $ pid=$(cat /run/user/1001/rootlesskit/foo/child_pid)
 $ socat -t -- TCP-LISTEN:8080,reuseaddr,fork EXEC:"nsenter -U -n -t $pid socat -t -- STDIN TCP4\:127.0.0.1\:80"
-``
+```
 
 ### Annex: how to install `--net=vpnkit`
 
