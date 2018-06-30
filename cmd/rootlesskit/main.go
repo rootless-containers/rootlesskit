@@ -39,7 +39,7 @@ func main() {
 		},
 		cli.StringSliceFlag{
 			Name:  "copy-up",
-			Usage: "Mount a filesystem and copy-up the contents. e.g. \"--tmpfs-copy-up=/etc\" (typically required for non-host network)",
+			Usage: "mount a filesystem and copy-up the contents. e.g. \"--copy-up=/etc\" (typically required for non-host network)",
 		},
 		cli.StringFlag{
 			Name:  "copy-up-mode",

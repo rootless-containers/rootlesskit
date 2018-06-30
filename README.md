@@ -12,7 +12,7 @@ Plan:
 
 ## Setup
 
-```
+```console
 $ go get github.com/AkihiroSuda/rootlesskit/cmd/rootlesskit
 ```
 
@@ -21,7 +21,7 @@ Requirements:
 * `newuidmap` and `newgidmap` need to be installed on the host. These commands are provided by the `uidmap` package.
 * `/etc/subuid` and `/etc/subgid` should contain >= 65536 sub-IDs. e.g. `penguin:231072:65536`.
 
-```
+```console
 $ id -u
 1001
 $ grep ^$(whoami): /etc/subuid
@@ -32,7 +32,7 @@ penguin:231072:65536
 
 ## Usage
 
-```
+```console
 $ rootlesskit bash
 rootlesskit$ cat /proc/self/uid_map
          0       1001          1
@@ -62,7 +62,7 @@ Usage:
 
 ```console
 $ rootlesskit --net=vpnkit --copy-up=/etc bash
-rootlesskit# ip a
+rootlesskit$ ip a
 1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
 2: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
