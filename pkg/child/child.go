@@ -90,7 +90,6 @@ func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (s
 	cmds := [][]string{
 		{"ip", "tuntap", "add", "name", tapName, "mode", "tap"},
 		{"ip", "link", "set", tapName, "address", macStr},
-		{"ip", "link", "set", tapName, "up"},
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
 		return "", errors.Wrapf(err, "executing %v", cmds)
@@ -99,7 +98,9 @@ func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (s
 	if err != nil {
 		return "", errors.Wrapf(err, "creating tap %s", tapName)
 	}
-	logrus.Debugf("tap=%s", tap.Name())
+	if tap.Name() != tapName {
+		return "", errors.Wrapf(err, "expected %q, got %q", tapName, tap.Name())
+	}
 	vmnet, err := vpnkit.NewVmnet(ctx, socket)
 	if err != nil {
 		return "", err
