@@ -113,9 +113,11 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 	if err != nil {
 		return nil, err
 	}
-	opt.VPNKit.Binary = clicontext.String("vpnkit-binary")
-	if _, err := exec.LookPath(opt.VPNKit.Binary); err != nil {
-		return nil, err
+	if opt.NetworkMode == common.VPNKit {
+		opt.VPNKit.Binary = clicontext.String("vpnkit-binary")
+		if _, err := exec.LookPath(opt.VPNKit.Binary); err != nil {
+			return nil, err
+		}
 	}
 	opt.CopyUpMode, err = parseCopyUpMode(clicontext.String("copy-up-mode"))
 	if err != nil {
