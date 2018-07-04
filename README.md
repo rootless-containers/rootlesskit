@@ -1,12 +1,12 @@
 # RootlessKit: the gate to the rootless world
 
-`rootlesskit` does `unshare` and `newuidmap/newgidmap` in a single command.
+`rootlesskit` does an equivalent of [`unshare(1)`](http://man7.org/linux/man-pages/man1/unshare.1.html) and [`newuidmap(1)`](http://man7.org/linux/man-pages/man1/newuidmap.1.html)/[`newgidmap(1)`](http://man7.org/linux/man-pages/man1/newgidmap.1.html) in a single command, for creating unprivileged [`user_namespaces`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) and [`mount_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) with `subuid(5)`(http://man7.org/linux/man-pages/man5/subuid.5.html) and `subgid(5)`(http://man7.org/linux/man-pages/man5/subgid.5.html).
 
 `rootlesskit` also supports network namespace isolation and userspace NAT using ["slirp"](#slirp).
 
 Plan:
-* Support netns with userspace NAT using `netstack` (No extra binary will be needed)
-* Support netns with kernel NAT using SUID-enabled `lxc-user-nic``
+* Support netns with userspace NAT using [`netstack`](https://github.com/google/netstack) (No extra binary will be needed)
+* Support netns with kernel NAT using SUID-enabled [`lxc-user-nic(1)`](https://linuxcontainers.org/lxc/manpages/man1/lxc-user-nic.1.html)
   * We might also need some SUID binary for port forwarding
 * Some cgroups stuff
 
@@ -17,13 +17,15 @@ $ go get github.com/rootless-containers/rootlesskit/cmd/rootlesskit
 ```
 
 Requirements:
-* Some distros such as Debian and Arch Linux require `echo 1 > /proc/sys/kernel/unprivileged_userns_clone`
-* `newuidmap` and `newgidmap` need to be installed on the host. These commands are provided by the `uidmap` package.
+* Some distros such as Debian (excluding Ubuntu) and Arch Linux require `echo 1 > /proc/sys/kernel/unprivileged_userns_clone`
+* `newuidmap` and `newgidmap` need to be installed on the host. These commands are provided by the `uidmap` package on most distros.
 * `/etc/subuid` and `/etc/subgid` should contain >= 65536 sub-IDs. e.g. `penguin:231072:65536`.
 
 ```console
 $ id -u
 1001
+$ whoami
+penguin
 $ grep ^$(whoami): /etc/subuid
 penguin:231072:65536
 $ grep ^$(whoami): /etc/subgid
@@ -42,7 +44,10 @@ rootlesskit$ cat /proc/self/gid_map
          1     231072      65536
 rootlesskit$ cat /proc/self/setgroups
 allow
-rootlesskit$ mount -t tmpfs none /anywhere
+rootlesskit$ echo $HOME
+/home/penguin
+rootlesskit$ vi /home/penguin/override-foobar.conf
+rootlesskit$ mount --bind /home/penguin/override-foobar.conf /etc/foobar.conf
 rootlesskit$ touch /note_that_you_are_not_real_root
 touch: cannot touch '/note_that_you_are_not_real_root': Permission denied
 ```
@@ -131,18 +136,18 @@ $ pid=$(cat /run/user/1001/rootlesskit/foo/child_pid)
 $ socat -t -- TCP-LISTEN:8080,reuseaddr,fork EXEC:"nsenter -U -n -t $pid socat -t -- STDIN TCP4\:127.0.0.1\:80"
 ```
 
-### Annex: how to install `--net=vpnkit`
+### Annex: how to install VPNKit (required for `--net=vpnkit`)
 
 See also https://github.com/moby/vpnkit
 
 ```console
-$ git checkout https://github.com/moby/vpnkit.git
+$ git clone https://github.com/moby/vpnkit.git
 $ cd vpnkit
 $ make
-$ cp vpnkit.exe ~/bin
+$ cp vpnkit.exe ~/bin/vpnkit
 ```
 
-### Annex: how to install `--net=vdeplug_slirp`
+### Annex: how to install `vdeplug_slirp` (required for `--net=vdeplug_slirp`)
 
 You need to install the following components:
 
@@ -150,3 +155,5 @@ You need to install the following components:
 * https://github.com/rd235/vdeplug4 (depends on `s2argv-execs`)
 * https://github.com/rd235/libslirp
 * https://github.com/rd235/vdeplug_slirp (depends on `vdeplug4` and `libslirp`)
+
+Please refer to README in the each of the components.
