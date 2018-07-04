@@ -14,7 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/AkihiroSuda/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/common"
 )
 
 // setupVDEPlugSlirp setups network via vdeplug_slirp.
