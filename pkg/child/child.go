@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/AkihiroSuda/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/common"
 )
 
 func waitForParentSync(pipeFDStr string) (*common.Message, error) {

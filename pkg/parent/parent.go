@@ -15,7 +15,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/theckman/go-flock"
 
-	"github.com/AkihiroSuda/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/common"
 )
 
 type Opt struct {

@@ -13,7 +13,7 @@ Plan:
 ## Setup
 
 ```console
-$ go get github.com/AkihiroSuda/rootlesskit/cmd/rootlesskit
+$ go get github.com/rootless-containers/rootlesskit/cmd/rootlesskit
 ```
 
 Requirements:

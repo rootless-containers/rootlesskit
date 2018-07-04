@@ -9,9 +9,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 
-	"github.com/AkihiroSuda/rootlesskit/pkg/child"
-	"github.com/AkihiroSuda/rootlesskit/pkg/common"
-	"github.com/AkihiroSuda/rootlesskit/pkg/parent"
+	"github.com/rootless-containers/rootlesskit/pkg/child"
+	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/parent"
 )
 
 func main() {
