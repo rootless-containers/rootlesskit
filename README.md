@@ -92,9 +92,10 @@ Remarks:
 * Routing ICMP (ping) is not supported
 * Specifying `--copy-up=/etc` is highly recommended unless `/etc/resolv.conf` is statically configured. Otherwise `/etc/resolv.conf` will be invalidated when it is recreated on the host.
 
-Currently there are two slirp implementations supported by rootlesskit:
-* `--net=vpnkit`, using [VPNKit](https://github.com/moby/vpnkit) (Recommended)
+Currently there are three slirp implementations supported by rootlesskit:
+* `--net=vpnkit`, using [VPNKit](https://github.com/moby/vpnkit) (Stable)
 * `--net=vdeplug_slirp`, using [vdeplug_slirp](https://github.com/rd235/vdeplug_slirp)
+* `--net=slirp4netns`, using [slirp4netns](https://github.com/AkihiroSuda/slirp4netns)
 
 Usage:
 
@@ -124,7 +125,7 @@ Default network configuration for `--net=vpnkit`:
 * DNS: 192.168.65.1
 * Host: 192.168.65.2
 
-Default network configuration for `--net=vdeplug_slirp`:
+Default network configuration for `--net=vdeplug_slirp` and `--net=slirp4netns`:
 * IP: 10.0.2.100/24
 * Gateway: 10.0.2.2
 * DNS: 10.0.2.3
@@ -135,6 +136,55 @@ Port forwarding:
 $ pid=$(cat /run/user/1001/rootlesskit/foo/child_pid)
 $ socat -t -- TCP-LISTEN:8080,reuseaddr,fork EXEC:"nsenter -U -n -t $pid socat -t -- STDIN TCP4\:127.0.0.1\:80"
 ```
+
+### Annex: benchmark (July 11, 2018, on VMware Fusion on MacBook Pro)
+
+Server:
+
+```console
+$ iperf3 -s
+```
+
+Host:
+
+```console
+$ iperf3 -c 127.0.0.1 -t 30
+...
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-30.00  sec   153 GBytes  44.0 Gbits/sec    2             sender
+[  4]   0.00-30.00  sec   153 GBytes  44.0 Gbits/sec                  receiver
+```
+
+VPNKit:
+
+```console
+$ rootlesskit --net=vpnkit iperf3 -c 192.168.65.2 -t 30
+...
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-30.00  sec  1.44 GBytes   413 Mbits/sec    0             sender
+[  4]   0.00-30.00  sec  1.44 GBytes   412 Mbits/sec                  receiver
+```
+
+vdeplug_slirp:
+
+```console
+$ rootlesskit --net=vdeplug_slirp iperf3 -c 10.0.2.2 -t 30
+...
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-30.00  sec   787 MBytes   220 Mbits/sec    0             sender
+[  4]   0.00-30.00  sec   787 MBytes   220 Mbits/sec                  receiver
+```
+
+slirp4netns:
+
+```console
+$ rootlesskit --net=slirp4netns iperf3 -c 10.0.2.2 -t 30
+...
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-30.00  sec  1.83 GBytes   523 Mbits/sec    0             sender
+[  4]   0.00-30.00  sec  1.83 GBytes   523 Mbits/sec                  receiver
+```
+
 
 ### Annex: how to install VPNKit (required for `--net=vpnkit`)
 
@@ -155,5 +205,14 @@ You need to install the following components:
 * https://github.com/rd235/vdeplug4 (depends on `s2argv-execs`)
 * https://github.com/rd235/libslirp
 * https://github.com/rd235/vdeplug_slirp (depends on `vdeplug4` and `libslirp`)
+
+Please refer to README in the each of the components.
+
+### Annex: how to install `slirp4netns` (required for `--net=slirp4netns`)
+
+You need to install the following components:
+
+* https://github.com/rd235/libslirp
+* https://github.com/AkihiroSuda/slirp4netns (depends on `libslirp`)
 
 Please refer to README in the each of the components.

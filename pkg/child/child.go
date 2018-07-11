@@ -188,8 +188,8 @@ func setupNet(msg *common.Message, etcWasCopied bool) error {
 	}
 	tap := ""
 	switch msg.NetworkMode {
-	case common.VDEPlugSlirp:
-		tap = msg.VDEPlugTap
+	case common.VDEPlugSlirp, common.Slirp4NetNS:
+		tap = msg.PreconfiguredTap
 	case common.VPNKit:
 		var err error
 		tap, err = startVPNKitRoutines(context.TODO(),

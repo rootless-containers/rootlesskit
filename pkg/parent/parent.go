@@ -110,6 +110,12 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to setup vpnkit")
 		}
+	case common.Slirp4NetNS:
+		cleanupSlirp4NetNS, err := setupSlirp4NetNS(cmd.Process.Pid, &msg)
+		defer cleanupSlirp4NetNS()
+		if err != nil {
+			return errors.Wrap(err, "failed to setup slirp4netns")
+		}
 	}
 
 	// wake up the child

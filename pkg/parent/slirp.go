@@ -69,7 +69,7 @@ func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
 	msg.Netmask = 24
 	msg.Gateway = "10.0.2.2"
 	msg.DNS = "10.0.2.3"
-	msg.VDEPlugTap = tap
+	msg.PreconfiguredTap = tap
 	return common.Seq(cleanups), nil
 }
 
@@ -132,6 +132,36 @@ func waitForVPNKit(ctx context.Context, socket string) (*vpnkit.Vmnet, error) {
 		}
 		retried++
 	}
+}
+
+func setupSlirp4NetNS(pid int, msg *common.Message) (func() error, error) {
+	tap := "tap0"
+	var cleanups []func() error
+	if err := prepareTap(pid, tap); err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cmd := exec.CommandContext(ctx, "slirp4netns", strconv.Itoa(pid), tap)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig: syscall.SIGKILL,
+	}
+	cleanups = append(cleanups, func() error {
+		logrus.Debugf("killing slirp4netns")
+		cancel()
+		wErr := cmd.Wait()
+		logrus.Debugf("killed slirp4netns: %v", wErr)
+		return nil
+	})
+	if err := cmd.Start(); err != nil {
+		return common.Seq(cleanups), errors.Wrapf(err, "executing %v", cmd)
+	}
+	// TODO: support configuration
+	msg.IP = "10.0.2.100"
+	msg.Netmask = 24
+	msg.Gateway = "10.0.2.2"
+	msg.DNS = "10.0.2.3"
+	msg.PreconfiguredTap = tap
+	return common.Seq(cleanups), nil
 }
 
 func prepareTap(pid int, tap string) error {
