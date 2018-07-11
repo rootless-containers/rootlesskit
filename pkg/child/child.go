@@ -151,7 +151,7 @@ func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (s
 }
 
 func tap2vif(vif *vpnkit.Vif, r io.Reader) {
-	b := make([]byte, 1500)
+	b := make([]byte, 65536)
 	for {
 		n, err := r.Read(b)
 		if err != nil {
