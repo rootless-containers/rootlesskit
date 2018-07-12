@@ -33,7 +33,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "net",
-			Usage: "host, vdeplug_slirp, vpnkit",
+			Usage: "host, vdeplug_slirp, vpnkit, slirp4netns",
 			Value: "host",
 		},
 		cli.StringFlag{
@@ -97,6 +97,8 @@ func parseNetworkMode(s string) (common.NetworkMode, error) {
 		return common.VDEPlugSlirp, nil
 	case "vpnkit":
 		return common.VPNKit, nil
+	case "slirp4netns":
+		return common.Slirp4NetNS, nil
 	default:
 		return -1, errors.Errorf("unknown network mode: %s", s)
 	}

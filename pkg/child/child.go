@@ -151,7 +151,7 @@ func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (s
 }
 
 func tap2vif(vif *vpnkit.Vif, r io.Reader) {
-	b := make([]byte, 1500)
+	b := make([]byte, 65536)
 	for {
 		n, err := r.Read(b)
 		if err != nil {
@@ -188,8 +188,8 @@ func setupNet(msg *common.Message, etcWasCopied bool) error {
 	}
 	tap := ""
 	switch msg.NetworkMode {
-	case common.VDEPlugSlirp:
-		tap = msg.VDEPlugTap
+	case common.VDEPlugSlirp, common.Slirp4NetNS:
+		tap = msg.PreconfiguredTap
 	case common.VPNKit:
 		var err error
 		tap, err = startVPNKitRoutines(context.TODO(),

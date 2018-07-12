@@ -7,11 +7,13 @@ type Message struct {
 	StateDir string
 	// Network settings
 	NetworkMode
-	IP           string
-	Netmask      int
-	Gateway      string
-	DNS          string
-	VDEPlugTap   string
+	IP      string
+	Netmask int
+	Gateway string
+	DNS     string
+	// For vdeplug_slirp and slirp4netns
+	PreconfiguredTap string
+	// VPNKit settings
 	VPNKitMAC    string
 	VPNKitSocket string
 	VPNKitUUID   string
