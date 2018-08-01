@@ -1,6 +1,6 @@
 # RootlessKit: the gate to the rootless world
 
-`rootlesskit` does an equivalent of [`unshare(1)`](http://man7.org/linux/man-pages/man1/unshare.1.html) and [`newuidmap(1)`](http://man7.org/linux/man-pages/man1/newuidmap.1.html)/[`newgidmap(1)`](http://man7.org/linux/man-pages/man1/newgidmap.1.html) in a single command, for creating unprivileged [`user_namespaces`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) and [`mount_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) with `subuid(5)`(http://man7.org/linux/man-pages/man5/subuid.5.html) and `subgid(5)`(http://man7.org/linux/man-pages/man5/subgid.5.html).
+`rootlesskit` does an equivalent of [`unshare(1)`](http://man7.org/linux/man-pages/man1/unshare.1.html) and [`newuidmap(1)`](http://man7.org/linux/man-pages/man1/newuidmap.1.html)/[`newgidmap(1)`](http://man7.org/linux/man-pages/man1/newgidmap.1.html) in a single command, for creating unprivileged [`user_namespaces`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) and [`mount_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) with [`subuid(5)`](http://man7.org/linux/man-pages/man5/subuid.5.html) and [`subgid(5)`](http://man7.org/linux/man-pages/man5/subgid.5.html).
 
 `rootlesskit` also supports network namespace isolation and userspace NAT using ["slirp"](#slirp).
 
@@ -89,35 +89,44 @@ Undocumented files are subject to change.
 ## Slirp
 
 Remarks:
-* Routing ICMP (ping) is not supported
 * Specifying `--copy-up=/etc` is highly recommended unless `/etc/resolv.conf` is statically configured. Otherwise `/etc/resolv.conf` will be invalidated when it is recreated on the host.
 
 Currently there are three slirp implementations supported by rootlesskit:
-* `--net=vpnkit`, using [VPNKit](https://github.com/moby/vpnkit) (Stable)
+* `--net=slirp4netns`, using [slirp4netns](https://github.com/rootless-containers/slirp4netns)
+* `--net=vpnkit`, using [VPNKit](https://github.com/moby/vpnkit)
 * `--net=vdeplug_slirp`, using [vdeplug_slirp](https://github.com/rd235/vdeplug_slirp)
-* `--net=slirp4netns`, using [slirp4netns](https://github.com/AkihiroSuda/slirp4netns)
 
 Usage:
 
 ```console
-$ rootlesskit --state=/run/user/1001/rootlesskit/foo --net=vpnkit --copy-up=/etc bash
+$ rootlesskit --state=/run/user/1001/rootlesskit/foo --net=slirp4netns --copy-up=/etc bash
 rootlesskit$ ip a
-1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-2: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
-    link/ether 02:50:00:00:00:01 brd ff:ff:ff:ff:ff:ff
-    inet 192.168.65.3/24 scope global tap0
+    inet 127.0.0.1/8 scope host lo
        valid_lft forever preferred_lft forever
-    inet6 fe80::50:ff:fe00:1/64 scope link tentative
+    inet6 ::1/128 scope host
+       valid_lft forever preferred_lft forever
+2: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether 42:b6:8d:e4:02:c4 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.2.100/24 scope global tap0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::40b6:8dff:fee4:2c4/64 scope link
        valid_lft forever preferred_lft forever
 rootlesskit$ ip r
-default via 192.168.65.1 dev tap0
-192.168.65.0/24 dev tap0 proto kernel scope link src 192.168.65.3
+default via 10.0.2.2 dev tap0
+10.0.2.0/24 dev tap0 proto kernel scope link src 10.0.2.100
 rootlesskit$ cat /etc/resolv.conf 
-nameserver 192.168.65.1
+nameserver 10.0.2.3
 rootlesskit$ curl https://www.google.com
 <!doctype html><html ...>...</html>
 ```
+
+Default network configuration for `--net=slirp4netns` and `--net=vdeplug_slirp`:
+* IP: 10.0.2.100/24
+* Gateway: 10.0.2.2
+* DNS: 10.0.2.3
+* Host: 10.0.2.2, 10.0.2.3
 
 Default network configuration for `--net=vpnkit`:
 * IP: 192.168.65.3/24
@@ -125,17 +134,22 @@ Default network configuration for `--net=vpnkit`:
 * DNS: 192.168.65.1
 * Host: 192.168.65.2
 
-Default network configuration for `--net=vdeplug_slirp` and `--net=slirp4netns`:
-* IP: 10.0.2.100/24
-* Gateway: 10.0.2.2
-* DNS: 10.0.2.3
-* Host: 10.0.2.2, 10.0.2.3
 
 Port forwarding:
 ```console
 $ pid=$(cat /run/user/1001/rootlesskit/foo/child_pid)
 $ socat -t -- TCP-LISTEN:8080,reuseaddr,fork EXEC:"nsenter -U -n -t $pid socat -t -- STDIN TCP4\:127.0.0.1\:80"
 ```
+
+### Routing ping packets
+
+To route ping packets, you need to set up `net.ipv4.ping_group_range` properly.
+
+```console
+$ sudo sh -c "echo 0   2147483647  > /proc/sys/net/ipv4/ping_group_range"
+```
+
+Note: routing ping packets is not supported for `--net=vpnkit`.
 
 ### Annex: benchmark (July 11, 2018, on VMware Fusion on MacBook Pro)
 
@@ -153,6 +167,16 @@ $ iperf3 -c 127.0.0.1 -t 30
 [ ID] Interval           Transfer     Bandwidth       Retr
 [  4]   0.00-30.00  sec   153 GBytes  44.0 Gbits/sec    2             sender
 [  4]   0.00-30.00  sec   153 GBytes  44.0 Gbits/sec                  receiver
+```
+
+slirp4netns:
+
+```console
+$ rootlesskit --net=slirp4netns iperf3 -c 10.0.2.2 -t 30
+...
+[ ID] Interval           Transfer     Bandwidth       Retr
+[  4]   0.00-30.00  sec  1.83 GBytes   523 Mbits/sec    0             sender
+[  4]   0.00-30.00  sec  1.83 GBytes   523 Mbits/sec                  receiver
 ```
 
 VPNKit:
@@ -175,16 +199,22 @@ $ rootlesskit --net=vdeplug_slirp iperf3 -c 10.0.2.2 -t 30
 [  4]   0.00-30.00  sec   787 MBytes   220 Mbits/sec                  receiver
 ```
 
-slirp4netns:
+### Annex: how to install `slirp4netns` (required for `--net=slirp4netns`)
+
+See also https://github.com/rootless-containers/slirp4netns
 
 ```console
-$ rootlesskit --net=slirp4netns iperf3 -c 10.0.2.2 -t 30
-...
-[ ID] Interval           Transfer     Bandwidth       Retr
-[  4]   0.00-30.00  sec  1.83 GBytes   523 Mbits/sec    0             sender
-[  4]   0.00-30.00  sec  1.83 GBytes   523 Mbits/sec                  receiver
+$ git clone https://github.com/rootless-containers/slirp4netns
+$ cd slirp4netns
+$ ./autogen.sh && ./configure && make
+$ cp slirp4netns ~/bin
 ```
 
+RPM is also available for Fedora: https://rpms.remirepo.net/rpmphp/zoom.php?rpm=slirp4netns
+
+```console
+$ sudo dnf install slirp4netns
+```
 
 ### Annex: how to install VPNKit (required for `--net=vpnkit`)
 
@@ -205,14 +235,5 @@ You need to install the following components:
 * https://github.com/rd235/vdeplug4 (depends on `s2argv-execs`)
 * https://github.com/rd235/libslirp
 * https://github.com/rd235/vdeplug_slirp (depends on `vdeplug4` and `libslirp`)
-
-Please refer to README in the each of the components.
-
-### Annex: how to install `slirp4netns` (required for `--net=slirp4netns`)
-
-You need to install the following components:
-
-* https://github.com/rd235/libslirp
-* https://github.com/AkihiroSuda/slirp4netns (depends on `libslirp`)
 
 Please refer to README in the each of the components.

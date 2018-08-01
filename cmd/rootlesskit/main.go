@@ -33,7 +33,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "net",
-			Usage: "host, vdeplug_slirp, vpnkit, slirp4netns",
+			Usage: "host, slirp4netns, vpnkit, vdeplug_slirp",
 			Value: "host",
 		},
 		cli.StringFlag{
