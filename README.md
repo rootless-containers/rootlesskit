@@ -151,31 +151,13 @@ $ sudo sh -c "echo 0   2147483647  > /proc/sys/net/ipv4/ping_group_range"
 
 Note: routing ping packets is not supported for `--net=vpnkit`.
 
-### Annex: benchmark (Aug 1, 2018, on VMware Fusion on MacBook Pro)
+### Annex: benchmark
 
-```console
-$ ./hack/test.sh
-...
-[INFO] [benchmark:iperf3] slirp4netns
-...
-[ ID] Interval           Transfer     Bandwidth       Retr             
-[  4]   0.00-60.00  sec  6.62 GBytes   947 Mbits/sec    0             sender
-[  4]   0.00-60.00  sec  6.62 GBytes   947 Mbits/sec                  receiver
+Aug 1, 2018, on Travis: https://travis-ci.org/rootless-containers/rootlesskit/builds/410721610
 
-...
-[INFO] [benchmark:iperf3] vpnkit
-...
-[ ID] Interval           Transfer     Bandwidth       Retr             
-[  4]   0.00-60.00  sec  3.10 GBytes   444 Mbits/sec    0             sender
-[  4]   0.00-60.00  sec  3.10 GBytes   444 Mbits/sec                  receiver
-
-...
-[INFO] [benchmark:iperf3] vdeplug_slirp
-[ ID] Interval           Transfer     Bandwidth       Retr             
-[  4]   0.00-60.00  sec  2.11 GBytes   302 Mbits/sec    0             sender
-[  4]   0.00-60.00  sec  2.11 GBytes   302 Mbits/sec                  receiver
-...
-```
+* `--net=slirp4netns`: 1.07 Gbits/sec
+* `--net=vpnkit`: 528 Mbits/sec
+* `--net=vdeplug_slirp`: 771 Mbits/sec
 
 ### Annex: how to install `slirp4netns` (required for `--net=slirp4netns`)
 
