@@ -151,52 +151,30 @@ $ sudo sh -c "echo 0   2147483647  > /proc/sys/net/ipv4/ping_group_range"
 
 Note: routing ping packets is not supported for `--net=vpnkit`.
 
-### Annex: benchmark (July 11, 2018, on VMware Fusion on MacBook Pro)
-
-Server:
+### Annex: benchmark (Aug 1, 2018, on VMware Fusion on MacBook Pro)
 
 ```console
-$ iperf3 -s
-```
-
-Host:
-
-```console
-$ iperf3 -c 127.0.0.1 -t 30
+$ ./hack/test.sh
 ...
-[ ID] Interval           Transfer     Bandwidth       Retr
-[  4]   0.00-30.00  sec   153 GBytes  44.0 Gbits/sec    2             sender
-[  4]   0.00-30.00  sec   153 GBytes  44.0 Gbits/sec                  receiver
-```
-
-slirp4netns:
-
-```console
-$ rootlesskit --net=slirp4netns iperf3 -c 10.0.2.2 -t 30
+[INFO] [benchmark:iperf3] slirp4netns
 ...
-[ ID] Interval           Transfer     Bandwidth       Retr
-[  4]   0.00-30.00  sec  1.83 GBytes   523 Mbits/sec    0             sender
-[  4]   0.00-30.00  sec  1.83 GBytes   523 Mbits/sec                  receiver
-```
+[ ID] Interval           Transfer     Bandwidth       Retr             
+[  4]   0.00-60.00  sec  6.62 GBytes   947 Mbits/sec    0             sender
+[  4]   0.00-60.00  sec  6.62 GBytes   947 Mbits/sec                  receiver
 
-VPNKit:
-
-```console
-$ rootlesskit --net=vpnkit iperf3 -c 192.168.65.2 -t 30
 ...
-[ ID] Interval           Transfer     Bandwidth       Retr
-[  4]   0.00-30.00  sec  1.44 GBytes   413 Mbits/sec    0             sender
-[  4]   0.00-30.00  sec  1.44 GBytes   412 Mbits/sec                  receiver
-```
-
-vdeplug_slirp:
-
-```console
-$ rootlesskit --net=vdeplug_slirp iperf3 -c 10.0.2.2 -t 30
+[INFO] [benchmark:iperf3] vpnkit
 ...
-[ ID] Interval           Transfer     Bandwidth       Retr
-[  4]   0.00-30.00  sec   787 MBytes   220 Mbits/sec    0             sender
-[  4]   0.00-30.00  sec   787 MBytes   220 Mbits/sec                  receiver
+[ ID] Interval           Transfer     Bandwidth       Retr             
+[  4]   0.00-60.00  sec  3.10 GBytes   444 Mbits/sec    0             sender
+[  4]   0.00-60.00  sec  3.10 GBytes   444 Mbits/sec                  receiver
+
+...
+[INFO] [benchmark:iperf3] vdeplug_slirp
+[ ID] Interval           Transfer     Bandwidth       Retr             
+[  4]   0.00-60.00  sec  2.11 GBytes   302 Mbits/sec    0             sender
+[  4]   0.00-60.00  sec  2.11 GBytes   302 Mbits/sec                  receiver
+...
 ```
 
 ### Annex: how to install `slirp4netns` (required for `--net=slirp4netns`)
