@@ -149,7 +149,10 @@ func waitForVPNKit(ctx context.Context, socket string) (*vpnkit.Vmnet, error) {
 	}
 }
 
-func setupSlirp4NetNS(pid int, msg *common.Message) (func() error, error) {
+func setupSlirp4NetNS(pid int, msg *common.Message, so Slirp4NetNSOpt) (func() error, error) {
+	if so.Binary == "" {
+		so.Binary = "slirp4netns"
+	}
 	if msg.MTU <= 0 {
 		msg.MTU = 65520
 	}
@@ -159,7 +162,7 @@ func setupSlirp4NetNS(pid int, msg *common.Message) (func() error, error) {
 		return common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	cmd := exec.CommandContext(ctx, "slirp4netns", "--mtu", strconv.Itoa(msg.MTU), strconv.Itoa(pid), tap)
+	cmd := exec.CommandContext(ctx, so.Binary, "--mtu", strconv.Itoa(msg.MTU), strconv.Itoa(pid), tap)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
