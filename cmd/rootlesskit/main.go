@@ -37,9 +37,19 @@ func main() {
 			Value: "host",
 		},
 		cli.StringFlag{
+			Name:  "slirp4netns-binary",
+			Usage: "path of slirp4netns binary for --net=slirp4netns",
+			Value: "slirp4netns",
+		},
+		cli.StringFlag{
 			Name:  "vpnkit-binary",
 			Usage: "path of VPNKit binary for --net=vpnkit",
 			Value: "vpnkit",
+		},
+		cli.IntFlag{
+			Name:  "mtu",
+			Usage: "MTU for non-host network (default: 65520 for slirp4netns, 1500 for others)",
+			Value: 0, // resolved into 65520 for slirp4netns, 1500 for others
 		},
 		cli.StringSliceFlag{
 			Name:  "copy-up",
@@ -120,11 +130,21 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 	if err != nil {
 		return nil, err
 	}
-	if opt.NetworkMode == common.VPNKit {
+	switch opt.NetworkMode {
+	case common.Slirp4NetNS:
+		opt.Slirp4NetNS.Binary = clicontext.String("slirp4netns-binary")
+		if _, err := exec.LookPath(opt.Slirp4NetNS.Binary); err != nil {
+			return nil, err
+		}
+	case common.VPNKit:
 		opt.VPNKit.Binary = clicontext.String("vpnkit-binary")
 		if _, err := exec.LookPath(opt.VPNKit.Binary); err != nil {
 			return nil, err
 		}
+	}
+	opt.MTU = clicontext.Int("mtu")
+	if opt.MTU < 0 || opt.MTU > 65521 {
+		return nil, errors.Errorf("mtu must be <= 65521, got %d", opt.MTU)
 	}
 	opt.CopyUpMode, err = parseCopyUpMode(clicontext.String("copy-up-mode"))
 	if err != nil {

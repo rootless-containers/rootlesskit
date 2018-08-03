@@ -21,9 +21,15 @@ import (
 type Opt struct {
 	StateDir string
 	common.NetworkMode
-	VPNKit VPNKitOpt
+	Slirp4NetNS Slirp4NetNSOpt
+	VPNKit      VPNKitOpt
+	MTU         int
 	common.CopyUpMode
 	CopyUpDirs []string
+}
+
+type Slirp4NetNSOpt struct {
+	Binary string
 }
 
 type VPNKitOpt struct {
@@ -94,6 +100,7 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	msg := common.Message{
 		StateDir:    opt.StateDir,
 		NetworkMode: opt.NetworkMode,
+		MTU:         opt.MTU,
 		CopyUpMode:  opt.CopyUpMode,
 		CopyUpDirs:  opt.CopyUpDirs,
 	}
@@ -111,7 +118,7 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 			return errors.Wrap(err, "failed to setup vpnkit")
 		}
 	case common.Slirp4NetNS:
-		cleanupSlirp4NetNS, err := setupSlirp4NetNS(cmd.Process.Pid, &msg)
+		cleanupSlirp4NetNS, err := setupSlirp4NetNS(cmd.Process.Pid, &msg, opt.Slirp4NetNS)
 		defer cleanupSlirp4NetNS()
 		if err != nil {
 			return errors.Wrap(err, "failed to setup slirp4netns")

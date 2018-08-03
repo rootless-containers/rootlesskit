@@ -11,7 +11,11 @@ type Message struct {
 	Netmask int
 	Gateway string
 	DNS     string
-	// For vdeplug_slirp and slirp4netns
+	MTU     int
+	// For vdeplug_slirp and slirp4netns.
+	// "preconfigured" just means tap is created and "up".
+	// IP stuff and MTU are not configured by the parent here,
+	// and they are up to the child.
 	PreconfiguredTap string
 	// VPNKit settings
 	VPNKitMAC    string

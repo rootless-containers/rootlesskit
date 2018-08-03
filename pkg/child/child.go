@@ -105,9 +105,10 @@ func activateLoopback() error {
 	return nil
 }
 
-func activateTap(tap, ip string, netmask int, gateway string) error {
+func activateTap(tap, ip string, netmask int, gateway string, mtu int) error {
 	cmds := [][]string{
 		{"ip", "link", "set", tap, "up"},
+		{"ip", "link", "set", "dev", tap, "mtu", strconv.Itoa(mtu)},
 		{"ip", "addr", "add", ip + "/" + strconv.Itoa(netmask), "dev", tap},
 		{"ip", "route", "add", "default", "via", gateway, "dev", tap},
 	}
@@ -122,6 +123,7 @@ func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (s
 	cmds := [][]string{
 		{"ip", "tuntap", "add", "name", tapName, "mode", "tap"},
 		{"ip", "link", "set", tapName, "address", macStr},
+		// IP stuff and MTU are configured in activateTap()
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
 		return "", errors.Wrapf(err, "executing %v", cmds)
@@ -205,7 +207,7 @@ func setupNet(msg *common.Message, etcWasCopied bool) error {
 	if tap == "" {
 		return errors.New("empty tap")
 	}
-	if err := activateTap(tap, msg.IP, msg.Netmask, msg.Gateway); err != nil {
+	if err := activateTap(tap, msg.IP, msg.Netmask, msg.Gateway, msg.MTU); err != nil {
 		return err
 	}
 	if etcWasCopied {
