@@ -41,6 +41,11 @@ func main() {
 			Usage: "path of VPNKit binary for --net=vpnkit",
 			Value: "vpnkit",
 		},
+		cli.IntFlag{
+			Name:  "mtu",
+			Usage: "MTU for non-host network (default: 65520 for slirp4netns, 1500 for others)",
+			Value: 0, // resolved into 65520 for slirp4netns, 1500 for others
+		},
 		cli.StringSliceFlag{
 			Name:  "copy-up",
 			Usage: "mount a filesystem and copy-up the contents. e.g. \"--copy-up=/etc\" (typically required for non-host network)",
@@ -125,6 +130,10 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 		if _, err := exec.LookPath(opt.VPNKit.Binary); err != nil {
 			return nil, err
 		}
+	}
+	opt.MTU = clicontext.Int("mtu")
+	if opt.MTU < 0 || opt.MTU > 65521 {
+		return nil, errors.Errorf("mtu must be <= 65521, got %d", opt.MTU)
 	}
 	opt.CopyUpMode, err = parseCopyUpMode(clicontext.String("copy-up-mode"))
 	if err != nil {

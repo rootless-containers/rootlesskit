@@ -22,6 +22,7 @@ type Opt struct {
 	StateDir string
 	common.NetworkMode
 	VPNKit VPNKitOpt
+	MTU    int
 	common.CopyUpMode
 	CopyUpDirs []string
 }
@@ -94,6 +95,7 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	msg := common.Message{
 		StateDir:    opt.StateDir,
 		NetworkMode: opt.NetworkMode,
+		MTU:         opt.MTU,
 		CopyUpMode:  opt.CopyUpMode,
 		CopyUpDirs:  opt.CopyUpDirs,
 	}

@@ -1,19 +1,51 @@
 #!/bin/bash
+set -eu -o pipefail
+
 function INFO(){
     echo -e "\e[104m\e[97m[INFO]\e[49m\e[39m $@"
 }
-set -eu -o pipefail -x
 
-## benchmark:iperf3
+ROOTLESSKIT="rootlesskit"
+IPERF3C="iperf3 -t 60 -c"
 
-nohup iperf3 -s &
-INFO "[benchmark:iperf3] slirp4netns"
-rootlesskit --net=slirp4netns iperf3 -c 10.0.2.2 -t 60
+function benchmark::iperf3::slirp4netns(){
+    INFO "[benchmark:iperf3] slirp4netns ($@)"
+    set -x
+    $ROOTLESSKIT --net=slirp4netns $@ $IPERF3C 10.0.2.2
+    set +x
+}
 
-INFO "[benchmark:iperf3] vpnkit"
-rootlesskit --net=vpnkit iperf3 -c 192.168.65.2 -t 60
+function benchmark::iperf3::vpnkit(){
+    INFO "[benchmark:iperf3] vpnkit ($@)"
+    set -x
+    $ROOTLESSKIT --net=vpnkit $@ $IPERF3C 192.168.65.2
+    set +x
+}
 
-INFO "[benchmark:iperf3] vdeplug_slirp"
-rootlesskit --net=vdeplug_slirp iperf3 -c 10.0.2.2 -t 60
+function benchmark::iperf3::vdeplug_slirp(){
+    INFO "[benchmark:iperf3] vdeplug_slirp ($@)"
+    set -x
+    $ROOTLESSKIT --net=vdeplug_slirp $@ $IPERF3C 10.0.2.2
+    set +x
+}
 
-kill %1
+function benchmark::iperf3::main(){
+    iperf3 -s > /dev/null &
+    iperf3pid=$!
+    for mtu in 1500 16384 65520; do
+        benchmark::iperf3::slirp4netns --mtu=$mtu
+        if [[ $mtu -gt 16424 ]]; then
+            INFO "Skipping benchmark::iperf3::vpnkit --mtu=$mtu (MTU greater than 16424 is known not to work for VPNKit)"
+        else
+            benchmark::iperf3::vpnkit --mtu=$mtu
+        fi
+        if [[ $mtu -ne 1500 ]]; then
+            INFO "Skipping benchmark::iperf3::vdeplug_slirp --mtu=$mtu (non-1500 MTU is not effective for vdeplug_slirp)"
+        else
+            benchmark::iperf3::vdeplug_slirp --mtu=$mtu
+        fi
+    done
+    kill $iperf3pid
+}
+
+benchmark::iperf3::main

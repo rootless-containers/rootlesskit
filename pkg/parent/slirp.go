@@ -24,6 +24,14 @@ import (
 // TODO:
 //  * support port forwarding
 func setupVDEPlugSlirp(pid int, msg *common.Message) (func() error, error) {
+	if msg.MTU <= 0 {
+		msg.MTU = 1500
+	}
+	if msg.MTU != 1500 {
+		logrus.Warnf("vdeplug_slirp does not support non-1500 MTU, got %d", msg.MTU)
+		// TAP will be configured with the specified MTU (by the child),
+		// but the specified MTU cannot be passed to vdeplug_slirp.
+	}
 	tap := "tap0"
 	var cleanups []func() error
 	if err := prepareTap(pid, tap); err != nil {
@@ -77,10 +85,17 @@ func setupVPNKit(pid int, msg *common.Message, vo VPNKitOpt) (func() error, erro
 	if vo.Binary == "" {
 		vo.Binary = "vpnkit"
 	}
+	if msg.MTU <= 0 {
+		msg.MTU = 1500
+	}
+	if msg.MTU != 1500 {
+		logrus.Warnf("vpnkit is known to have issues with non-1500 MTU (current: %d), see https://github.com/rootless-containers/rootlesskit/issues/6#issuecomment-403531453", msg.MTU)
+		// NOTE: iperf3 stops working with MTU >= 16425
+	}
 	var cleanups []func() error
 	vpnkitSocket := filepath.Join(msg.StateDir, "vpnkit-ethernet.sock")
 	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())
-	vpnkitCmd := exec.CommandContext(vpnkitCtx, vo.Binary, "--ethernet", vpnkitSocket)
+	vpnkitCmd := exec.CommandContext(vpnkitCtx, vo.Binary, "--ethernet", vpnkitSocket, "--mtu", strconv.Itoa(msg.MTU))
 	vpnkitCmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
@@ -135,13 +150,16 @@ func waitForVPNKit(ctx context.Context, socket string) (*vpnkit.Vmnet, error) {
 }
 
 func setupSlirp4NetNS(pid int, msg *common.Message) (func() error, error) {
+	if msg.MTU <= 0 {
+		msg.MTU = 65520
+	}
 	tap := "tap0"
 	var cleanups []func() error
 	if err := prepareTap(pid, tap); err != nil {
 		return common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	cmd := exec.CommandContext(ctx, "slirp4netns", strconv.Itoa(pid), tap)
+	cmd := exec.CommandContext(ctx, "slirp4netns", "--mtu", strconv.Itoa(msg.MTU), strconv.Itoa(pid), tap)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}

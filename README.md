@@ -71,6 +71,7 @@ GLOBAL OPTIONS:
    --state-dir value      state directory
    --net value            host, vdeplug_slirp, vpnkit (default: "host")
    --vpnkit-binary value  path of VPNKit binary for --net=vpnkit (default: "vpnkit")
+   --mtu value            MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
    --copy-up value        mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
    --copy-up-mode value   tmpfs+symlink (default: "tmpfs+symlink")
    --help, -h             show help
@@ -151,13 +152,15 @@ $ sudo sh -c "echo 0   2147483647  > /proc/sys/net/ipv4/ping_group_range"
 
 Note: routing ping packets is not supported for `--net=vpnkit`.
 
-### Annex: benchmark
+### Annex: benchmark (MTU=1500)
 
 Aug 1, 2018, on Travis: https://travis-ci.org/rootless-containers/rootlesskit/builds/410721610
 
 * `--net=slirp4netns`: 1.07 Gbits/sec
 * `--net=vpnkit`: 528 Mbits/sec
 * `--net=vdeplug_slirp`: 771 Mbits/sec
+
+Note: slirp4netns can reach 8.18 Gbits/sec with MTU=65520: https://github.com/rootless-containers/slirp4netns/pull/20
 
 ### Annex: how to install `slirp4netns` (required for `--net=slirp4netns`)
 
