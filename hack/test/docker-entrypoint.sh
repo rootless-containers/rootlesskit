@@ -32,11 +32,14 @@ function benchmark::iperf3::vdeplug_slirp(){
 function benchmark::iperf3::main(){
     iperf3 -s > /dev/null &
     iperf3pid=$!
-    for mtu in 1500 16384 65520; do
+    for mtu in 1500 4000 16384 65520; do
         benchmark::iperf3::slirp4netns --mtu=$mtu
         if [[ $mtu -gt 16424 ]]; then
             INFO "Skipping benchmark::iperf3::vpnkit --mtu=$mtu (MTU greater than 16424 is known not to work for VPNKit)"
         else
+            if [[ $mtu -gt 4000 ]]; then
+                INFO "Note: MTU greather than 4K might not be effective for VPNKit: https://twitter.com/mugofsoup/status/1017665057738641408"
+            fi
             benchmark::iperf3::vpnkit --mtu=$mtu
         fi
         if [[ $mtu -ne 1500 ]]; then
