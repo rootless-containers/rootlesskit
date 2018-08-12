@@ -68,6 +68,14 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	}
 	defer os.RemoveAll(opt.StateDir)
 	defer lock.Unlock()
+	// when the previous execution crashed, the state dir may not be removed successfully.
+	// explicitly remove everything in the state dir except the lock file here.
+	for _, f := range []string{StateFileChildPID} {
+		p := filepath.Join(opt.StateDir, f)
+		if err := os.RemoveAll(p); err != nil {
+			return errors.Wrapf(err, "failed to remove %s", p)
+		}
+	}
 
 	pipeR, pipeW, err := os.Pipe()
 	if err != nil {
