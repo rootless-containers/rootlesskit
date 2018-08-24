@@ -214,12 +214,18 @@ func setupNet(msg *common.Message, etcWasCopied bool) error {
 		if err := writeResolvConf(msg.DNS); err != nil {
 			return err
 		}
+		if err := writeEtcHosts(); err != nil {
+			return err
+		}
 	} else {
 		logrus.Warn("Mounting /etc/resolv.conf without copying-up /etc. " +
 			"Note that /etc/resolv.conf in the namespace will be unmounted when it is recreated on the host. " +
 			"Unless /etc/resolv.conf is statically configured, copying-up /etc is highly recommended. " +
 			"Please refer to RootlessKit documentation for further information.")
 		if err := mountResolvConf(msg.StateDir, msg.DNS); err != nil {
+			return err
+		}
+		if err := mountEtcHosts(msg.StateDir); err != nil {
 			return err
 		}
 	}
