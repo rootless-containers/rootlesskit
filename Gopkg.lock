@@ -38,10 +38,11 @@
   revision = "2d23d332c2232cbde1f9d0243e29b5635092de13"
 
 [[projects]]
-  branch = "master"
+  branch = "fix-subgid"
   name = "github.com/opencontainers/runc"
   packages = ["libcontainer/user"]
-  revision = "ad0f5255060d36872be04de22f8731f38ef2d7b1"
+  revision = "60ce6e699409e88dfed7e21d0bd423b6cd65a86b"
+  source = "github.com/AkihiroSuda/runc"
 
 [[projects]]
   name = "github.com/pkg/errors"
@@ -85,6 +86,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "dd1fc09fac1d01b1cace87be609ac0b5f37adf835846e6188f92ecdbba8167c3"
+  inputs-digest = "c79d769c9401ebc44a76e130b80d253064c14a7e741bb7d7f22f7906f2969ab6"
   solver-name = "gps-cdcl"
   solver-version = 1

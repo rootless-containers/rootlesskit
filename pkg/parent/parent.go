@@ -194,7 +194,7 @@ func newgidmapArgs() ([]string, error) {
 		strconv.Itoa(g.Gid),
 		"1",
 	}
-	subs, err := user.CurrentGroupSubGIDs()
+	subs, err := user.CurrentUserSubGIDs()
 	if err != nil {
 		return nil, err
 	}
