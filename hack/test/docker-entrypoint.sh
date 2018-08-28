@@ -29,6 +29,26 @@ function benchmark::iperf3::vdeplug_slirp(){
     set +x
 }
 
+function benchmark::iperf3::rootful_veth(){
+    INFO "[benchmark:iperf3] rootful_veth ($@) for reference"
+    # only --mtu=MTU is supposed as $@
+    mtu=$(echo $@ | sed -e s/--mtu=//g)
+    set -x
+    sudo ip netns add foo
+    sudo ip link add foo_veth0 type veth peer name foo_veth1
+    sudo ip link set foo_veth1 netns foo
+    sudo ip addr add 10.0.42.1/24 dev foo_veth0
+    sudo ip -netns foo addr add 10.0.42.2/24 dev foo_veth1
+    sudo ip link set dev foo_veth0 mtu $mtu
+    sudo ip -netns foo link set dev foo_veth1 mtu $mtu
+    sudo ip link set foo_veth0 up
+    sudo ip -netns foo link set foo_veth1 up
+    sudo ip netns exec foo $IPERF3C 10.0.42.1
+    sudo ip link del foo_veth0
+    sudo ip netns del foo
+    set +x
+}
+
 function benchmark::iperf3::main(){
     iperf3 -s > /dev/null &
     iperf3pid=$!
@@ -47,6 +67,7 @@ function benchmark::iperf3::main(){
         else
             benchmark::iperf3::vdeplug_slirp --mtu=$mtu
         fi
+        benchmark::iperf3::rootful_veth --mtu=$mtu
     done
     kill $iperf3pid
 }
