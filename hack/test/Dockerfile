@@ -38,9 +38,11 @@ RUN git clone https://github.com/rd235/vdeplug_slirp.git /vdeplug_slirp && \
 
 FROM ubuntu AS test
 # busybox is only for debugging purpose
-RUN apt update && apt install -y iperf3 uidmap iproute2 busybox
+# sudo is only for rootful veth benchmark (for comparison)
+RUN apt update && apt install -y iperf3 uidmap iproute2 busybox sudo
 RUN useradd --create-home --home-dir /home/user --uid 1000 user \
-  && mkdir -p /run/user/1000
+  && mkdir -p /run/user/1000 \
+  && echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user
 COPY --from=rootlesskit /rootlesskit /home/user/bin/
 COPY --from=slirp4netns /slirp4netns/slirp4netns /home/user/bin/
 COPY --from=vpnkit /vpnkit/vpnkit.exe /home/user/bin/vpnkit
