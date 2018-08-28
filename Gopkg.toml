@@ -26,7 +26,10 @@
 
 [[override]]
   name = "github.com/opencontainers/runc"
-  branch = "master"
+# patch: https://github.com/opencontainers/runc/pull/1880
+# (Note: we only use runc/libcontainer/user here, not runc runtime itself)
+  branch = "fix-subgid"
+  source = "github.com/AkihiroSuda/runc"
 
 [[override]]
   name = "github.com/moby/vpnkit"
