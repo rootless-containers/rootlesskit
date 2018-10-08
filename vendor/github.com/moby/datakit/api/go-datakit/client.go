@@ -2,13 +2,13 @@ package datakit
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log"
 	"net"
 	"sync"
 
 	p9p "github.com/docker/go-p9p"
-	"context"
 )
 
 type Client struct {
@@ -27,7 +27,7 @@ var rwx = p9p.DMREAD | p9p.DMWRITE | p9p.DMEXEC
 var rx = p9p.DMREAD | p9p.DMEXEC
 var rw = p9p.DMREAD | p9p.DMWRITE
 var r = p9p.DMREAD
-var dirperm = uint32(rwx<<6 | rx<<3 | rx | p9p.DMDIR)
+var dirperm = uint32(rwx<<6|rx<<3|rx) | p9p.DMDIR
 var fileperm = uint32(rw<<6 | r<<3 | r)
 
 // Dial opens a connection to a 9P server
