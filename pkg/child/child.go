@@ -1,10 +1,8 @@
 package child
 
 import (
-	"context"
 	"encoding/binary"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,13 +10,14 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/google/uuid"
-	"github.com/jamescun/tuntap"
-	"github.com/moby/vpnkit/go/pkg/vpnkit"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/network"
+	"github.com/rootless-containers/rootlesskit/pkg/network/slirp4netns"
+	"github.com/rootless-containers/rootlesskit/pkg/network/vdeplugslirp"
+	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
 )
 
 func waitForParentSync(pipeFDStr string) (*common.Message, error) {
@@ -118,67 +117,22 @@ func activateTap(tap, ip string, netmask int, gateway string, mtu int) error {
 	return nil
 }
 
-func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (string, error) {
-	tapName := "tap0"
-	cmds := [][]string{
-		{"ip", "tuntap", "add", "name", tapName, "mode", "tap"},
-		{"ip", "link", "set", tapName, "address", macStr},
-		// IP stuff and MTU are configured in activateTap()
-	}
-	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-		return "", errors.Wrapf(err, "executing %v", cmds)
-	}
-	tap, err := tuntap.Tap(tapName)
-	if err != nil {
-		return "", errors.Wrapf(err, "creating tap %s", tapName)
-	}
-	if tap.Name() != tapName {
-		return "", errors.Wrapf(err, "expected %q, got %q", tapName, tap.Name())
-	}
-	vmnet, err := vpnkit.NewVmnet(ctx, socket)
-	if err != nil {
-		return "", err
-	}
-	vifUUID, err := uuid.Parse(uuidStr)
-	if err != nil {
-		return "", err
-	}
-	vif, err := vmnet.ConnectVif(vifUUID)
-	if err != nil {
-		return "", err
-	}
-	go tap2vif(vif, tap)
-	go vif2tap(tap, vif)
-	return tapName, nil
-}
-
-func tap2vif(vif *vpnkit.Vif, r io.Reader) {
-	b := make([]byte, 65536)
-	for {
-		n, err := r.Read(b)
-		if err != nil {
-			panic(errors.Wrap(err, "tap2vif: read"))
-		}
-		if err := vif.Write(b[:n]); err != nil {
-			panic(errors.Wrap(err, "tap2vif: write"))
-		}
+func getNetworkDriver(netmsg common.NetworkMessage) (network.ChildDriver, error) {
+	switch netmsg.NetworkMode {
+	case common.VDEPlugSlirp:
+		return vdeplugslirp.NewChildDriver(), nil
+	case common.Slirp4NetNS:
+		return slirp4netns.NewChildDriver(), nil
+	case common.VPNKit:
+		return vpnkit.NewChildDriver(), nil
+	default:
+		// HostNetwork does not have driver
+		return nil, errors.Errorf("invalid network mode: %+v", netmsg.NetworkMode)
 	}
 }
 
-func vif2tap(w io.Writer, vif *vpnkit.Vif) {
-	for {
-		b, err := vif.Read()
-		if err != nil {
-			panic(errors.Wrap(err, "vif2tap: read"))
-		}
-		if _, err := w.Write(b); err != nil {
-			panic(errors.Wrap(err, "vif2tap: write"))
-		}
-	}
-}
-
-func setupNet(msg *common.Message, etcWasCopied bool) error {
-	if msg.NetworkMode == common.HostNetwork {
+func setupNet(msg common.Message, etcWasCopied bool) error {
+	if msg.Network.NetworkMode == common.HostNetwork {
 		return nil
 	}
 	// for /sys/class/net
@@ -188,30 +142,19 @@ func setupNet(msg *common.Message, etcWasCopied bool) error {
 	if err := activateLoopback(); err != nil {
 		return err
 	}
-	tap := ""
-	switch msg.NetworkMode {
-	case common.VDEPlugSlirp, common.Slirp4NetNS:
-		tap = msg.PreconfiguredTap
-	case common.VPNKit:
-		var err error
-		tap, err = startVPNKitRoutines(context.TODO(),
-			msg.VPNKitMAC,
-			msg.VPNKitSocket,
-			msg.VPNKitUUID)
-		if err != nil {
-			return err
-		}
-	default:
-		return errors.Errorf("invalid network mode: %+v", msg.NetworkMode)
+	driver, err := getNetworkDriver(msg.Network)
+	if err != nil {
+		return err
 	}
-	if tap == "" {
-		return errors.New("empty tap")
+	tap, err := driver.ConfigureTap(msg.Network)
+	if err != nil {
+		return err
 	}
-	if err := activateTap(tap, msg.IP, msg.Netmask, msg.Gateway, msg.MTU); err != nil {
+	if err := activateTap(tap, msg.Network.IP, msg.Network.Netmask, msg.Network.Gateway, msg.Network.MTU); err != nil {
 		return err
 	}
 	if etcWasCopied {
-		if err := writeResolvConf(msg.DNS); err != nil {
+		if err := writeResolvConf(msg.Network.DNS); err != nil {
 			return err
 		}
 		if err := writeEtcHosts(); err != nil {
@@ -222,7 +165,7 @@ func setupNet(msg *common.Message, etcWasCopied bool) error {
 			"Note that /etc/resolv.conf in the namespace will be unmounted when it is recreated on the host. " +
 			"Unless /etc/resolv.conf is statically configured, copying-up /etc is highly recommended. " +
 			"Please refer to RootlessKit documentation for further information.")
-		if err := mountResolvConf(msg.StateDir, msg.DNS); err != nil {
+		if err := mountResolvConf(msg.StateDir, msg.Network.DNS); err != nil {
 			return err
 		}
 		if err := mountEtcHosts(msg.StateDir); err != nil {
@@ -232,7 +175,7 @@ func setupNet(msg *common.Message, etcWasCopied bool) error {
 	return nil
 }
 
-func setupCopyUp(msg *common.Message) ([]string, error) {
+func setupCopyUp(msg common.Message) ([]string, error) {
 	switch msg.CopyUpMode {
 	case common.TmpfsWithSymlinkCopyUp:
 	default:
@@ -306,7 +249,7 @@ func Child(pipeFDEnvKey string, targetCmd []string) error {
 		return err
 	}
 	logrus.Debugf("child: got msg from parent: %+v", msg)
-	copied, err := setupCopyUp(msg)
+	copied, err := setupCopyUp(*msg)
 	if err != nil {
 		return err
 	}
@@ -317,7 +260,7 @@ func Child(pipeFDEnvKey string, targetCmd []string) error {
 			break
 		}
 	}
-	if err := setupNet(msg, etcWasCopied); err != nil {
+	if err := setupNet(*msg, etcWasCopied); err != nil {
 		return err
 	}
 	cmd, err := createCmd(targetCmd)

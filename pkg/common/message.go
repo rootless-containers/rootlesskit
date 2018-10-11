@@ -5,7 +5,14 @@ package common
 type Message struct {
 	// StateDir cannot be empty
 	StateDir string
-	// Network settings
+	Network  NetworkMessage
+	// CopyUp settings
+	CopyUpMode
+	CopyUpDirs []string
+}
+
+// NetworkMessage is empty for HostNetwork.
+type NetworkMessage struct {
 	NetworkMode
 	IP      string
 	Netmask int
@@ -21,7 +28,4 @@ type Message struct {
 	VPNKitMAC    string
 	VPNKitSocket string
 	VPNKitUUID   string
-	// CopyUp settings
-	CopyUpMode
-	CopyUpDirs []string
 }
