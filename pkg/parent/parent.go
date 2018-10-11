@@ -16,24 +16,15 @@ import (
 	"github.com/theckman/go-flock"
 
 	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/network"
 )
 
 type Opt struct {
 	StateDir string
-	common.NetworkMode
-	Slirp4NetNS Slirp4NetNSOpt
-	VPNKit      VPNKitOpt
-	MTU         int
 	common.CopyUpMode
 	CopyUpDirs []string
-}
 
-type Slirp4NetNSOpt struct {
-	Binary string
-}
-
-type VPNKitOpt struct {
-	Binary string
+	NetworkDriver network.ParentDriver // nil for HostNetwork
 }
 
 // Documented state files. Undocumented ones are subject to change.
@@ -87,7 +78,7 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 		Cloneflags:   syscall.CLONE_NEWUSER,
 		Unshareflags: syscall.CLONE_NEWNS,
 	}
-	if opt.NetworkMode != common.HostNetwork {
+	if opt.NetworkDriver != nil {
 		cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
 	}
 	cmd.Stdin = os.Stdin
@@ -106,31 +97,19 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 		return errors.Wrap(err, "failed to setup UID/GID map")
 	}
 	msg := common.Message{
-		StateDir:    opt.StateDir,
-		NetworkMode: opt.NetworkMode,
-		MTU:         opt.MTU,
-		CopyUpMode:  opt.CopyUpMode,
-		CopyUpDirs:  opt.CopyUpDirs,
+		StateDir:   opt.StateDir,
+		CopyUpMode: opt.CopyUpMode,
+		CopyUpDirs: opt.CopyUpDirs,
 	}
-	switch opt.NetworkMode {
-	case common.VDEPlugSlirp:
-		cleanupVDEPlugSlirp, err := setupVDEPlugSlirp(cmd.Process.Pid, &msg)
-		defer cleanupVDEPlugSlirp()
-		if err != nil {
-			return errors.Wrap(err, "failed to setup vdeplug_slirp")
+	if opt.NetworkDriver != nil {
+		netMsg, cleanupNetwork, err := opt.NetworkDriver.ConfigureNetwork(cmd.Process.Pid, opt.StateDir)
+		if cleanupNetwork != nil {
+			defer cleanupNetwork()
 		}
-	case common.VPNKit:
-		cleanupVPNKit, err := setupVPNKit(cmd.Process.Pid, &msg, opt.VPNKit)
-		defer cleanupVPNKit()
 		if err != nil {
-			return errors.Wrap(err, "failed to setup vpnkit")
+			return errors.Wrapf(err, "failed to setup network %+v", opt.NetworkDriver.NetworkMode())
 		}
-	case common.Slirp4NetNS:
-		cleanupSlirp4NetNS, err := setupSlirp4NetNS(cmd.Process.Pid, &msg, opt.Slirp4NetNS)
-		defer cleanupSlirp4NetNS()
-		if err != nil {
-			return errors.Wrap(err, "failed to setup slirp4netns")
-		}
+		msg.Network = *netMsg
 	}
 
 	// wake up the child

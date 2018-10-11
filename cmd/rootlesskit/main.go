@@ -11,6 +11,9 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/child"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/network/slirp4netns"
+	"github.com/rootless-containers/rootlesskit/pkg/network/vdeplugslirp"
+	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
 	"github.com/rootless-containers/rootlesskit/pkg/parent"
 )
 
@@ -99,20 +102,6 @@ func main() {
 	}
 }
 
-func parseNetworkMode(s string) (common.NetworkMode, error) {
-	switch s {
-	case "host":
-		return common.HostNetwork, nil
-	case "vdeplug_slirp":
-		return common.VDEPlugSlirp, nil
-	case "vpnkit":
-		return common.VPNKit, nil
-	case "slirp4netns":
-		return common.Slirp4NetNS, nil
-	default:
-		return -1, errors.Errorf("unknown network mode: %s", s)
-	}
-}
 func parseCopyUpMode(s string) (common.CopyUpMode, error) {
 	switch s {
 	case "tmpfs+symlink":
@@ -126,25 +115,33 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 	opt := &parent.Opt{}
 	var err error
 	opt.StateDir = clicontext.String("state-dir")
-	opt.NetworkMode, err = parseNetworkMode(clicontext.String("net"))
-	if err != nil {
-		return nil, err
+	mtu := clicontext.Int("mtu")
+	if mtu < 0 || mtu > 65521 {
+		// 0 is ok (stands for the driver's default)
+		return nil, errors.Errorf("mtu must be <= 65521, got %d", mtu)
 	}
-	switch opt.NetworkMode {
-	case common.Slirp4NetNS:
-		opt.Slirp4NetNS.Binary = clicontext.String("slirp4netns-binary")
-		if _, err := exec.LookPath(opt.Slirp4NetNS.Binary); err != nil {
+	switch s := clicontext.String("net"); s {
+	case "host":
+		// NOP
+		if mtu != 0 {
+			logrus.Warnf("unsupported mtu for --net=host: %d", mtu)
+		}
+	case "slirp4netns":
+		binary := clicontext.String("slirp4netns-binary")
+		if _, err := exec.LookPath(binary); err != nil {
 			return nil, err
 		}
-	case common.VPNKit:
-		opt.VPNKit.Binary = clicontext.String("vpnkit-binary")
-		if _, err := exec.LookPath(opt.VPNKit.Binary); err != nil {
+		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu)
+	case "vpnkit":
+		binary := clicontext.String("vpnkit-binary")
+		if _, err := exec.LookPath(binary); err != nil {
 			return nil, err
 		}
-	}
-	opt.MTU = clicontext.Int("mtu")
-	if opt.MTU < 0 || opt.MTU > 65521 {
-		return nil, errors.Errorf("mtu must be <= 65521, got %d", opt.MTU)
+		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu)
+	case "vdeplug_slirp":
+		opt.NetworkDriver = vdeplugslirp.NewParentDriver(mtu)
+	default:
+		return nil, errors.Errorf("unknown network mode: %s", s)
 	}
 	opt.CopyUpMode, err = parseCopyUpMode(clicontext.String("copy-up-mode"))
 	if err != nil {
