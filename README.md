@@ -1,14 +1,16 @@
 # RootlessKit: the gate to the rootless world
 
-`rootlesskit` does an equivalent of [`unshare(1)`](http://man7.org/linux/man-pages/man1/unshare.1.html) and [`newuidmap(1)`](http://man7.org/linux/man-pages/man1/newuidmap.1.html)/[`newgidmap(1)`](http://man7.org/linux/man-pages/man1/newgidmap.1.html) in a single command, for creating unprivileged [`user_namespaces`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) and [`mount_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) with [`subuid(5)`](http://man7.org/linux/man-pages/man5/subuid.5.html) and [`subgid(5)`](http://man7.org/linux/man-pages/man5/subgid.5.html).
+`rootlesskit` is a kind of Linux-native "fake root" utility, made for mainly running [Docker and Kubernetes as an unprivileged user](https://github.com/rootless-containers/usernetes).
+
+`rootlesskit` does an equivalent of [`unshare(1)`](http://man7.org/linux/man-pages/man1/unshare.1.html) and [`newuidmap(1)`](http://man7.org/linux/man-pages/man1/newuidmap.1.html)/[`newgidmap(1)`](http://man7.org/linux/man-pages/man1/newgidmap.1.html) in a single command, for creating unprivileged [`user_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) and [`mount_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) with [`subuid(5)`](http://man7.org/linux/man-pages/man5/subuid.5.html) and [`subgid(5)`](http://man7.org/linux/man-pages/man5/subgid.5.html).
 
 `rootlesskit` also supports network namespace isolation and userspace NAT using ["slirp"](#slirp).
+Kernel NAT using SUID-enabled [`lxc-user-nic(1)`](https://linuxcontainers.org/lxc/manpages/man1/lxc-user-nic.1.html) is also on the plan.
 
-Plan:
-* Support netns with userspace NAT using [`netstack`](https://github.com/google/netstack) (No extra binary will be needed)
-* Support netns with kernel NAT using SUID-enabled [`lxc-user-nic(1)`](https://linuxcontainers.org/lxc/manpages/man1/lxc-user-nic.1.html)
-  * We might also need some SUID binary for port forwarding
-* Some cgroups stuff
+## Projects using RootlessKit
+
+* [Usernetes](https://github.com/rootless-containers/usernetes): Docker & Kubernetes, installable under a non-root user's `$HOME`.
+* [BuildKit](https://github.com/moby/buildkit): Next-generation `docker build` backend
 
 ## Setup
 
@@ -17,7 +19,7 @@ $ go get github.com/rootless-containers/rootlesskit/cmd/rootlesskit
 ```
 
 Requirements:
-* Some distros such as Debian (excluding Ubuntu) and Arch Linux require `echo 1 > /proc/sys/kernel/unprivileged_userns_clone`
+* Some distros such as Debian (excluding Ubuntu) and Arch Linux require `sudo sh -c "echo 1 > /proc/sys/kernel/unprivileged_userns_clone"`.
 * `newuidmap` and `newgidmap` need to be installed on the host. These commands are provided by the `uidmap` package on most distros.
 * `/etc/subuid` and `/etc/subgid` should contain >= 65536 sub-IDs. e.g. `penguin:231072:65536`.
 
@@ -34,6 +36,48 @@ penguin:231072:65536
 
 ## Usage
 
+Inside `rootlesskit`, your UID is mapped to 0 but it is not the real root:
+
+```console
+$ rootlesskit bash
+rootlesskit$ id
+uid=0(root) gid=0(root) groups=0(root),65534(nogroup)
+rootlesskit$ ls -l /etc/shadow
+-rw-r----- 1 nobody nogroup 1050 Aug 21 19:02 /etc/shadow
+rootlesskit$ $ cat /etc/shadow
+cat: /etc/shadow: Permission denied
+```
+
+Environment variables are kept untouched:
+
+```console
+$ rootlesskit bash
+rootlesskit$ echo $USER
+penguin
+rootlesskit$ echo $HOME
+/home/penguin
+rootlesskit$ echo $XDG_RUNTIME_DIR
+/run/user/1001
+```
+
+Filesystems can be isolated from the host with `--copy-up`:
+
+```console
+$ rootlesskit --copy-up=/etc bash
+rootlesskit$ rm /etc/resolv.conf
+rootlesskit$ vi /etc/resolv.conf
+```
+
+You can even create network namespaces with [Slirp](#slirp):
+
+```console
+$ rootlesskit --copy-up=/etc --copy-up=/run --net=slirp4netns bash
+rootlesskit$ ip netns add foo
+...
+```
+
+Proc filesystem view:
+
 ```console
 $ rootlesskit bash
 rootlesskit$ cat /proc/self/uid_map
@@ -44,13 +88,9 @@ rootlesskit$ cat /proc/self/gid_map
          1     231072      65536
 rootlesskit$ cat /proc/self/setgroups
 allow
-rootlesskit$ echo $HOME
-/home/penguin
-rootlesskit$ vi /home/penguin/override-foobar.conf
-rootlesskit$ mount --bind /home/penguin/override-foobar.conf /etc/foobar.conf
-rootlesskit$ touch /note_that_you_are_not_real_root
-touch: cannot touch '/note_that_you_are_not_real_root': Permission denied
 ```
+
+Full CLI options:
 
 ```console
 $ rootlesskit --help
@@ -90,10 +130,10 @@ Undocumented files are subject to change.
 ## Slirp
 
 Remarks:
-* Specifying `--copy-up=/etc` is highly recommended unless `/etc/resolv.conf` is statically configured. Otherwise `/etc/resolv.conf` will be invalidated when it is recreated on the host.
+* Specifying `--copy-up=/etc` is highly recommended unless `/etc/resolv.conf` is statically configured. Otherwise `/etc/resolv.conf` will be invalidated when it is recreated on the host, typically by NetworkManager or systemd-resolved.
 
 Currently there are three slirp implementations supported by rootlesskit:
-* `--net=slirp4netns`, using [slirp4netns](https://github.com/rootless-containers/slirp4netns)
+* `--net=slirp4netns`, using [slirp4netns](https://github.com/rootless-containers/slirp4netns) (recommended)
 * `--net=vpnkit`, using [VPNKit](https://github.com/moby/vpnkit)
 * `--net=vdeplug_slirp`, using [vdeplug_slirp](https://github.com/rd235/vdeplug_slirp)
 
