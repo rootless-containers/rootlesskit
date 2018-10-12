@@ -1,19 +1,29 @@
-FROM golang:1.10 AS rootlesskit
+FROM golang:1.11 AS rootlesskit
 ADD . /go/src/github.com/rootless-containers/rootlesskit
 RUN go build -o /rootlesskit github.com/rootless-containers/rootlesskit/cmd/rootlesskit
 
-FROM ubuntu as build-c
+FROM ubuntu:18.04 as build-c
 RUN apt update && apt install -y git make gcc automake autotools-dev libtool
 
+# As of October 2018, the upstream shadow newuidmap/newgidmap requires `docker run --cap-add sys_admin`.
+# We can use https://github.com/shadow-maint/shadow/pull/132 for eliminating unneeded dependency on CAP_SYS_ADMIN.
+FROM build-c as idmap
+RUN apt update && apt install -y byacc gettext autopoint libcap-dev libxslt1-dev
+RUN ( git clone -b no-cap-sys-admin https://github.com/giuseppe/shadow.git /shadow && cd /shadow )
+WORKDIR /shadow
+RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux --without-acl --without-attr --without-tcb --without-nscd \
+&& make \
+&& cp src/newuidmap src/newgidmap /usr/bin
+
 FROM build-c AS slirp4netns
-ARG SLIRP4NETNS_COMMIT=0037042e2facc8818d0a254e320a739648283f2e
+ARG SLIRP4NETNS_COMMIT=39e87c0e66345edf7fd6e0bd1f61aa842617e757
 RUN git clone https://github.com/rootless-containers/slirp4netns.git /slirp4netns && \
   cd /slirp4netns && git checkout ${SLIRP4NETNS_COMMIT} && \
   ./autogen.sh && ./configure && make
 
-FROM ubuntu AS vpnkit
+FROM ubuntu:18.04 AS vpnkit
 RUN apt update && apt install -y ocaml opam
-ARG VPNKIT_COMMIT=bbedcf42d9e6ba0afba65aca18dd5fc087192b13
+ARG VPNKIT_COMMIT=7d18ec48982340f49461379d718a4538f3090e13
 RUN git clone https://github.com/moby/vpnkit.git /vpnkit && \
   cd /vpnkit && git checkout ${VPNKIT_COMMIT} && \
   make
@@ -36,24 +46,33 @@ RUN git clone https://github.com/rd235/vdeplug_slirp.git /vdeplug_slirp && \
   cd /vdeplug_slirp && git checkout ${VDEPLUGSLIRP_COMMIT} && \
   autoreconf -if && ./configure && make && make install
 
-FROM ubuntu AS test
-# busybox is only for debugging purpose
-# sudo is only for rootful veth benchmark (for comparison)
-RUN apt update && apt install -y iperf3 uidmap iproute2 busybox sudo
-RUN useradd --create-home --home-dir /home/user --uid 1000 user \
-  && mkdir -p /run/user/1000 \
-  && echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user
+FROM ubuntu:18.04 AS test-base
+# iproute2: for `ip` command that rootlesskit needs to exec
+# iperf3: only for benchmark purpose
+# busybox: only for debugging purpose
+# sudo: only for rootful veth benchmark (for comparison)
+RUN apt update && apt install -y iproute2 iperf3 busybox sudo
+COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
+COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 COPY --from=rootlesskit /rootlesskit /home/user/bin/
-COPY --from=slirp4netns /slirp4netns/slirp4netns /home/user/bin/
-COPY --from=vpnkit /vpnkit/vpnkit.exe /home/user/bin/vpnkit
-COPY --from=vdeplug_slirp /usr/local/bin/* /home/user/bin/
-COPY --from=vdeplug_slirp /usr/local/lib/* /home/user/lib/
-ADD ./hack/test/docker-entrypoint.sh /home/user/bin/
-RUN chown -R user:user /run/user/1000 /home/user
+RUN chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap \
+  && useradd --create-home --home-dir /home/user --uid 1000 user \
+  && mkdir -p /run/user/1000 \
+  && chown -R user:user /run/user/1000 /home/user \
+  && echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user
 USER user
 ENV HOME /home/user
 ENV USER user
 ENV XDG_RUNTIME_DIR=/run/user/1000
 ENV PATH /home/user/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV LD_LIBRARY_PATH=/home/user/lib
+
+FROM test-base AS test-light
+COPY --from=slirp4netns /slirp4netns/slirp4netns /home/user/bin/
+
+FROM test-light AS test-full
+COPY --from=vpnkit /vpnkit/vpnkit.exe /home/user/bin/vpnkit
+COPY --from=vdeplug_slirp /usr/local/bin/* /home/user/bin/
+COPY --from=vdeplug_slirp /usr/local/lib/* /home/user/lib/
+ADD ./hack/test/docker-entrypoint.sh /home/user/bin/
 ENTRYPOINT ["/home/user/bin/docker-entrypoint.sh"]
