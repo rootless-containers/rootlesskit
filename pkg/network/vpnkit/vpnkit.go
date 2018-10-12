@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jamescun/tuntap"
-	"github.com/moby/vpnkit/go/pkg/vpnkit"
+	"github.com/moby/vpnkit/go/pkg/vmnet"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
@@ -102,10 +102,10 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	return &netmsg, common.Seq(cleanups), nil
 }
 
-func waitForVPNKit(ctx context.Context, socket string) (*vpnkit.Vmnet, error) {
+func waitForVPNKit(ctx context.Context, socket string) (*vmnet.Vmnet, error) {
 	retried := 0
 	for {
-		vmnet, err := vpnkit.NewVmnet(ctx, socket)
+		vmnet, err := vmnet.New(ctx, socket)
 		if err == nil {
 			return vmnet, nil
 		}
@@ -151,7 +151,7 @@ func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (s
 	if tap.Name() != tapName {
 		return "", errors.Wrapf(err, "expected %q, got %q", tapName, tap.Name())
 	}
-	vmnet, err := vpnkit.NewVmnet(ctx, socket)
+	vmnet, err := vmnet.New(ctx, socket)
 	if err != nil {
 		return "", err
 	}
@@ -168,7 +168,7 @@ func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (s
 	return tapName, nil
 }
 
-func tap2vif(vif *vpnkit.Vif, r io.Reader) {
+func tap2vif(vif *vmnet.Vif, r io.Reader) {
 	b := make([]byte, 65536)
 	for {
 		n, err := r.Read(b)
@@ -181,7 +181,7 @@ func tap2vif(vif *vpnkit.Vif, r io.Reader) {
 	}
 }
 
-func vif2tap(w io.Writer, vif *vpnkit.Vif) {
+func vif2tap(w io.Writer, vif *vmnet.Vif) {
 	for {
 		b, err := vif.Read()
 		if err != nil {

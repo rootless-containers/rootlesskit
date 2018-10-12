@@ -2,22 +2,6 @@
 
 
 [[projects]]
-  digest = "1:bf42be3cb1519bf8018dfd99720b1005ee028d947124cab3ccf965da59381df6"
-  name = "github.com/Microsoft/go-winio"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "7da180ee92d8bd8bb8c37fc560e673e6557c392f"
-  version = "v0.4.7"
-
-[[projects]]
-  branch = "master"
-  digest = "1:3d958c079af9a144a5fa78c85233d6a72e2befc8eed0a161ff643755b801e8b8"
-  name = "github.com/docker/go-p9p"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "64abb42af527ed0dacbef777a5dbe36e3b1147f0"
-
-[[projects]]
   digest = "1:8f8811f9be822914c3a25c6a071e93beb4c805d7b026cbf298bc577bc1cc945b"
   name = "github.com/google/uuid"
   packages = ["."]
@@ -34,20 +18,13 @@
   revision = "434f1022c06e56e7e283a2dbe05b1481201fb5fe"
 
 [[projects]]
-  branch = "master"
-  digest = "1:75926eb066907b796aeaf801f2ca7f1b9b323218b42b1faa5a185381c68c5739"
-  name = "github.com/moby/datakit"
-  packages = ["api/go-datakit"]
-  pruneopts = "UT"
-  revision = "4ab7f3e96f484d892e56134114b54d5cdb292515"
-
-[[projects]]
-  branch = "master"
-  digest = "1:2f8fccdcf7c118706f7ae050b8fa7b3c2130f315c748c1b9497a2f3c0e687ddf"
+  branch = "vmnet-pkg"
+  digest = "1:7bd94fbd708f2d4c08cf092a2dc5abc60b63a496c73d8388da8e6686b19c347d"
   name = "github.com/moby/vpnkit"
-  packages = ["go/pkg/vpnkit"]
+  packages = ["go/pkg/vmnet"]
   pruneopts = "UT"
-  revision = "2d23d332c2232cbde1f9d0243e29b5635092de13"
+  revision = "2356d432a3f4db00a2135454d063ae54bc56dbcc"
+  source = "github.com/tiborvass/vpnkit"
 
 [[projects]]
   branch = "fix-subgid"
@@ -115,7 +92,7 @@
   input-imports = [
     "github.com/google/uuid",
     "github.com/jamescun/tuntap",
-    "github.com/moby/vpnkit/go/pkg/vpnkit",
+    "github.com/moby/vpnkit/go/pkg/vmnet",
     "github.com/opencontainers/runc/libcontainer/user",
     "github.com/pkg/errors",
     "github.com/sirupsen/logrus",
