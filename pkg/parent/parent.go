@@ -1,22 +1,28 @@
 package parent
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"syscall"
 
+	"github.com/gorilla/mux"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/pkg/errors"
 	"github.com/theckman/go-flock"
 
+	"github.com/rootless-containers/rootlesskit/pkg/api/router"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
+	"github.com/rootless-containers/rootlesskit/pkg/port"
 )
 
 type Opt struct {
@@ -25,12 +31,14 @@ type Opt struct {
 	CopyUpDirs []string
 
 	NetworkDriver network.ParentDriver // nil for HostNetwork
+	PortDriver    port.Driver          // nil for --port-driver=none
 }
 
 // Documented state files. Undocumented ones are subject to change.
 const (
 	StateFileLock     = "lock"
 	StateFileChildPID = "child_pid" // decimal pid number text
+	StateFileAPISock  = "api.sock"  // REST API Socket
 )
 
 func Parent(pipeFDEnvKey string, opt *Opt) error {
@@ -96,6 +104,8 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	if err := setupUIDGIDMap(cmd.Process.Pid); err != nil {
 		return errors.Wrap(err, "failed to setup UID/GID map")
 	}
+
+	// configure Network driver
 	msg := common.Message{
 		StateDir:   opt.StateDir,
 		CopyUpMode: opt.CopyUpMode,
@@ -112,6 +122,17 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 		msg.Network = *netMsg
 	}
 
+	// configure Port driver
+	if opt.PortDriver != nil {
+		opt.PortDriver.SetChildPID(cmd.Process.Pid)
+	}
+
+	// listens the API
+	apiSockPath := filepath.Join(opt.StateDir, StateFileAPISock)
+	apiCloser, err := listenServeAPI(apiSockPath, &router.Backend{PortDriver: opt.PortDriver})
+	if err != nil {
+		return err
+	}
 	// wake up the child
 	if err := writeMessage(pipeW, &msg); err != nil {
 		return err
@@ -119,8 +140,13 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	if err := pipeW.Close(); err != nil {
 		return err
 	}
+	// block until the child exits
 	if err := cmd.Wait(); err != nil {
-		return errors.Wrap(err, "children exited")
+		return errors.Wrap(err, "child exited")
+	}
+	// close the API socket
+	if err := apiCloser.Close(); err != nil {
+		return errors.Wrapf(err, "failed to close %s", apiSockPath)
 	}
 	return nil
 }
@@ -211,4 +237,22 @@ func setupUIDGIDMap(pid int) error {
 		return errors.Wrapf(err, "newgidmap %s %v failed: %s", pidS, gArgs, string(out))
 	}
 	return nil
+}
+
+// apiCloser is implemented by *http.Server
+type apiCloser interface {
+	Close() error
+	Shutdown(context.Context) error
+}
+
+func listenServeAPI(socketPath string, backend *router.Backend) (apiCloser, error) {
+	r := mux.NewRouter()
+	router.AddRoutes(r, backend)
+	srv := &http.Server{Handler: r}
+	l, err := net.Listen("unix", socketPath)
+	if err != nil {
+		return nil, err
+	}
+	go srv.Serve(l)
+	return srv, nil
 }

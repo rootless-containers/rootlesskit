@@ -1,6 +1,7 @@
 FROM golang:1.11 AS rootlesskit
 ADD . /go/src/github.com/rootless-containers/rootlesskit
 RUN go build -o /rootlesskit github.com/rootless-containers/rootlesskit/cmd/rootlesskit
+RUN go build -o /rootlessctl github.com/rootless-containers/rootlesskit/cmd/rootlessctl
 
 FROM ubuntu:18.04 as build-c
 RUN apt update && apt install -y git make gcc automake autotools-dev libtool
@@ -48,13 +49,15 @@ RUN git clone https://github.com/rd235/vdeplug_slirp.git /vdeplug_slirp && \
 
 FROM ubuntu:18.04 AS test-base
 # iproute2: for `ip` command that rootlesskit needs to exec
+# socat: for `socat` command required for --port-driver=socat
 # iperf3: only for benchmark purpose
 # busybox: only for debugging purpose
 # sudo: only for rootful veth benchmark (for comparison)
-RUN apt update && apt install -y iproute2 iperf3 busybox sudo
+RUN apt update && apt install -y iproute2 socat iperf3 busybox sudo
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 COPY --from=rootlesskit /rootlesskit /home/user/bin/
+COPY --from=rootlesskit /rootlessctl /home/user/bin/
 RUN chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap \
   && useradd --create-home --home-dir /home/user --uid 1000 user \
   && mkdir -p /run/user/1000 \

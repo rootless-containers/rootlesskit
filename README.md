@@ -16,6 +16,7 @@ Kernel NAT using SUID-enabled [`lxc-user-nic(1)`](https://linuxcontainers.org/lx
 
 ```console
 $ go get github.com/rootless-containers/rootlesskit/cmd/rootlesskit
+$ go get github.com/rootless-containers/rootlesskit/cmd/rootlessctl
 ```
 
 Requirements:
@@ -107,15 +108,17 @@ COMMANDS:
      help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --debug                debug mode
-   --state-dir value      state directory
-   --net value            host, vdeplug_slirp, vpnkit (default: "host")
-   --vpnkit-binary value  path of VPNKit binary for --net=vpnkit (default: "vpnkit")
-   --mtu value            MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
-   --copy-up value        mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
-   --copy-up-mode value   tmpfs+symlink (default: "tmpfs+symlink")
-   --help, -h             show help
-   --version, -v          print the version
+   --debug                     debug mode
+   --state-dir value           state directory
+   --net value                 network driver [host, slirp4netns, vpnkit, vdeplug_slirp] (default: "host")
+   --slirp4netns-binary value  path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
+   --vpnkit-binary value       path of VPNKit binary for --net=vpnkit (default: "vpnkit")
+   --mtu value                 MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
+   --copy-up value             mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
+   --copy-up-mode value        copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
+   --port-driver value         port driver for non-host network. [none, socat] (default: "none")
+   --help, -h                  show help
+   --version, -v               print the version
 ```
 
 
@@ -124,6 +127,7 @@ GLOBAL OPTIONS:
 The following files will be created in the `--state-dir` directory:
 * `lock`: lock file
 * `child_pid`: decimal PID text that can be used for `nsenter(1)`.
+* `api.sock`: REST API socket for `rootlessctl`. See [Port forwarding](#port-forwarding) section.
 
 Undocumented files are subject to change.
 
@@ -140,7 +144,7 @@ Currently there are three slirp implementations supported by rootlesskit:
 Usage:
 
 ```console
-$ rootlesskit --state=/run/user/1001/rootlesskit/foo --net=slirp4netns --copy-up=/etc bash
+$ rootlesskit --state-dir=/run/user/1001/rootlesskit/foo --net=slirp4netns --copy-up=/etc bash
 rootlesskit$ ip a
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
@@ -176,7 +180,26 @@ Default network configuration for `--net=vpnkit`:
 * Host: 192.168.65.2
 
 
-Port forwarding:
+### Port forwarding
+
+`rootlessctl` can be used for exposing the ports in the network namespace to the host network namespace.
+You also need to launch `rootlesskit` with `--port-driver=socat`.
+
+
+For example, to expose 80 in the child as 8080 in the parent:
+
+```console
+$ rootlesskit --state-dir=/run/user/1001/rootlesskit/foo --net=slirp4netns --copy-up=/etc --port-driver=socat bash
+rootlesskit$ rootlessctl --socket=/run/user/1001/rootlesskit/foo/api.sock add-ports 0.0.0.0:8080:80/tcp
+1
+rootlesskit$ rootlessctl --socket=/run/user/1001/rootlesskit/foo/api.sock list-ports
+ID    PROTO    PARENTIP   PARENTPORT    CHILDPORT    
+1     tcp      0.0.0.0    8080          80
+rootlesskit$ rootlessctl --socket=/run/user/1001/rootlesskit/foo/api.sock remove-ports 1
+1
+```
+
+You can also expose the ports manually without using the API socket.
 ```console
 $ pid=$(cat /run/user/1001/rootlesskit/foo/child_pid)
 $ socat -t -- TCP-LISTEN:8080,reuseaddr,fork EXEC:"nsenter -U -n -t $pid socat -t -- STDIN TCP4\:127.0.0.1\:80"

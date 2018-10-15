@@ -10,6 +10,22 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:c79fb010be38a59d657c48c6ba1d003a8aa651fa56b579d959d74573b7dff8e1"
+  name = "github.com/gorilla/context"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
+  version = "v1.1.1"
+
+[[projects]]
+  digest = "1:e73f5b0152105f18bc131fba127d9949305c8693f8a762588a82a48f61756f5f"
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
+  version = "v1.6.2"
+
+[[projects]]
   branch = "master"
   digest = "1:dd1e851f4e3a5ee3f51613c79a01666e04e5e9289e2da3f6f815c008010fc02f"
   name = "github.com/jamescun/tuntap"
@@ -31,7 +47,7 @@
   name = "github.com/moby/vpnkit"
   packages = ["go/pkg/vmnet"]
   pruneopts = "UT"
-  revision = "d04fddd11aa49c96ff6f4a0dfe0eb7273136d0e4"
+  revision = "396a8b51b13a2a55352e5c64b4e2bc19af0f4fe0"
 
 [[projects]]
   branch = "master"
@@ -39,7 +55,7 @@
   name = "github.com/opencontainers/runc"
   packages = ["libcontainer/user"]
   pruneopts = "UT"
-  revision = "58592df56734acf62e574865fe40b9e53e967910"
+  revision = "7ca079fdeb78e89e5b6843910fba3dcc7f501a88"
 
 [[projects]]
   digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
@@ -83,20 +99,32 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f5aa274a0377f85735edc7fedfb0811d3cbc20af91633797cb359e29c3272271"
+  digest = "1:d6b719875cf8091fbab38527d81d34e71f4521b9ee9ccfbd4a32cff2ac5af96e"
+  name = "golang.org/x/net"
+  packages = [
+    "context",
+    "context/ctxhttp",
+  ]
+  pruneopts = "UT"
+  revision = "9b4f9f5ad5197c79fd623a3638e70d8b26cef344"
+
+[[projects]]
+  branch = "master"
+  digest = "1:899c684138eb2844811b7f97e264d3c65d533dbedc59549fa58fc2bf316f83a1"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "fa43e7bc11baaae89f3f902b2b4d832b68234844"
+  revision = "44b849a8bc13eb42e95e6c6c5e360481b73ec710"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
     "github.com/google/uuid",
+    "github.com/gorilla/mux",
     "github.com/jamescun/tuntap",
     "github.com/moby/vpnkit/go/pkg/vmnet",
     "github.com/opencontainers/runc/libcontainer/user",
@@ -104,6 +132,7 @@
     "github.com/sirupsen/logrus",
     "github.com/theckman/go-flock",
     "github.com/urfave/cli",
+    "golang.org/x/net/context/ctxhttp",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
