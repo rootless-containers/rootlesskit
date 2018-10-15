@@ -83,11 +83,25 @@ func mountSysfs() error {
 		return errors.Wrap(err, "creating a directory under /tmp")
 	}
 	defer os.RemoveAll(tmp)
-	cmds := [][]string{
-		{"mount", "--rbind", "/sys/fs/cgroup", tmp},
-		{"mount", "-t", "sysfs", "none", "/sys"},
-		{"mount", "-n", "--move", tmp, "/sys/fs/cgroup"},
+	cmds := [][]string{{"mount", "--rbind", "/sys/fs/cgroup", tmp}}
+	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
+		return errors.Wrapf(err, "executing %v", cmds)
 	}
+	cmds = [][]string{{"mount", "-t", "sysfs", "none", "/sys"}}
+	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
+		// when the sysfs in the parent namespace is RO,
+		// we can't mount RW sysfs even in the child namespace.
+		// https://github.com/rootless-containers/rootlesskit/pull/23#issuecomment-429292632
+		// https://github.com/torvalds/linux/blob/9f203e2f2f065cd74553e6474f0ae3675f39fb0f/fs/namespace.c#L3326-L3328
+		cmdsRo := [][]string{{"mount", "-t", "sysfs", "-o", "ro", "none", "/sys"}}
+		logrus.Warnf("failed to mount sysfs (%v), falling back to read-only mount (%v): %v",
+			cmds, cmdsRo, err)
+		if err := common.Execs(os.Stderr, os.Environ(), cmdsRo); err != nil {
+			// when /sys/firmware is masked, even RO sysfs can't be mounted
+			logrus.Warnf("failed to mount sysfs (%v): %v", cmdsRo, err)
+		}
+	}
+	cmds = [][]string{{"mount", "-n", "--move", tmp, "/sys/fs/cgroup"}}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
 		return errors.Wrapf(err, "executing %v", cmds)
 	}
