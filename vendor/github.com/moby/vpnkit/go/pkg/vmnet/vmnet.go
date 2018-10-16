@@ -1,4 +1,4 @@
-package vpnkit
+package vmnet
 
 import (
 	"bytes"
@@ -21,8 +21,8 @@ type Vmnet struct {
 	remoteVersion *InitMessage
 }
 
-// NewVmnet constructs an instance of Vmnet.
-func NewVmnet(ctx context.Context, path string) (*Vmnet, error) {
+// New constructs an instance of Vmnet.
+func New(ctx context.Context, path string) (*Vmnet, error) {
 	d := &net.Dialer{}
 	conn, err := d.DialContext(ctx, "unix", path)
 	if err != nil {

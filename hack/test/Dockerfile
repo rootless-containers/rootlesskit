@@ -23,7 +23,7 @@ RUN git clone https://github.com/rootless-containers/slirp4netns.git /slirp4netn
 
 FROM ubuntu:18.04 AS vpnkit
 RUN apt update && apt install -y ocaml opam
-ARG VPNKIT_COMMIT=7d18ec48982340f49461379d718a4538f3090e13
+ARG VPNKIT_COMMIT=d04fddd11aa49c96ff6f4a0dfe0eb7273136d0e4
 RUN git clone https://github.com/moby/vpnkit.git /vpnkit && \
   cd /vpnkit && git checkout ${VPNKIT_COMMIT} && \
   make

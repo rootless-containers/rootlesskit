@@ -31,14 +31,6 @@
   branch = "fix-subgid"
   source = "github.com/AkihiroSuda/runc"
 
-[[override]]
-  name = "github.com/moby/vpnkit"
-  branch = "master"
-
-[[override]]
-  name = "github.com/moby/datakit"
-  branch = "master"
-
 [prune]
   go-tests = true
   unused-packages = true
