@@ -2,12 +2,12 @@
 
 
 [[projects]]
-  digest = "1:8f8811f9be822914c3a25c6a071e93beb4c805d7b026cbf298bc577bc1cc945b"
+  digest = "1:3a26588bc48b96825977c1b3df964f8fd842cd6860cc26370588d3563433cf11"
   name = "github.com/google/uuid"
   packages = ["."]
   pruneopts = "UT"
-  revision = "064e2069ce9c359c118179501254f67d7d37ba24"
-  version = "0.2"
+  revision = "d460ce9f8df2e77fb1ba55ca87fafed96c607494"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
@@ -18,22 +18,28 @@
   revision = "434f1022c06e56e7e283a2dbe05b1481201fb5fe"
 
 [[projects]]
-  branch = "vmnet-pkg"
+  digest = "1:0a69a1c0db3591fcefb47f115b224592c8dfa4368b7ba9fae509d5e16cdc95c8"
+  name = "github.com/konsorten/go-windows-terminal-sequences"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
+  version = "v1.0.1"
+
+[[projects]]
+  branch = "master"
   digest = "1:7bd94fbd708f2d4c08cf092a2dc5abc60b63a496c73d8388da8e6686b19c347d"
   name = "github.com/moby/vpnkit"
   packages = ["go/pkg/vmnet"]
   pruneopts = "UT"
-  revision = "2356d432a3f4db00a2135454d063ae54bc56dbcc"
-  source = "github.com/tiborvass/vpnkit"
+  revision = "d04fddd11aa49c96ff6f4a0dfe0eb7273136d0e4"
 
 [[projects]]
-  branch = "fix-subgid"
+  branch = "master"
   digest = "1:eecbbd6bfbfbe1acdad4b22c4fd530ab569df1634deef359e40d2ee4f85057f9"
   name = "github.com/opencontainers/runc"
   packages = ["libcontainer/user"]
   pruneopts = "UT"
-  revision = "b34d6d8a7cd4a5d6dbe3c084283860352e144ffc"
-  source = "github.com/AkihiroSuda/runc"
+  revision = "58592df56734acf62e574865fe40b9e53e967910"
 
 [[projects]]
   digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
@@ -44,20 +50,20 @@
   version = "v0.8.0"
 
 [[projects]]
-  digest = "1:9e9193aa51197513b3abcb108970d831fbcf40ef96aa845c4f03276e1fa316d2"
+  digest = "1:3f53e9e4dfbb664cd62940c9c4b65a2171c66acd0b7621a1a6b8e78513525a52"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "UT"
-  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
-  version = "v1.0.5"
+  revision = "ad15b42461921f1fb3529b058c6786c6a45d5162"
+  version = "v1.1.1"
 
 [[projects]]
-  digest = "1:e5abcb5d4f4cec8b475f2a812a00c3218fb75f0f792cdeee301e265d22a98cb7"
+  digest = "1:70f34ee6d1b188cbd2dfcde62b0e2c600262eb5a03c8a3f3435ecf7c74790470"
   name = "github.com/theckman/go-flock"
   packages = ["."]
   pruneopts = "UT"
-  revision = "b139a2487364247d91814e4a7c7b8fdc69e342b2"
-  version = "v0.4.0"
+  revision = "7f43ea2e6a643ad441fc12d0ecc0d3388b300c53"
+  version = "v0.7.0"
 
 [[projects]]
   digest = "1:b24d38b282bacf9791408a080f606370efa3d364e4b5fd9ba0f7b87786d3b679"
@@ -73,18 +79,18 @@
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
   pruneopts = "UT"
-  revision = "a49355c7e3f8fe157a85be2f77e6e269a0f89602"
+  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
 
 [[projects]]
   branch = "master"
-  digest = "1:c1fee1a2c739c7b220dc3de939f659dce271fa8d9de155cb8cfcfb99c941cbc3"
+  digest = "1:f5aa274a0377f85735edc7fedfb0811d3cbc20af91633797cb359e29c3272271"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "63fc586f45fe72d95d5240a5d5eb95e6503907d3"
+  revision = "fa43e7bc11baaae89f3f902b2b4d832b68234844"
 
 [solve-meta]
   analyzer-name = "dep"
