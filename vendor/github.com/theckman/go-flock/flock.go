@@ -33,25 +33,45 @@ type Flock struct {
 	r    bool
 }
 
-// NewFlock is a function to return a new instance of *Flock. The only parameter
+// New returns a new instance of *Flock. The only parameter
 // it takes is the path to the desired lockfile.
-func NewFlock(path string) *Flock {
+func New(path string) *Flock {
 	return &Flock{path: path}
 }
 
-// Path is a function to return the path as provided in NewFlock().
+// NewFlock returns a new instance of *Flock. The only parameter
+// it takes is the path to the desired lockfile.
+//
+// Deprecated: Use New instead.
+func NewFlock(path string) *Flock {
+	return New(path)
+}
+
+// Close is equivalent to calling Unlock.
+//
+// This will release the lock and close the underlying file descriptor.
+// It will not remove the file from disk, that's up to your application.
+func (f *Flock) Close() error {
+	return f.Unlock()
+}
+
+// Path returns the path as provided in NewFlock().
 func (f *Flock) Path() string {
 	return f.path
 }
 
-// Locked is a function to return the current lock state (locked: true, unlocked: false).
+// Locked returns the lock state (locked: true, unlocked: false).
+//
+// Warning: by the time you use the returned value, the state may have changed.
 func (f *Flock) Locked() bool {
 	f.m.RLock()
 	defer f.m.RUnlock()
 	return f.l
 }
 
-// RLocked is a function to return the current read lock state (locked: true, unlocked: false).
+// RLocked returns the read lock state (locked: true, unlocked: false).
+//
+// Warning: by the time you use the returned value, the state may have changed.
 func (f *Flock) RLocked() bool {
 	f.m.RLock()
 	defer f.m.RUnlock()

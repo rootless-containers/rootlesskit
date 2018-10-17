@@ -1,8 +1,8 @@
 language: go
 go:
-  - 1.9.3
-  - 1.8.6
-script: go test -v ./... -check.vv
+  - 1.10.x
+  - 1.11.x
+script: go test -v -check.vv -race ./...
 sudo: false
 notifications:
   email:
