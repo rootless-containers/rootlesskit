@@ -3,6 +3,10 @@ ADD . /go/src/github.com/rootless-containers/rootlesskit
 RUN go build -o /rootlesskit github.com/rootless-containers/rootlesskit/cmd/rootlesskit
 RUN go build -o /rootlessctl github.com/rootless-containers/rootlesskit/cmd/rootlessctl
 
+FROM rootlesskit AS test-unit
+RUN apt update && apt install -y iproute2 socat netcat-openbsd
+CMD ["go","test","-v","-race","github.com/rootless-containers/rootlesskit/..."]
+
 FROM ubuntu:18.04 as build-c
 RUN apt update && apt install -y git make gcc automake autotools-dev libtool
 

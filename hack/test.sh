@@ -3,6 +3,10 @@ set -eu -o pipefail -x
 
 cd $(dirname $0)/..
 
+ref=rootless-containers/rootlesskit:test-unit
+docker build -q --target test-unit -t $ref -f ./hack/test/Dockerfile .
+docker run --privileged ${ref}
+
 ref=rootless-containers/rootlesskit:test
 # build -q but keep printing something (....) so as to avoid Travis timeout
 (while sleep 60; do echo -n .; done) & docker build -q -t ${ref} -f ./hack/test/Dockerfile . ; kill %1
