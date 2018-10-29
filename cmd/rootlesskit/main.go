@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -15,6 +16,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network/vdeplugslirp"
 	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
 	"github.com/rootless-containers/rootlesskit/pkg/parent"
+	"github.com/rootless-containers/rootlesskit/pkg/port/socat"
 )
 
 func main() {
@@ -36,7 +38,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "net",
-			Usage: "host, slirp4netns, vpnkit, vdeplug_slirp",
+			Usage: "network driver [host, slirp4netns, vpnkit, vdeplug_slirp]",
 			Value: "host",
 		},
 		cli.StringFlag{
@@ -60,8 +62,13 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "copy-up-mode",
-			Usage: "tmpfs+symlink",
+			Usage: "copy-up mode [tmpfs+symlink]",
 			Value: "tmpfs+symlink",
+		},
+		cli.StringFlag{
+			Name:  "port-driver",
+			Usage: "port driver for non-host network. [none, socat]",
+			Value: "none",
 		},
 	}
 	app.Before = func(context *cli.Context) error {
@@ -148,5 +155,32 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 		return nil, err
 	}
 	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
+	switch s := clicontext.String("port-driver"); s {
+	case "none":
+		// NOP
+	case "socat":
+		if opt.NetworkDriver == nil {
+			return nil, errors.New("port driver requires non-host network")
+		}
+		if err != nil {
+			return nil, err
+		}
+		opt.PortDriver, err = socat.New(&logrusDebugWriter{})
+		if err != nil {
+			return nil, err
+		}
+	default:
+		return nil, errors.Errorf("unknown port driver: %s", s)
+	}
+
 	return opt, nil
+}
+
+type logrusDebugWriter struct {
+}
+
+func (w *logrusDebugWriter) Write(p []byte) (int, error) {
+	s := strings.TrimSuffix(string(p), "\n")
+	logrus.Debug(s)
+	return len(p), nil
 }
