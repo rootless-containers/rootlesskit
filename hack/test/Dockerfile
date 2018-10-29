@@ -16,7 +16,8 @@ RUN apt update && apt install -y git make gcc automake autotools-dev libtool
 # We choose b) until kernel >= 4.14 gets widely adopted.
 # See https://github.com/shadow-maint/shadow/pull/132 https://github.com/shadow-maint/shadow/pull/138
 FROM build-c as idmap
-RUN apt update && apt install -y byacc gettext autopoint libcap-dev libxslt1-dev
+RUN sed -i -e 's/# deb-src/deb-src/' /etc/apt/sources.list \
+ && apt update && apt build-dep -y uidmap
 RUN git clone https://github.com/shadow-maint/shadow.git /shadow
 WORKDIR /shadow
 RUN git checkout 42324e501768675993235e03f7e4569135802d18
