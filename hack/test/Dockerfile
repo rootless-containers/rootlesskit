@@ -10,12 +10,17 @@ CMD ["go","test","-v","-race","github.com/rootless-containers/rootlesskit/..."]
 FROM ubuntu:18.04 as build-c
 RUN apt update && apt install -y git make gcc automake autotools-dev libtool
 
-# As of October 2018, the upstream shadow newuidmap/newgidmap requires `docker run --cap-add sys_admin`.
-# We can use https://github.com/shadow-maint/shadow/pull/132 for eliminating unneeded dependency on CAP_SYS_ADMIN.
+# To allow running rootlesskit in a container without CAP_SYS_ADMIN, we need to do either
+#  a) install newuidmap/newgidmap with file capabilities rather than SETUID (requires kernel >= 4.14)
+#  b) install newuidmap/newgidmap >= 20181028
+# We choose b) until kernel >= 4.14 gets widely adopted.
+# See https://github.com/shadow-maint/shadow/pull/132 https://github.com/shadow-maint/shadow/pull/138
 FROM build-c as idmap
-RUN apt update && apt install -y byacc gettext autopoint libcap-dev libxslt1-dev
-RUN ( git clone -b no-cap-sys-admin https://github.com/giuseppe/shadow.git /shadow && cd /shadow )
+RUN sed -i -e 's/# deb-src/deb-src/' /etc/apt/sources.list \
+ && apt update && apt build-dep -y uidmap
+RUN git clone https://github.com/shadow-maint/shadow.git /shadow
 WORKDIR /shadow
+RUN git checkout 42324e501768675993235e03f7e4569135802d18
 RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux --without-acl --without-attr --without-tcb --without-nscd \
 && make \
 && cp src/newuidmap src/newgidmap /usr/bin
