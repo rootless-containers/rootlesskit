@@ -1,12 +1,5 @@
 package common
 
-type CopyUpMode int
-
-const (
-	TmpfsWithSymlinkCopyUp CopyUpMode = iota
-	// TODO: add "naive copy", overlayfs, bind-mount
-)
-
 func Seq(fns []func() error) func() error {
 	return func() error {
 		for _, fn := range fns {

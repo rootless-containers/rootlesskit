@@ -26,10 +26,7 @@ import (
 )
 
 type Opt struct {
-	StateDir string
-	common.CopyUpMode
-	CopyUpDirs []string
-
+	StateDir      string
 	NetworkDriver network.ParentDriver // nil for HostNetwork
 	PortDriver    port.ParentDriver    // nil for --port-driver=none
 }
@@ -107,9 +104,7 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 
 	// configure Network driver
 	msg := common.Message{
-		StateDir:   opt.StateDir,
-		CopyUpMode: opt.CopyUpMode,
-		CopyUpDirs: opt.CopyUpDirs,
+		StateDir: opt.StateDir,
 	}
 	if opt.NetworkDriver != nil {
 		netMsg, cleanupNetwork, err := opt.NetworkDriver.ConfigureNetwork(cmd.Process.Pid, opt.StateDir)

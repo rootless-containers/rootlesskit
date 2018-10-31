@@ -6,9 +6,6 @@ type Message struct {
 	// StateDir cannot be empty
 	StateDir string
 	Network  NetworkMessage
-	// CopyUp settings
-	CopyUpMode
-	CopyUpDirs []string
 }
 
 // NetworkMessage is empty for HostNetwork.

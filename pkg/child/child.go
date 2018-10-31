@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"syscall"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/copyup"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 )
 
@@ -128,6 +128,24 @@ func activateTap(tap, ip string, netmask int, gateway string, mtu int) error {
 	return nil
 }
 
+func setupCopyDir(driver copyup.ChildDriver, dirs []string) (bool, error) {
+	if driver != nil {
+		etcWasCopied := false
+		copied, err := driver.CopyUp(dirs)
+		for _, d := range copied {
+			if d == "/etc" {
+				etcWasCopied = true
+				break
+			}
+		}
+		return etcWasCopied, err
+	}
+	if len(dirs) != 0 {
+		return false, errors.New("copy-up driver is not specified")
+	}
+	return false, nil
+}
+
 func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver) error {
 	// HostNetwork
 	if driver == nil {
@@ -169,71 +187,10 @@ func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver)
 	return nil
 }
 
-func setupCopyUp(msg common.Message) ([]string, error) {
-	switch msg.CopyUpMode {
-	case common.TmpfsWithSymlinkCopyUp:
-	default:
-		return nil, errors.Errorf("invalid copy-up mode: %+v", msg.CopyUpMode)
-	}
-	// we create bind0 outside of msg.StateDir so as to allow
-	// copying up /run with stateDir=/run/user/1001/rootlesskit/default.
-	bind0, err := ioutil.TempDir("/tmp", "rootlesskit-b")
-	if err != nil {
-		return nil, errors.Wrap(err, "creating bind0 directory under /tmp")
-	}
-	defer os.RemoveAll(bind0)
-	var copied []string
-	for _, d := range msg.CopyUpDirs {
-		d := filepath.Clean(d)
-		if d == "/tmp" {
-			// TODO: we can support copy-up /tmp by changing bind0TempDir
-			return copied, errors.New("/tmp cannot be copied up")
-		}
-		cmds := [][]string{
-			// TODO: read-only bind (does not work well for /run)
-			{"mount", "--rbind", d, bind0},
-			{"mount", "-n", "-t", "tmpfs", "none", d},
-		}
-		if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-			return copied, errors.Wrapf(err, "executing %v", cmds)
-		}
-		bind1, err := ioutil.TempDir(d, ".ro")
-		if err != nil {
-			return copied, errors.Wrapf(err, "creating a directory under %s", d)
-		}
-		cmds = [][]string{
-			{"mount", "-n", "--move", bind0, bind1},
-		}
-		if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-			return copied, errors.Wrapf(err, "executing %v", cmds)
-		}
-		files, err := ioutil.ReadDir(bind1)
-		if err != nil {
-			return copied, errors.Wrapf(err, "reading dir %s", bind1)
-		}
-		for _, f := range files {
-			fFull := filepath.Join(bind1, f.Name())
-			var symlinkSrc string
-			if f.Mode()&os.ModeSymlink != 0 {
-				symlinkSrc, err = os.Readlink(fFull)
-				if err != nil {
-					return copied, errors.Wrapf(err, "reading dir %s", fFull)
-				}
-			} else {
-				symlinkSrc = filepath.Join(filepath.Base(bind1), f.Name())
-			}
-			symlinkDst := filepath.Join(d, f.Name())
-			if err := os.Symlink(symlinkSrc, symlinkDst); err != nil {
-				return copied, errors.Wrapf(err, "symlinking %s to %s", symlinkSrc, symlinkDst)
-			}
-		}
-		copied = append(copied, d)
-	}
-	return copied, nil
-}
-
 type Opt struct {
 	NetworkDriver network.ChildDriver // nil for HostNetwork
+	CopyUpDriver  copyup.ChildDriver  // cannot be nil if len(CopyUpDirs) != 0
+	CopyUpDirs    []string
 }
 
 func Child(pipeFDEnvKey string, targetCmd []string, opt *Opt) error {
@@ -250,16 +207,9 @@ func Child(pipeFDEnvKey string, targetCmd []string, opt *Opt) error {
 		return err
 	}
 	logrus.Debugf("child: got msg from parent: %+v", msg)
-	copied, err := setupCopyUp(*msg)
+	etcWasCopied, err := setupCopyDir(opt.CopyUpDriver, opt.CopyUpDirs)
 	if err != nil {
 		return err
-	}
-	etcWasCopied := false
-	for _, d := range copied {
-		if d == "/etc" {
-			etcWasCopied = true
-			break
-		}
 	}
 	if err := setupNet(*msg, etcWasCopied, opt.NetworkDriver); err != nil {
 		return err
