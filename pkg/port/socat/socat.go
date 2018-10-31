@@ -16,7 +16,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 )
 
-func New(logWriter io.Writer) (port.Driver, error) {
+func New(logWriter io.Writer) (port.ParentDriver, error) {
 	if _, err := exec.LookPath("socat"); err != nil {
 		return nil, err
 	}

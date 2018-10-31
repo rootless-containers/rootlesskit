@@ -36,10 +36,6 @@ type parentDriver struct {
 	mtu int
 }
 
-func (d *parentDriver) NetworkMode() common.NetworkMode {
-	return common.VDEPlugSlirp
-}
-
 func (d *parentDriver) MTU() int {
 	return d.mtu
 }
@@ -87,7 +83,6 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	}
 	// TODO: support configuration
 	netmsg := common.NetworkMessage{
-		NetworkMode:      common.VDEPlugSlirp,
 		IP:               "10.0.2.100",
 		Netmask:          24,
 		Gateway:          "10.0.2.2",
@@ -106,9 +101,6 @@ type childDriver struct {
 }
 
 func (d *childDriver) ConfigureTap(netmsg common.NetworkMessage) (tap string, err error) {
-	if netmsg.NetworkMode != common.VDEPlugSlirp {
-		return "", errors.Errorf("expected network mode %v, got %v", common.VDEPlugSlirp, netmsg.NetworkMode)
-	}
 	if netmsg.PreconfiguredTap == "" {
 		return "", errors.New("could not determine the preconfigured tap")
 	}

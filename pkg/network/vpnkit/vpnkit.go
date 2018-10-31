@@ -45,10 +45,6 @@ type parentDriver struct {
 	mtu    int
 }
 
-func (d *parentDriver) NetworkMode() common.NetworkMode {
-	return common.VPNKit
-}
-
 func (d *parentDriver) MTU() int {
 	return d.mtu
 }
@@ -88,7 +84,6 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	logrus.Debugf("connected to VPNKit vmnet")
 	// TODO: support configuration
 	netmsg := common.NetworkMessage{
-		NetworkMode:      common.VPNKit,
 		IP:               vif.IP.String(),
 		Netmask:          24,
 		Gateway:          "192.168.65.1",
@@ -127,9 +122,6 @@ type childDriver struct {
 }
 
 func (d *childDriver) ConfigureTap(netmsg common.NetworkMessage) (tap string, err error) {
-	if netmsg.NetworkMode != common.VPNKit {
-		return "", errors.Errorf("expected network mode %v, got %v", common.VPNKit, netmsg.NetworkMode)
-	}
 	return startVPNKitRoutines(context.TODO(),
 		netmsg.VPNKitMAC, netmsg.VPNKitSocket, netmsg.VPNKitUUID)
 }

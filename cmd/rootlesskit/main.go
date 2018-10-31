@@ -82,7 +82,11 @@ func main() {
 			return errors.New("no command specified")
 		}
 		if iAmChild {
-			return child.Child(pipeFDEnvKey, clicontext.Args())
+			childOpt, err := createChildOpt(clicontext)
+			if err != nil {
+				return err
+			}
+			return child.Child(pipeFDEnvKey, clicontext.Args(), childOpt)
 		}
 		parentOpt, err := createParentOpt(clicontext)
 		if err != nil {
@@ -183,4 +187,21 @@ func (w *logrusDebugWriter) Write(p []byte) (int, error) {
 	s := strings.TrimSuffix(string(p), "\n")
 	logrus.Debug(s)
 	return len(p), nil
+}
+
+func createChildOpt(clicontext *cli.Context) (*child.Opt, error) {
+	opt := &child.Opt{}
+	switch s := clicontext.String("net"); s {
+	case "host":
+		// NOP
+	case "slirp4netns":
+		opt.NetworkDriver = slirp4netns.NewChildDriver()
+	case "vpnkit":
+		opt.NetworkDriver = vpnkit.NewChildDriver()
+	case "vdeplug_slirp":
+		opt.NetworkDriver = vdeplugslirp.NewChildDriver()
+	default:
+		return nil, errors.Errorf("unknown network mode: %s", s)
+	}
+	return opt, nil
 }

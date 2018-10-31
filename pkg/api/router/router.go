@@ -15,7 +15,7 @@ import (
 type Backend struct {
 	// PortDriver MUST be thread-safe.
 	// PortDriver can be nil
-	PortDriver port.Driver
+	PortDriver port.ParentDriver
 }
 
 func (b *Backend) onError(w http.ResponseWriter, r *http.Request, err error, ec int) {

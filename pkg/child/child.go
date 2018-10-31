@@ -15,9 +15,6 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
-	"github.com/rootless-containers/rootlesskit/pkg/network/slirp4netns"
-	"github.com/rootless-containers/rootlesskit/pkg/network/vdeplugslirp"
-	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
 )
 
 func waitForParentSync(pipeFDStr string) (*common.Message, error) {
@@ -131,22 +128,9 @@ func activateTap(tap, ip string, netmask int, gateway string, mtu int) error {
 	return nil
 }
 
-func getNetworkDriver(netmsg common.NetworkMessage) (network.ChildDriver, error) {
-	switch netmsg.NetworkMode {
-	case common.VDEPlugSlirp:
-		return vdeplugslirp.NewChildDriver(), nil
-	case common.Slirp4NetNS:
-		return slirp4netns.NewChildDriver(), nil
-	case common.VPNKit:
-		return vpnkit.NewChildDriver(), nil
-	default:
-		// HostNetwork does not have driver
-		return nil, errors.Errorf("invalid network mode: %+v", netmsg.NetworkMode)
-	}
-}
-
-func setupNet(msg common.Message, etcWasCopied bool) error {
-	if msg.Network.NetworkMode == common.HostNetwork {
+func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver) error {
+	// HostNetwork
+	if driver == nil {
 		return nil
 	}
 	// for /sys/class/net
@@ -154,10 +138,6 @@ func setupNet(msg common.Message, etcWasCopied bool) error {
 		return err
 	}
 	if err := activateLoopback(); err != nil {
-		return err
-	}
-	driver, err := getNetworkDriver(msg.Network)
-	if err != nil {
 		return err
 	}
 	tap, err := driver.ConfigureTap(msg.Network)
@@ -252,7 +232,14 @@ func setupCopyUp(msg common.Message) ([]string, error) {
 	return copied, nil
 }
 
-func Child(pipeFDEnvKey string, targetCmd []string) error {
+type Opt struct {
+	NetworkDriver network.ChildDriver // nil for HostNetwork
+}
+
+func Child(pipeFDEnvKey string, targetCmd []string, opt *Opt) error {
+	if opt == nil {
+		opt = &Opt{}
+	}
 	pipeFDStr := os.Getenv(pipeFDEnvKey)
 	if pipeFDStr == "" {
 		return errors.Errorf("%s is not set", pipeFDEnvKey)
@@ -274,7 +261,7 @@ func Child(pipeFDEnvKey string, targetCmd []string) error {
 			break
 		}
 	}
-	if err := setupNet(*msg, etcWasCopied); err != nil {
+	if err := setupNet(*msg, etcWasCopied, opt.NetworkDriver); err != nil {
 		return err
 	}
 	cmd, err := createCmd(targetCmd)

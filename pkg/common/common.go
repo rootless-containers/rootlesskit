@@ -1,14 +1,5 @@
 package common
 
-type NetworkMode int
-
-const (
-	HostNetwork NetworkMode = iota
-	VDEPlugSlirp
-	VPNKit
-	Slirp4NetNS
-)
-
 type CopyUpMode int
 
 const (

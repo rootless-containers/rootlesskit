@@ -13,7 +13,6 @@ type Message struct {
 
 // NetworkMessage is empty for HostNetwork.
 type NetworkMessage struct {
-	NetworkMode
 	IP      string
 	Netmask int
 	Gateway string

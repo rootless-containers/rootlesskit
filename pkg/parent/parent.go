@@ -31,7 +31,7 @@ type Opt struct {
 	CopyUpDirs []string
 
 	NetworkDriver network.ParentDriver // nil for HostNetwork
-	PortDriver    port.Driver          // nil for --port-driver=none
+	PortDriver    port.ParentDriver    // nil for --port-driver=none
 }
 
 // Documented state files. Undocumented ones are subject to change.
@@ -117,7 +117,7 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 			defer cleanupNetwork()
 		}
 		if err != nil {
-			return errors.Wrapf(err, "failed to setup network %+v", opt.NetworkDriver.NetworkMode())
+			return errors.Wrapf(err, "failed to setup network %+v", opt.NetworkDriver)
 		}
 		msg.Network = *netMsg
 	}
