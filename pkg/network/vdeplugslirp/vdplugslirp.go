@@ -32,6 +32,8 @@ func NewParentDriver(mtu int) network.ParentDriver {
 	}
 }
 
+const opaqueTap = "vdeplugslirp.tap"
+
 type parentDriver struct {
 	mtu int
 }
@@ -83,12 +85,14 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	}
 	// TODO: support configuration
 	netmsg := common.NetworkMessage{
-		IP:               "10.0.2.100",
-		Netmask:          24,
-		Gateway:          "10.0.2.2",
-		DNS:              "10.0.2.3",
-		MTU:              d.mtu,
-		PreconfiguredTap: tap,
+		IP:      "10.0.2.100",
+		Netmask: 24,
+		Gateway: "10.0.2.2",
+		DNS:     "10.0.2.3",
+		MTU:     d.mtu,
+		Opaque: map[string]string{
+			opaqueTap: tap,
+		},
 	}
 	return &netmsg, common.Seq(cleanups), nil
 }
@@ -100,9 +104,13 @@ func NewChildDriver() network.ChildDriver {
 type childDriver struct {
 }
 
-func (d *childDriver) ConfigureTap(netmsg common.NetworkMessage) (tap string, err error) {
-	if netmsg.PreconfiguredTap == "" {
+func (d *childDriver) ConfigureTap(netmsg common.NetworkMessage) (string, error) {
+	tap := netmsg.Opaque[opaqueTap]
+	if tap == "" {
 		return "", errors.New("could not determine the preconfigured tap")
 	}
-	return netmsg.PreconfiguredTap, nil
+	// tap is created and "up".
+	// IP stuff and MTU are not configured by the parent here,
+	// and they are up to the child.
+	return tap, nil
 }

@@ -15,13 +15,6 @@ type NetworkMessage struct {
 	Gateway string
 	DNS     string
 	MTU     int
-	// For vdeplug_slirp and slirp4netns.
-	// "preconfigured" just means tap is created and "up".
-	// IP stuff and MTU are not configured by the parent here,
-	// and they are up to the child.
-	PreconfiguredTap string
-	// VPNKit settings
-	VPNKitMAC    string
-	VPNKitSocket string
-	VPNKitUUID   string
+	// Opaque strings are specific to driver
+	Opaque map[string]string
 }
