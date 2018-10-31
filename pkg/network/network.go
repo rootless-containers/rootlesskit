@@ -6,8 +6,6 @@ import (
 
 // ParentDriver is called from the parent namespace
 type ParentDriver interface {
-	// NetworkMode returns common.NetworkMode. Must not be HostNetwork.
-	NetworkMode() common.NetworkMode
 	// MTU returns MTU
 	MTU() int
 	// ConfigureNetwork sets up Slirp, updates msg, and returns destructor function.

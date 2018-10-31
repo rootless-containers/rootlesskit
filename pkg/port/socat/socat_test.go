@@ -8,7 +8,7 @@ import (
 )
 
 func TestSocat(t *testing.T) {
-	df := func() port.Driver {
+	df := func() port.ParentDriver {
 		d, err := New(testsuite.TLogWriter(t, "socat.Driver"))
 		if err != nil {
 			t.Fatal(err)

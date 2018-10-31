@@ -18,11 +18,11 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 )
 
-func Run(t *testing.T, df func() port.Driver) {
+func Run(t *testing.T, df func() port.ParentDriver) {
 	t.Run("TestTCP", func(t *testing.T) { TestTCP(t, df()) })
 }
 
-func TestTCP(t *testing.T, d port.Driver) {
+func TestTCP(t *testing.T, d port.ParentDriver) {
 	ensureDeps(t, "nsenter")
 	t.Logf("creating USER+NET namespace")
 	pr, pw, err := os.Pipe()
@@ -63,7 +63,7 @@ func TestTCP(t *testing.T, d port.Driver) {
 	TestTCPWithPID(t, d, childPID)
 }
 
-func TestTCPWithPID(t *testing.T, d port.Driver, childPID int) {
+func TestTCPWithPID(t *testing.T, d port.ParentDriver, childPID int) {
 	ensureDeps(t, "nsenter", "ip", "nc")
 	// [child]parent
 	pairs := map[int]int{
@@ -103,7 +103,7 @@ func nsenterExec(pid int, cmdss ...string) ([]byte, error) {
 	return cmd.CombinedOutput()
 }
 
-func testTCPRoutine(t *testing.T, d port.Driver, childPID, childP, parentP int) {
+func testTCPRoutine(t *testing.T, d port.ParentDriver, childPID, childP, parentP int) {
 	stdoutR, stdoutW := io.Pipe()
 	cmd := exec.Command("nsenter", "-U", "--preserve-credential", "-n", "-t", strconv.Itoa(childPID),
 		"nc", "-l", strconv.Itoa(childP))

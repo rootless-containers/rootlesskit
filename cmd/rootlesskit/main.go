@@ -12,6 +12,7 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/child"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/copyup/tmpfssymlink"
 	"github.com/rootless-containers/rootlesskit/pkg/network/slirp4netns"
 	"github.com/rootless-containers/rootlesskit/pkg/network/vdeplugslirp"
 	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
@@ -82,7 +83,11 @@ func main() {
 			return errors.New("no command specified")
 		}
 		if iAmChild {
-			return child.Child(pipeFDEnvKey, clicontext.Args())
+			childOpt, err := createChildOpt(clicontext)
+			if err != nil {
+				return err
+			}
+			return child.Child(pipeFDEnvKey, clicontext.Args(), childOpt)
 		}
 		parentOpt, err := createParentOpt(clicontext)
 		if err != nil {
@@ -106,15 +111,6 @@ func main() {
 			code = 1
 		}
 		os.Exit(code)
-	}
-}
-
-func parseCopyUpMode(s string) (common.CopyUpMode, error) {
-	switch s {
-	case "tmpfs+symlink":
-		return common.TmpfsWithSymlinkCopyUp, nil
-	default:
-		return -1, errors.Errorf("unknown tmpfs copy-up mode: %s", s)
 	}
 }
 
@@ -150,11 +146,6 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 	default:
 		return nil, errors.Errorf("unknown network mode: %s", s)
 	}
-	opt.CopyUpMode, err = parseCopyUpMode(clicontext.String("copy-up-mode"))
-	if err != nil {
-		return nil, err
-	}
-	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
 	switch s := clicontext.String("port-driver"); s {
 	case "none":
 		// NOP
@@ -183,4 +174,28 @@ func (w *logrusDebugWriter) Write(p []byte) (int, error) {
 	s := strings.TrimSuffix(string(p), "\n")
 	logrus.Debug(s)
 	return len(p), nil
+}
+
+func createChildOpt(clicontext *cli.Context) (*child.Opt, error) {
+	opt := &child.Opt{}
+	switch s := clicontext.String("net"); s {
+	case "host":
+		// NOP
+	case "slirp4netns":
+		opt.NetworkDriver = slirp4netns.NewChildDriver()
+	case "vpnkit":
+		opt.NetworkDriver = vpnkit.NewChildDriver()
+	case "vdeplug_slirp":
+		opt.NetworkDriver = vdeplugslirp.NewChildDriver()
+	default:
+		return nil, errors.Errorf("unknown network mode: %s", s)
+	}
+	switch s := clicontext.String("copy-up-mode"); s {
+	case "tmpfs+symlink":
+		opt.CopyUpDriver = tmpfssymlink.NewChildDriver()
+	default:
+		return nil, errors.Errorf("unknown copy-up mode: %s", s)
+	}
+	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
+	return opt, nil
 }

@@ -23,8 +23,10 @@ type Manager interface {
 	RemovePort(ctx context.Context, id int) error
 }
 
-// Driver for the parent process.
-type Driver interface {
+// ParentDriver is a driver for the parent process.
+type ParentDriver interface {
 	Manager
 	SetChildPID(int)
 }
+
+// TODO: add ChildDriver

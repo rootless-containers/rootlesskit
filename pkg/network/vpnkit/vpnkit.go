@@ -40,13 +40,15 @@ func NewParentDriver(binary string, mtu int) network.ParentDriver {
 	}
 }
 
+const (
+	opaqueMAC    = "vpnkit.mac"
+	opaqueSocket = "vpnkit.socket"
+	opaqueUUID   = "vpnkit.uuid"
+)
+
 type parentDriver struct {
 	binary string
 	mtu    int
-}
-
-func (d *parentDriver) NetworkMode() common.NetworkMode {
-	return common.VPNKit
 }
 
 func (d *parentDriver) MTU() int {
@@ -88,16 +90,16 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	logrus.Debugf("connected to VPNKit vmnet")
 	// TODO: support configuration
 	netmsg := common.NetworkMessage{
-		NetworkMode:      common.VPNKit,
-		IP:               vif.IP.String(),
-		Netmask:          24,
-		Gateway:          "192.168.65.1",
-		DNS:              "192.168.65.1",
-		MTU:              d.mtu,
-		PreconfiguredTap: "",
-		VPNKitMAC:        vif.ClientMAC.String(),
-		VPNKitSocket:     vpnkitSocket,
-		VPNKitUUID:       vifUUID.String(),
+		IP:      vif.IP.String(),
+		Netmask: 24,
+		Gateway: "192.168.65.1",
+		DNS:     "192.168.65.1",
+		MTU:     d.mtu,
+		Opaque: map[string]string{
+			opaqueMAC:    vif.ClientMAC.String(),
+			opaqueSocket: vpnkitSocket,
+			opaqueUUID:   vifUUID.String(),
+		},
 	}
 	return &netmsg, common.Seq(cleanups), nil
 }
@@ -127,11 +129,19 @@ type childDriver struct {
 }
 
 func (d *childDriver) ConfigureTap(netmsg common.NetworkMessage) (tap string, err error) {
-	if netmsg.NetworkMode != common.VPNKit {
-		return "", errors.Errorf("expected network mode %v, got %v", common.VPNKit, netmsg.NetworkMode)
+	macStr := netmsg.Opaque[opaqueMAC]
+	socket := netmsg.Opaque[opaqueSocket]
+	uuidStr := netmsg.Opaque[opaqueUUID]
+	if macStr == "" {
+		return "", errors.New("no VPNKit MAC is set")
 	}
-	return startVPNKitRoutines(context.TODO(),
-		netmsg.VPNKitMAC, netmsg.VPNKitSocket, netmsg.VPNKitUUID)
+	if socket == "" {
+		return "", errors.New("no VPNKit socket is set")
+	}
+	if uuidStr == "" {
+		return "", errors.New("no VPNKit UUID is set")
+	}
+	return startVPNKitRoutines(context.TODO(), macStr, socket, uuidStr)
 }
 
 func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (string, error) {
