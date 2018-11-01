@@ -195,8 +195,7 @@ It is highly recommended to disable host loopback address by specyfing `--disabl
 ### Port forwarding
 
 `rootlessctl` can be used for exposing the ports in the network namespace to the host network namespace.
-You also need to launch `rootlesskit` with `--port-driver=socat`.
-
+You also need to launch `rootlesskit` with `--port-driver=(socat|builtin)`. `builtin` is faster but currently experimental.
 
 For example, to expose 80 in the child as 8080 in the parent:
 

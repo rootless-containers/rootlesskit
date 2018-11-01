@@ -18,6 +18,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network/vdeplugslirp"
 	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
 	"github.com/rootless-containers/rootlesskit/pkg/parent"
+	"github.com/rootless-containers/rootlesskit/pkg/port/builtin"
 	"github.com/rootless-containers/rootlesskit/pkg/port/socat"
 	"github.com/rootless-containers/rootlesskit/pkg/version"
 )
@@ -79,7 +80,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "port-driver",
-			Usage: "port driver for non-host network. [none, socat]",
+			Usage: "port driver for non-host network. [none, socat, builtin(experimental)]",
 			Value: "none",
 		},
 	}
@@ -201,7 +202,18 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 		if err != nil {
 			return nil, err
 		}
-		opt.PortDriver, err = socat.New(&logrusDebugWriter{})
+		opt.PortDriver, err = socat.NewParentDriver(&logrusDebugWriter{})
+		if err != nil {
+			return nil, err
+		}
+	case "builtin":
+		if opt.NetworkDriver == nil {
+			return nil, errors.New("port driver requires non-host network")
+		}
+		if err != nil {
+			return nil, err
+		}
+		opt.PortDriver, err = builtin.NewParentDriver(&logrusDebugWriter{}, opt.StateDir)
 		if err != nil {
 			return nil, err
 		}
@@ -242,5 +254,16 @@ func createChildOpt(clicontext *cli.Context) (*child.Opt, error) {
 		return nil, errors.Errorf("unknown copy-up mode: %s", s)
 	}
 	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
+	switch s := clicontext.String("port-driver"); s {
+	case "none":
+		// NOP
+	case "socat":
+		opt.PortDriver = socat.NewChildDriver()
+	case "builtin":
+		logrus.Warn("\"builtin\" port driver is experimental")
+		opt.PortDriver = builtin.NewChildDriver(&logrusDebugWriter{})
+	default:
+		return nil, errors.Errorf("unknown port driver: %s", s)
+	}
 	return opt, nil
 }
