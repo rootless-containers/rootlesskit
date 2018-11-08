@@ -244,6 +244,10 @@ func listenServeAPI(socketPath string, backend *router.Backend) (apiCloser, erro
 	r := mux.NewRouter()
 	router.AddRoutes(r, backend)
 	srv := &http.Server{Handler: r}
+	err := os.RemoveAll(socketPath)
+	if err != nil {
+		return nil, err
+	}
 	l, err := net.Listen("unix", socketPath)
 	if err != nil {
 		return nil, err
