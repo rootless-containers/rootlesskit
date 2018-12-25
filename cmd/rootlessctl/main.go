@@ -9,12 +9,14 @@ import (
 	"github.com/urfave/cli"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api/client"
+	"github.com/rootless-containers/rootlesskit/pkg/version"
 )
 
 func main() {
 	debug := false
 	app := cli.NewApp()
 	app.Name = "rootlessctl"
+	app.Version = version.Version
 	app.Usage = "RootlessKit API client"
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{

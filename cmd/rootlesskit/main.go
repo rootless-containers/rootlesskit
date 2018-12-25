@@ -18,6 +18,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
 	"github.com/rootless-containers/rootlesskit/pkg/parent"
 	"github.com/rootless-containers/rootlesskit/pkg/port/socat"
+	"github.com/rootless-containers/rootlesskit/pkg/version"
 )
 
 func main() {
@@ -26,6 +27,7 @@ func main() {
 	debug := false
 	app := cli.NewApp()
 	app.Name = "rootlesskit"
+	app.Version = version.Version
 	app.Usage = "the gate to the rootless world"
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
