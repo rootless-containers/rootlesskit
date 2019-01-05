@@ -31,12 +31,8 @@ RUN git clone https://github.com/rootless-containers/slirp4netns.git /slirp4netn
   cd /slirp4netns && git checkout ${SLIRP4NETNS_COMMIT} && \
   ./autogen.sh && ./configure && make
 
-FROM ubuntu:18.04 AS vpnkit
-RUN apt update && apt install -y ocaml opam
-ARG VPNKIT_COMMIT=d04fddd11aa49c96ff6f4a0dfe0eb7273136d0e4
-RUN git clone https://github.com/moby/vpnkit.git /vpnkit && \
-  cd /vpnkit && git checkout ${VPNKIT_COMMIT} && \
-  make
+# github.com/moby/vpnkit@b4c8b69e68f74c69a6e2fff696a3a196b061dde6
+FROM djs55/vpnkit@sha256:b4100175db9b6b2b9952a12f5a050e58744dac977b801a6a841a527af1133428 AS vpnkit
 
 FROM build-c as vdeplug_slirp
 ARG S2ARGVEXECS_COMMIT=880b436157ec5a871cd2ed32c7f7223d9c1e05ee
@@ -83,7 +79,7 @@ FROM test-base AS test-light
 COPY --from=slirp4netns /slirp4netns/slirp4netns /home/user/bin/
 
 FROM test-light AS test-full
-COPY --from=vpnkit /vpnkit/vpnkit.exe /home/user/bin/vpnkit
+COPY --from=vpnkit /vpnkit /home/user/bin/vpnkit
 COPY --from=vdeplug_slirp /usr/local/bin/* /home/user/bin/
 COPY --from=vdeplug_slirp /usr/local/lib/* /home/user/lib/
 ADD ./hack/test/docker-entrypoint.sh /home/user/bin/
