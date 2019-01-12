@@ -26,7 +26,7 @@ RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux -
 && cp src/newuidmap src/newgidmap /usr/bin
 
 FROM build-c AS slirp4netns
-ARG SLIRP4NETNS_COMMIT=39e87c0e66345edf7fd6e0bd1f61aa842617e757
+ARG SLIRP4NETNS_COMMIT=v0.3.0-alpha.0
 RUN git clone https://github.com/rootless-containers/slirp4netns.git /slirp4netns && \
   cd /slirp4netns && git checkout ${SLIRP4NETNS_COMMIT} && \
   ./autogen.sh && ./configure && make
