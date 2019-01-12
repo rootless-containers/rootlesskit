@@ -129,11 +129,21 @@ func createSocatCmd(ctx context.Context, spec port.Spec, logWriter io.Writer, ch
 	if spec.ChildPort < 1 || spec.ChildPort > 65535 {
 		return nil, errors.Errorf("unsupported childPort: %d", spec.ChildPort)
 	}
-	cmd := exec.CommandContext(ctx,
-		"socat",
-		fmt.Sprintf("TCP-LISTEN:%d,bind=%s,reuseaddr,fork,rcvbuf=65536,sndbuf=65536", spec.ParentPort, ipStr),
-		fmt.Sprintf("EXEC:\"%s\",nofork",
-			fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN TCP4:127.0.0.1:%d", childPID, spec.ChildPort)))
+	var cmd *exec.Cmd
+	switch spec.Proto {
+	case "tcp":
+		cmd = exec.CommandContext(ctx,
+			"socat",
+			fmt.Sprintf("TCP-LISTEN:%d,bind=%s,reuseaddr,fork,rcvbuf=65536,sndbuf=65536", spec.ParentPort, ipStr),
+			fmt.Sprintf("EXEC:\"%s\",nofork",
+				fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN TCP4:127.0.0.1:%d", childPID, spec.ChildPort)))
+	case "udp":
+		cmd = exec.CommandContext(ctx,
+			"socat",
+			fmt.Sprintf("UDP-LISTEN:%d,bind=%s,reuseaddr,fork,rcvbuf=65536,sndbuf=65536", spec.ParentPort, ipStr),
+			fmt.Sprintf("EXEC:\"%s\",nofork",
+				fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN UDP4:127.0.0.1:%d", childPID, spec.ChildPort)))
+	}
 	cmd.Env = os.Environ()
 	cmd.Stdout = logWriter
 	cmd.Stderr = logWriter
@@ -180,11 +190,9 @@ func execRoutine(cf cmdFactory, stopCh <-chan struct{}, errWCh chan error, logWr
 			}
 		case <-stopCh:
 			fmt.Fprintf(logWriter, "[exec] killing cmd %s pid %d\n", cmdDesc, pid)
-			err := syscall.Kill(pid, syscall.SIGKILL)
+			syscall.Kill(pid, syscall.SIGKILL)
 			fmt.Fprintf(logWriter, "[exec] killed cmd %s pid %d\n", cmdDesc, pid)
-			err2 := <-doneCh
-			fmt.Fprintf(logWriter, "[exec] received from cmd %s pid %d: %v\n", cmdDesc, pid, err2)
-			errWCh <- err
+			close(errWCh)
 			return
 		}
 	}
