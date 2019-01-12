@@ -2,6 +2,7 @@ package slirp4netns
 
 import (
 	"context"
+	"net"
 	"os/exec"
 	"strconv"
 	"syscall"
@@ -11,10 +12,14 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
+	"github.com/rootless-containers/rootlesskit/pkg/network/iputils"
 	"github.com/rootless-containers/rootlesskit/pkg/network/parentutils"
 )
 
-func NewParentDriver(binary string, mtu int) network.ParentDriver {
+// NewParentDriver instantiates new parent driver.
+// ipnet is supported only for slirp4netns v0.3.0+.
+// ipnet MUST be nil for slirp4netns < v0.3.0.
+func NewParentDriver(binary string, mtu int, ipnet *net.IPNet) network.ParentDriver {
 	if binary == "" {
 		panic("got empty slirp4netns binary")
 	}
@@ -27,6 +32,7 @@ func NewParentDriver(binary string, mtu int) network.ParentDriver {
 	return &parentDriver{
 		binary: binary,
 		mtu:    mtu,
+		ipnet:  ipnet,
 	}
 }
 
@@ -35,6 +41,7 @@ const opaqueTap = "slirp4netns.tap"
 type parentDriver struct {
 	binary string
 	mtu    int
+	ipnet  *net.IPNet
 }
 
 func (d *parentDriver) MTU() int {
@@ -48,7 +55,11 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 		return nil, common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	cmd := exec.CommandContext(ctx, d.binary, "--mtu", strconv.Itoa(d.mtu), strconv.Itoa(childPID), tap)
+	opts := []string{"--mtu", strconv.Itoa(d.mtu)}
+	if d.ipnet != nil {
+		opts = append(opts, "--cidr", d.ipnet.String())
+	}
+	cmd := exec.CommandContext(ctx, d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
@@ -62,16 +73,35 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	if err := cmd.Start(); err != nil {
 		return nil, common.Seq(cleanups), errors.Wrapf(err, "executing %v", cmd)
 	}
-	// TODO: support configuration
 	netmsg := common.NetworkMessage{
-		IP:      "10.0.2.100",
-		Netmask: 24,
-		Gateway: "10.0.2.2",
-		DNS:     "10.0.2.3",
-		MTU:     d.mtu,
+		MTU: d.mtu,
 		Opaque: map[string]string{
 			opaqueTap: tap,
 		},
+	}
+	if d.ipnet != nil {
+		// TODO: get the actual configuration via slirp4netns API?
+		x, err := iputils.AddIPInt(d.ipnet.IP, 100)
+		if err != nil {
+			return nil, common.Seq(cleanups), err
+		}
+		netmsg.IP = x.String()
+		netmsg.Netmask, _ = d.ipnet.Mask.Size()
+		x, err = iputils.AddIPInt(d.ipnet.IP, 2)
+		if err != nil {
+			return nil, common.Seq(cleanups), err
+		}
+		netmsg.Gateway = x.String()
+		x, err = iputils.AddIPInt(d.ipnet.IP, 3)
+		if err != nil {
+			return nil, common.Seq(cleanups), err
+		}
+		netmsg.DNS = x.String()
+	} else {
+		netmsg.IP = "10.0.2.100"
+		netmsg.Netmask = 24
+		netmsg.Gateway = "10.0.2.2"
+		netmsg.DNS = "10.0.2.3"
 	}
 	return &netmsg, common.Seq(cleanups), nil
 }

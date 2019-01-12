@@ -102,7 +102,7 @@ USAGE:
    rootlesskit [global options] command [command options] [arguments...]
 
 VERSION:
-   0.0.0
+   0.2.0+dev
 
 COMMANDS:
      help, h  Shows a list of commands or help for one command
@@ -114,13 +114,13 @@ GLOBAL OPTIONS:
    --slirp4netns-binary value  path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
    --vpnkit-binary value       path of VPNKit binary for --net=vpnkit (default: "vpnkit")
    --mtu value                 MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
+   --cidr value                CIDR for slirp4netns network (default: 10.0.2.0/24, requires slirp4netns v0.3.0+ for custom CIDR)
    --copy-up value             mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
    --copy-up-mode value        copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
    --port-driver value         port driver for non-host network. [none, socat] (default: "none")
    --help, -h                  show help
    --version, -v               print the version
 ```
-
 
 ## State directory
 
@@ -179,6 +179,7 @@ Default network configuration for `--net=vpnkit`:
 * DNS: 192.168.65.1
 * Host: 192.168.65.2
 
+`--net=slirp4netns` supports specifying custom CIDR, e.g. `--cidr=10.0.3.0/24` (requires slirp4netns v0.3.0+)
 
 ### Port forwarding
 
