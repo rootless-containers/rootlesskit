@@ -26,7 +26,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "socket",
-			Usage: "Path to api.sock (under the `rootlesskit --state-dir` directory)",
+			Usage: "Path to api.sock (under the \"rootlesskit --state-dir\" directory)",
 		},
 	}
 	app.Commands = []cli.Command{
