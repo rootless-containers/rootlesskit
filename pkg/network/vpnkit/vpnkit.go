@@ -20,7 +20,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 )
 
-func NewParentDriver(binary string, mtu int) network.ParentDriver {
+func NewParentDriver(binary string, mtu int, disableHostLoopback bool) network.ParentDriver {
 	if binary == "" {
 		panic("got empty vpnkit binary")
 	}
@@ -35,8 +35,9 @@ func NewParentDriver(binary string, mtu int) network.ParentDriver {
 		// NOTE: iperf3 stops working with MTU >= 16425
 	}
 	return &parentDriver{
-		binary: binary,
-		mtu:    mtu,
+		binary:              binary,
+		mtu:                 mtu,
+		disableHostLoopback: disableHostLoopback,
 	}
 }
 
@@ -47,8 +48,9 @@ const (
 )
 
 type parentDriver struct {
-	binary string
-	mtu    int
+	binary              string
+	mtu                 int
+	disableHostLoopback bool
 }
 
 func (d *parentDriver) MTU() int {
@@ -60,6 +62,9 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	vpnkitSocket := filepath.Join(stateDir, "vpnkit-ethernet.sock")
 	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())
 	vpnkitCmd := exec.CommandContext(vpnkitCtx, d.binary, "--ethernet", vpnkitSocket, "--mtu", strconv.Itoa(d.mtu))
+	if d.disableHostLoopback {
+		vpnkitCmd.Args = append(vpnkitCmd.Args, "--host-ip", "0.0.0.0")
+	}
 	vpnkitCmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}

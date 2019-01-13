@@ -64,6 +64,10 @@ func main() {
 			Name:  "cidr",
 			Usage: "CIDR for slirp4netns network (default: 10.0.2.0/24, requires slirp4netns v0.3.0+ for custom CIDR)",
 		},
+		cli.BoolFlag{
+			Name:  "disable-host-loopback",
+			Usage: "prohibit connecting to 127.0.0.1:* on the host namespace",
+		},
 		cli.StringSliceFlag{
 			Name:  "copy-up",
 			Usage: "mount a filesystem and copy-up the contents. e.g. \"--copy-up=/etc\" (typically required for non-host network)",
@@ -148,6 +152,10 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 	if err != nil {
 		return nil, err
 	}
+	disableHostLoopback := clicontext.Bool("disable-host-loopback")
+	if !disableHostLoopback {
+		logrus.Warn("specifying --disable-host-loopback is highly recommended to prohibit connecting to 127.0.0.1:* on the host namespace (requires slirp4netns v0.3.0+ or VPNKit)")
+	}
 	switch s := clicontext.String("net"); s {
 	case "host":
 		// NOP
@@ -162,20 +170,22 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 		if _, err := exec.LookPath(binary); err != nil {
 			return nil, err
 		}
-		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu, ipnet)
+		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback)
 	case "vpnkit":
 		if ipnet != nil {
 			return nil, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
 		}
-
 		binary := clicontext.String("vpnkit-binary")
 		if _, err := exec.LookPath(binary); err != nil {
 			return nil, err
 		}
-		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu)
+		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu, disableHostLoopback)
 	case "vdeplug_slirp":
 		if ipnet != nil {
 			return nil, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
+		}
+		if disableHostLoopback {
+			return nil, errors.New("--disable-host-loopback is not supported for vdeplug_slirp")
 		}
 		opt.NetworkDriver = vdeplugslirp.NewParentDriver(mtu)
 	default:

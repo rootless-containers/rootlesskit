@@ -102,7 +102,7 @@ USAGE:
    rootlesskit [global options] command [command options] [arguments...]
 
 VERSION:
-   0.2.0+dev
+   0.3.0-alpha.0
 
 COMMANDS:
      help, h  Shows a list of commands or help for one command
@@ -115,6 +115,7 @@ GLOBAL OPTIONS:
    --vpnkit-binary value       path of VPNKit binary for --net=vpnkit (default: "vpnkit")
    --mtu value                 MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
    --cidr value                CIDR for slirp4netns network (default: 10.0.2.0/24, requires slirp4netns v0.3.0+ for custom CIDR)
+   --disable-host-loopback     prohibit connecting to 127.0.0.1:* on the host namespace
    --copy-up value             mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
    --copy-up-mode value        copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
    --port-driver value         port driver for non-host network. [none, socat] (default: "none")
@@ -180,6 +181,8 @@ Default network configuration for `--net=vpnkit`:
 * Host: 192.168.65.2
 
 `--net=slirp4netns` supports specifying custom CIDR, e.g. `--cidr=10.0.3.0/24` (requires slirp4netns v0.3.0+)
+
+It is highly recommended to disable host loopback address by specyfing `--disable-host-loopback`.
 
 ### Port forwarding
 

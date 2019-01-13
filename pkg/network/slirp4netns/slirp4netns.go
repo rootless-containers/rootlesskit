@@ -19,7 +19,9 @@ import (
 // NewParentDriver instantiates new parent driver.
 // ipnet is supported only for slirp4netns v0.3.0+.
 // ipnet MUST be nil for slirp4netns < v0.3.0.
-func NewParentDriver(binary string, mtu int, ipnet *net.IPNet) network.ParentDriver {
+//
+// disableHostLoopback is supported only for slirp4netns v0.3.0+
+func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool) network.ParentDriver {
 	if binary == "" {
 		panic("got empty slirp4netns binary")
 	}
@@ -30,18 +32,20 @@ func NewParentDriver(binary string, mtu int, ipnet *net.IPNet) network.ParentDri
 		mtu = 65520
 	}
 	return &parentDriver{
-		binary: binary,
-		mtu:    mtu,
-		ipnet:  ipnet,
+		binary:              binary,
+		mtu:                 mtu,
+		ipnet:               ipnet,
+		disableHostLoopback: disableHostLoopback,
 	}
 }
 
 const opaqueTap = "slirp4netns.tap"
 
 type parentDriver struct {
-	binary string
-	mtu    int
-	ipnet  *net.IPNet
+	binary              string
+	mtu                 int
+	ipnet               *net.IPNet
+	disableHostLoopback bool
 }
 
 func (d *parentDriver) MTU() int {
@@ -56,6 +60,9 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	opts := []string{"--mtu", strconv.Itoa(d.mtu)}
+	if d.disableHostLoopback {
+		opts = append(opts, "--disable-host-loopback")
+	}
 	if d.ipnet != nil {
 		opts = append(opts, "--cidr", d.ipnet.String())
 	}
