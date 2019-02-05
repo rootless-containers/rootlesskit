@@ -35,6 +35,7 @@ $ grep ^$(whoami): /etc/subgid
 penguin:231072:65536
 ```
 
+
 ## Usage
 
 Inside `rootlesskit`, your UID is mapped to 0 but it is not the real root:
@@ -121,6 +122,13 @@ GLOBAL OPTIONS:
    --port-driver value         port driver for non-host network. [none, socat] (default: "none")
    --help, -h                  show help
    --version, -v               print the version
+```
+
+## Building from source
+`rootlesskit` and `rootlessctl` can be built from source using:
+
+```
+make
 ```
 
 ## State directory
