@@ -67,6 +67,11 @@ func (d *childDriver) CopyUp(dirs []string) ([]string, error) {
 				symlinkSrc = filepath.Join(filepath.Base(bind1), f.Name())
 			}
 			symlinkDst := filepath.Join(d, f.Name())
+			// `mount` may create extra `/etc/mtab` after mounting empty tmpfs on /etc
+			// https://github.com/rootless-containers/rootlesskit/issues/45
+			if err = os.RemoveAll(symlinkDst); err != nil {
+				return copied, errors.Wrapf(err, "removing %s", symlinkDst)
+			}
 			if err := os.Symlink(symlinkSrc, symlinkDst); err != nil {
 				return copied, errors.Wrapf(err, "symlinking %s to %s", symlinkSrc, symlinkDst)
 			}
