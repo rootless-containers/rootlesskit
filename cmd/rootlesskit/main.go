@@ -153,7 +153,7 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 		return nil, err
 	}
 	disableHostLoopback := clicontext.Bool("disable-host-loopback")
-	if !disableHostLoopback {
+	if !disableHostLoopback && clicontext.String("net") != "host" {
 		logrus.Warn("specifying --disable-host-loopback is highly recommended to prohibit connecting to 127.0.0.1:* on the host namespace (requires slirp4netns v0.3.0+ or VPNKit)")
 	}
 	switch s := clicontext.String("net"); s {
