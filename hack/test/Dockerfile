@@ -8,7 +8,7 @@ RUN apt update && apt install -y iproute2 socat netcat-openbsd
 CMD ["go","test","-v","-race","github.com/rootless-containers/rootlesskit/..."]
 
 FROM ubuntu:18.04 as build-c
-RUN apt update && apt install -y git make gcc automake autotools-dev libtool
+RUN apt update && apt install -y git make gcc automake autotools-dev libtool libglib2.0-dev
 
 # To allow running rootlesskit in a container without CAP_SYS_ADMIN, we need to do either
 #  a) install newuidmap/newgidmap with file capabilities rather than SETUID (requires kernel >= 4.14)
@@ -26,13 +26,13 @@ RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux -
 && cp src/newuidmap src/newgidmap /usr/bin
 
 FROM build-c AS slirp4netns
-ARG SLIRP4NETNS_COMMIT=v0.3.0-alpha.0
+ARG SLIRP4NETNS_COMMIT=v0.3.0-beta.0
 RUN git clone https://github.com/rootless-containers/slirp4netns.git /slirp4netns && \
   cd /slirp4netns && git checkout ${SLIRP4NETNS_COMMIT} && \
   ./autogen.sh && ./configure && make
 
-# github.com/moby/vpnkit@b4c8b69e68f74c69a6e2fff696a3a196b061dde6
-FROM djs55/vpnkit@sha256:b4100175db9b6b2b9952a12f5a050e58744dac977b801a6a841a527af1133428 AS vpnkit
+# github.com/moby/vpnkit@67041ad2655038c5462b3466f89a1853f2b894e5
+FROM djs55/vpnkit@sha256:e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e AS vpnkit
 
 FROM build-c as vdeplug_slirp
 ARG S2ARGVEXECS_COMMIT=880b436157ec5a871cd2ed32c7f7223d9c1e05ee
@@ -58,7 +58,7 @@ FROM ubuntu:18.04 AS test-base
 # iperf3: only for benchmark purpose
 # busybox: only for debugging purpose
 # sudo: only for rootful veth benchmark (for comparison)
-RUN apt update && apt install -y iproute2 socat iperf3 busybox sudo
+RUN apt update && apt install -y iproute2 socat iperf3 busybox sudo libglib2.0-0
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 COPY --from=rootlesskit /rootlesskit /home/user/bin/
