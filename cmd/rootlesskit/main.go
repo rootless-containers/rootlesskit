@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -20,6 +21,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
 	"github.com/rootless-containers/rootlesskit/pkg/parent"
 	"github.com/rootless-containers/rootlesskit/pkg/port/builtin"
+	slirp4netns_port "github.com/rootless-containers/rootlesskit/pkg/port/slirp4netns"
 	"github.com/rootless-containers/rootlesskit/pkg/port/socat"
 	"github.com/rootless-containers/rootlesskit/pkg/version"
 )
@@ -81,7 +83,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "port-driver",
-			Usage: "port driver for non-host network. [none, socat, builtin(experimental)]",
+			Usage: "port driver for non-host network. [none, socat, slirp4netns, builtin(experimental)]",
 			Value: "none",
 		},
 	}
@@ -171,6 +173,11 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey string) (parent.Opt, 
 	if !disableHostLoopback && clicontext.String("net") != "host" {
 		logrus.Warn("specifying --disable-host-loopback is highly recommended to prohibit connecting to 127.0.0.1:* on the host namespace (requires slirp4netns v0.3.0+ or VPNKit)")
 	}
+
+	slirp4netnsAPISocketPath := ""
+	if clicontext.String("port-driver") == "slirp4netns" {
+		slirp4netnsAPISocketPath = filepath.Join(opt.StateDir, ".s4nn.sock")
+	}
 	switch s := clicontext.String("net"); s {
 	case "host":
 		// NOP
@@ -185,7 +192,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey string) (parent.Opt, 
 		if _, err := exec.LookPath(binary); err != nil {
 			return opt, err
 		}
-		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback)
+		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback, slirp4netnsAPISocketPath)
 	case "vpnkit":
 		if ipnet != nil {
 			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
@@ -213,19 +220,22 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey string) (parent.Opt, 
 		if opt.NetworkDriver == nil {
 			return opt, errors.New("port driver requires non-host network")
 		}
-		if err != nil {
-			return opt, err
-		}
 		opt.PortDriver, err = socat.NewParentDriver(&logrusDebugWriter{})
 		if err != nil {
 			return opt, err
 		}
-	case "builtin":
-		if opt.NetworkDriver == nil {
-			return opt, errors.New("port driver requires non-host network")
+	case "slirp4netns":
+		if clicontext.String("net") != "slirp4netns" {
+			return opt, errors.New("port driver requires slirp4netns network")
 		}
+		opt.PortDriver, err = slirp4netns_port.NewParentDriver(&logrusDebugWriter{}, slirp4netnsAPISocketPath)
 		if err != nil {
 			return opt, err
+		}
+	case "builtin":
+		logrus.Warn("\"builtin\" port driver is experimental")
+		if opt.NetworkDriver == nil {
+			return opt, errors.New("port driver requires non-host network")
 		}
 		opt.PortDriver, err = builtin.NewParentDriver(&logrusDebugWriter{}, opt.StateDir)
 		if err != nil {
@@ -276,8 +286,9 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		// NOP
 	case "socat":
 		opt.PortDriver = socat.NewChildDriver()
+	case "slirp4netns":
+		opt.PortDriver = slirp4netns_port.NewChildDriver()
 	case "builtin":
-		logrus.Warn("\"builtin\" port driver is experimental")
 		opt.PortDriver = builtin.NewChildDriver(&logrusDebugWriter{})
 	default:
 		return opt, errors.Errorf("unknown port driver: %s", s)

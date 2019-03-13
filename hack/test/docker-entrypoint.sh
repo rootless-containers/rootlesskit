@@ -72,9 +72,11 @@ function benchmark::iperf3::main(){
     kill $iperf3pid
 }
 
-function benchmark::iperf3_reverse::socat_slirp4netns(){
+
+function benchmark::iperf3_reverse(){
     statedir=$(mktemp -d)
-    $ROOTLESSKIT --state-dir=$statedir --net=slirp4netns --mtu=65520 --port-driver=socat iperf3 -s > /dev/null &
+    INFO "[benchmark:iperf3_reverse] $@"
+    $ROOTLESSKIT --state-dir=$statedir $@ iperf3 -s > /dev/null &
     rkpid=$!
     # wait for socket to be available
     sleep 3
@@ -85,26 +87,12 @@ function benchmark::iperf3_reverse::socat_slirp4netns(){
     $rootlessctl remove-ports $portid
     kill $rkpid
 }
-
-function benchmark::iperf3_reverse::builtin_slirp4netns(){
-    statedir=$(mktemp -d)
-    $ROOTLESSKIT --state-dir=$statedir --net=slirp4netns --mtu=65520 --port-driver=builtin iperf3 -s > /dev/null &
-    rkpid=$!
-    # wait for socket to be available
-    sleep 3
-    rootlessctl="rootlessctl --socket=$statedir/api.sock"
-    portid=$($rootlessctl add-ports 127.0.0.1:5201:5201/tcp)
-    $rootlessctl list-ports
-    $IPERF3C 127.0.0.1
-    $rootlessctl remove-ports $portid
-    kill $rkpid
-}
-
 
 function benchmark::iperf3_reverse::main(){
     set -x
-    benchmark::iperf3_reverse::socat_slirp4netns
-    benchmark::iperf3_reverse::builtin_slirp4netns
+    benchmark::iperf3_reverse --net=slirp4netns --mtu=65520 --port-driver=socat
+    benchmark::iperf3_reverse --net=slirp4netns --mtu=65520 --port-driver=slirp4netns
+    benchmark::iperf3_reverse --net=slirp4netns --mtu=65520 --port-driver=builtin
     set +x
 }
 benchmark::iperf3::main
