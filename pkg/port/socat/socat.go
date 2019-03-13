@@ -14,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/rootless-containers/rootlesskit/pkg/port/portutil"
 )
 
 func NewParentDriver(logWriter io.Writer) (port.ParentDriver, error) {
@@ -58,15 +59,11 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 		return nil, errors.New("child PID not set")
 	}
 	d.mu.Lock()
-	for id, p := range d.ports {
-		sp := p.Spec
-		// FIXME: add more ParentIP checks
-		if sp.Proto == spec.Proto && sp.ParentIP == spec.ParentIP && sp.ParentPort == spec.ParentPort {
-			d.mu.Unlock()
-			return nil, errors.Errorf("conflict with ID %d", id)
-		}
-	}
+	err := portutil.ValidatePortSpec(spec, d.ports)
 	d.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
 	cf := func() (*exec.Cmd, error) {
 		return createSocatCmd(ctx, spec, d.logWriter, d.childPID)
 	}

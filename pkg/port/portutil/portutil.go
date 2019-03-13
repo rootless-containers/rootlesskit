@@ -1,6 +1,7 @@
 package portutil
 
 import (
+	"net"
 	"regexp"
 	"strconv"
 
@@ -34,4 +35,33 @@ func ParsePortSpec(s string) (*port.Spec, error) {
 		ParentPort: parentPort,
 		ChildPort:  childPort,
 	}, nil
+}
+
+// ValidatePortSpec validates *port.Spec.
+// existingPorts can be optionally passed for detecting conflicts.
+func ValidatePortSpec(spec port.Spec, existingPorts map[int]*port.Status) error {
+	if spec.Proto != "tcp" && spec.Proto != "udp" {
+		return errors.Errorf("unknown proto: %q", spec.Proto)
+	}
+	if spec.ParentIP != "" {
+		if net.ParseIP(spec.ParentIP) == nil {
+			return errors.Errorf("invalid ParentIP: %q", spec.ParentIP)
+		}
+	}
+	if spec.ParentPort <= 0 || spec.ParentPort > 65535 {
+		return errors.Errorf("invalid ParentPort: %q", spec.ParentPort)
+	}
+	if spec.ChildPort <= 0 || spec.ChildPort > 65535 {
+		return errors.Errorf("invalid ChildPort: %q", spec.ChildPort)
+	}
+	for id, p := range existingPorts {
+		sp := p.Spec
+		sameProto := sp.Proto == spec.Proto
+		sameParent := sp.ParentIP == spec.ParentIP && sp.ParentPort == spec.ParentPort
+		sameChild := sp.ChildPort == spec.ChildPort
+		if sameProto && (sameParent || sameChild) {
+			return errors.Errorf("conflict with ID %d", id)
+		}
+	}
+	return nil
 }

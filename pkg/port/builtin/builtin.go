@@ -17,6 +17,7 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/rootless-containers/rootlesskit/pkg/port/portutil"
 )
 
 const (
@@ -86,26 +87,24 @@ func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{
 
 func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, error) {
 	d.mu.Lock()
-	for id, p := range d.ports {
-		sp := p.Spec
-		// FIXME: add more ParentIP checks
-		if sp.Proto == spec.Proto && sp.ParentIP == spec.ParentIP && sp.ParentPort == spec.ParentPort {
-			d.mu.Unlock()
-			return nil, errors.Errorf("conflict with ID %d", id)
-		}
-	}
+	err := portutil.ValidatePortSpec(spec, d.ports)
 	d.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
 	routineStopCh := make(chan struct{})
 	routineStop := func() error {
 		close(routineStopCh)
 		return nil // FIXME
 	}
-	var err error
 	switch spec.Proto {
 	case "tcp":
 		err = startTCPRoutines(d.socketPath, spec, routineStopCh, d.logWriter)
 	case "udp":
 		err = startUDPRoutines(d.socketPath, spec, routineStopCh, d.logWriter)
+	default:
+		// NOTREACHED
+		return nil, errors.New("spec was not validated?")
 	}
 	if err != nil {
 		return nil, err
