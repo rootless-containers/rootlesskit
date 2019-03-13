@@ -2,28 +2,20 @@
 
 
 [[projects]]
-  digest = "1:3a26588bc48b96825977c1b3df964f8fd842cd6860cc26370588d3563433cf11"
+  digest = "1:582b704bebaa06b48c29b0cec224a6058a09c86883aaddabde889cd1a5f73e1b"
   name = "github.com/google/uuid"
   packages = ["."]
   pruneopts = "UT"
-  revision = "d460ce9f8df2e77fb1ba55ca87fafed96c607494"
-  version = "v1.0.0"
-
-[[projects]]
-  digest = "1:c79fb010be38a59d657c48c6ba1d003a8aa651fa56b579d959d74573b7dff8e1"
-  name = "github.com/gorilla/context"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "08b5f424b9271eedf6f9f0ce86cb9396ed337a42"
+  revision = "0cd6bf5da1e1c83f8b45653022c74f71af0538a4"
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:e73f5b0152105f18bc131fba127d9949305c8693f8a762588a82a48f61756f5f"
+  digest = "1:ca59b1175189b3f0e9f1793d2c350114be36eaabbe5b9f554b35edee1de50aea"
   name = "github.com/gorilla/mux"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
-  version = "v1.6.2"
+  revision = "a7962380ca08b5a188038c69871b8d3fbdf31e89"
+  version = "v1.7.0"
 
 [[projects]]
   branch = "master"
@@ -34,20 +26,20 @@
   revision = "434f1022c06e56e7e283a2dbe05b1481201fb5fe"
 
 [[projects]]
-  digest = "1:0a69a1c0db3591fcefb47f115b224592c8dfa4368b7ba9fae509d5e16cdc95c8"
+  digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
   name = "github.com/konsorten/go-windows-terminal-sequences"
   packages = ["."]
   pruneopts = "UT"
-  revision = "5c8c8bd35d3832f5d134ae1e1e375b69a4d25242"
-  version = "v1.0.1"
+  revision = "f55edac94c9bbba5d6182a4be46d86a2c9b5b50e"
+  version = "v1.0.2"
 
 [[projects]]
-  branch = "master"
   digest = "1:7bd94fbd708f2d4c08cf092a2dc5abc60b63a496c73d8388da8e6686b19c347d"
   name = "github.com/moby/vpnkit"
   packages = ["go/pkg/vmnet"]
   pruneopts = "UT"
-  revision = "396a8b51b13a2a55352e5c64b4e2bc19af0f4fe0"
+  revision = "c9726dc2c92b1216e73d0ca6415caa688518cb42"
+  version = "v0.3.0"
 
 [[projects]]
   branch = "master"
@@ -55,31 +47,31 @@
   name = "github.com/opencontainers/runc"
   packages = ["libcontainer/user"]
   pruneopts = "UT"
-  revision = "7ca079fdeb78e89e5b6843910fba3dcc7f501a88"
+  revision = "2b18fe1d885ee5083ef9f0838fee39b62d653e30"
 
 [[projects]]
-  digest = "1:40e195917a951a8bf867cd05de2a46aaf1806c50cf92eebf4c16f78cd196f747"
+  digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
   name = "github.com/pkg/errors"
   packages = ["."]
   pruneopts = "UT"
-  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
-  version = "v0.8.0"
+  revision = "ba968bfe8b2f7e042a574c888954fccecfa385b4"
+  version = "v0.8.1"
 
 [[projects]]
-  digest = "1:3f53e9e4dfbb664cd62940c9c4b65a2171c66acd0b7621a1a6b8e78513525a52"
+  digest = "1:e4c72127d910a96daf869a44f3dd563b86dbe6931a172863a0e99c5ff04b59e4"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "UT"
-  revision = "ad15b42461921f1fb3529b058c6786c6a45d5162"
-  version = "v1.1.1"
+  revision = "dae0fa8d5b0c810a8ab733fbd5510c7cae84eca4"
+  version = "v1.4.0"
 
 [[projects]]
-  digest = "1:70f34ee6d1b188cbd2dfcde62b0e2c600262eb5a03c8a3f3435ecf7c74790470"
+  digest = "1:d7b2d6ad2a9768bb5c9e3bfa4d9ceaa635ca2737cca288507986f116fa4b8da2"
   name = "github.com/theckman/go-flock"
   packages = ["."]
   pruneopts = "UT"
-  revision = "7f43ea2e6a643ad441fc12d0ecc0d3388b300c53"
-  version = "v0.7.0"
+  revision = "392e7fae8f1b0bdbd67dad7237d23f618feb6dbb"
+  version = "v0.7.1"
 
 [[projects]]
   digest = "1:b24d38b282bacf9791408a080f606370efa3d364e4b5fd9ba0f7b87786d3b679"
@@ -91,33 +83,30 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3f3a05ae0b95893d90b9b3b5afdb79a9b3d96e4e36e099d841ae602e4aca0da8"
+  digest = "1:058e9504b9a79bfe86092974d05bb3298d2aa0c312d266d43148de289a5065d9"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
   pruneopts = "UT"
-  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
+  revision = "a1f597ede03a7bef967a422b5b3a5bd08805a01e"
 
 [[projects]]
   branch = "master"
-  digest = "1:d6b719875cf8091fbab38527d81d34e71f4521b9ee9ccfbd4a32cff2ac5af96e"
+  digest = "1:7ccb2dbb79f60b4e530c7dc3a0b3681b3869cf7ea91c645735e4dd4e6e3264fd"
   name = "golang.org/x/net"
-  packages = [
-    "context",
-    "context/ctxhttp",
-  ]
+  packages = ["context/ctxhttp"]
   pruneopts = "UT"
-  revision = "9b4f9f5ad5197c79fd623a3638e70d8b26cef344"
+  revision = "5c2c250b6a70e39b74bb544433a348a892b10530"
 
 [[projects]]
   branch = "master"
-  digest = "1:899c684138eb2844811b7f97e264d3c65d533dbedc59549fa58fc2bf316f83a1"
+  digest = "1:944736317d4f2fb1c1015ef9ca05fd9313b4e19f1128901cc678f636435fa9b0"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "44b849a8bc13eb42e95e6c6c5e360481b73ec710"
+  revision = "fead79001313d15903fb4605b4a1b781532cd93e"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -133,6 +122,7 @@
     "github.com/theckman/go-flock",
     "github.com/urfave/cli",
     "golang.org/x/net/context/ctxhttp",
+    "golang.org/x/sys/unix",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
