@@ -168,21 +168,23 @@ func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver)
 }
 
 type Opt struct {
+	PipeFDEnvKey  string              // needs to be set
+	TargetCmd     []string            // needs to be set
 	NetworkDriver network.ChildDriver // nil for HostNetwork
 	CopyUpDriver  copyup.ChildDriver  // cannot be nil if len(CopyUpDirs) != 0
 	CopyUpDirs    []string
 	PortDriver    port.ChildDriver
 }
 
-func Child(pipeFDEnvKey string, targetCmd []string, opt *Opt) error {
-	if opt == nil {
-		opt = &Opt{}
+func Child(opt Opt) error {
+	if opt.PipeFDEnvKey == "" {
+		return errors.New("pipe FD env key is not set")
 	}
-	pipeFDStr := os.Getenv(pipeFDEnvKey)
+	pipeFDStr := os.Getenv(opt.PipeFDEnvKey)
 	if pipeFDStr == "" {
-		return errors.Errorf("%s is not set", pipeFDEnvKey)
+		return errors.Errorf("%s is not set", opt.PipeFDEnvKey)
 	}
-	os.Unsetenv(pipeFDEnvKey)
+	os.Unsetenv(opt.PipeFDEnvKey)
 	msg, err := waitForParentSync(pipeFDStr)
 	if err != nil {
 		return err
@@ -203,12 +205,12 @@ func Child(pipeFDEnvKey string, targetCmd []string, opt *Opt) error {
 		}()
 	}
 
-	cmd, err := createCmd(targetCmd)
+	cmd, err := createCmd(opt.TargetCmd)
 	if err != nil {
 		return err
 	}
 	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "command %v exited", targetCmd)
+		return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
 	}
 	if opt.PortDriver != nil {
 		portQuitCh <- struct{}{}

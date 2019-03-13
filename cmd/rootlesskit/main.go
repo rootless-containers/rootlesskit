@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -95,17 +96,17 @@ func main() {
 			return errors.New("no command specified")
 		}
 		if iAmChild {
-			childOpt, err := createChildOpt(clicontext)
+			childOpt, err := createChildOpt(clicontext, pipeFDEnvKey, clicontext.Args())
 			if err != nil {
 				return err
 			}
-			return child.Child(pipeFDEnvKey, clicontext.Args(), childOpt)
+			return child.Child(childOpt)
 		}
-		parentOpt, err := createParentOpt(clicontext)
+		parentOpt, err := createParentOpt(clicontext, pipeFDEnvKey)
 		if err != nil {
 			return err
 		}
-		return parent.Parent(pipeFDEnvKey, parentOpt)
+		return parent.Parent(parentOpt)
 	}
 	if err := app.Run(os.Args); err != nil {
 		id := "parent"
@@ -140,18 +141,31 @@ func parseCIDR(s string) (*net.IPNet, error) {
 	return ipnet, nil
 }
 
-func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
-	opt := &parent.Opt{}
-	var err error
+func createParentOpt(clicontext *cli.Context, pipeFDEnvKey string) (parent.Opt, error) {
+	opt := parent.Opt{
+		PipeFDEnvKey: pipeFDEnvKey,
+	}
 	opt.StateDir = clicontext.String("state-dir")
+	if opt.StateDir == "" {
+		var err error
+		opt.StateDir, err = ioutil.TempDir("", "rootlesskit")
+		if err != nil {
+			return opt, errors.Wrap(err, "creating a state directory")
+		}
+	} else {
+		if err := os.MkdirAll(opt.StateDir, 0755); err != nil {
+			return opt, errors.Wrapf(err, "creating a state directory %s", opt.StateDir)
+		}
+	}
+
 	mtu := clicontext.Int("mtu")
 	if mtu < 0 || mtu > 65521 {
 		// 0 is ok (stands for the driver's default)
-		return nil, errors.Errorf("mtu must be <= 65521, got %d", mtu)
+		return opt, errors.Errorf("mtu must be <= 65521, got %d", mtu)
 	}
 	ipnet, err := parseCIDR(clicontext.String("cidr"))
 	if err != nil {
-		return nil, err
+		return opt, err
 	}
 	disableHostLoopback := clicontext.Bool("disable-host-loopback")
 	if !disableHostLoopback && clicontext.String("net") != "host" {
@@ -164,61 +178,61 @@ func createParentOpt(clicontext *cli.Context) (*parent.Opt, error) {
 			logrus.Warnf("unsupported mtu for --net=host: %d", mtu)
 		}
 		if ipnet != nil {
-			return nil, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
+			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
 		}
 	case "slirp4netns":
 		binary := clicontext.String("slirp4netns-binary")
 		if _, err := exec.LookPath(binary); err != nil {
-			return nil, err
+			return opt, err
 		}
 		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback)
 	case "vpnkit":
 		if ipnet != nil {
-			return nil, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
+			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
 		}
 		binary := clicontext.String("vpnkit-binary")
 		if _, err := exec.LookPath(binary); err != nil {
-			return nil, err
+			return opt, err
 		}
 		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu, disableHostLoopback)
 	case "vdeplug_slirp":
 		if ipnet != nil {
-			return nil, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
+			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
 		}
 		if disableHostLoopback {
-			return nil, errors.New("--disable-host-loopback is not supported for vdeplug_slirp")
+			return opt, errors.New("--disable-host-loopback is not supported for vdeplug_slirp")
 		}
 		opt.NetworkDriver = vdeplugslirp.NewParentDriver(mtu)
 	default:
-		return nil, errors.Errorf("unknown network mode: %s", s)
+		return opt, errors.Errorf("unknown network mode: %s", s)
 	}
 	switch s := clicontext.String("port-driver"); s {
 	case "none":
 		// NOP
 	case "socat":
 		if opt.NetworkDriver == nil {
-			return nil, errors.New("port driver requires non-host network")
+			return opt, errors.New("port driver requires non-host network")
 		}
 		if err != nil {
-			return nil, err
+			return opt, err
 		}
 		opt.PortDriver, err = socat.NewParentDriver(&logrusDebugWriter{})
 		if err != nil {
-			return nil, err
+			return opt, err
 		}
 	case "builtin":
 		if opt.NetworkDriver == nil {
-			return nil, errors.New("port driver requires non-host network")
+			return opt, errors.New("port driver requires non-host network")
 		}
 		if err != nil {
-			return nil, err
+			return opt, err
 		}
 		opt.PortDriver, err = builtin.NewParentDriver(&logrusDebugWriter{}, opt.StateDir)
 		if err != nil {
-			return nil, err
+			return opt, err
 		}
 	default:
-		return nil, errors.Errorf("unknown port driver: %s", s)
+		return opt, errors.Errorf("unknown port driver: %s", s)
 	}
 
 	return opt, nil
@@ -233,8 +247,11 @@ func (w *logrusDebugWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func createChildOpt(clicontext *cli.Context) (*child.Opt, error) {
-	opt := &child.Opt{}
+func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []string) (child.Opt, error) {
+	opt := child.Opt{
+		PipeFDEnvKey: pipeFDEnvKey,
+		TargetCmd:    targetCmd,
+	}
 	switch s := clicontext.String("net"); s {
 	case "host":
 		// NOP
@@ -245,13 +262,13 @@ func createChildOpt(clicontext *cli.Context) (*child.Opt, error) {
 	case "vdeplug_slirp":
 		opt.NetworkDriver = vdeplugslirp.NewChildDriver()
 	default:
-		return nil, errors.Errorf("unknown network mode: %s", s)
+		return opt, errors.Errorf("unknown network mode: %s", s)
 	}
 	switch s := clicontext.String("copy-up-mode"); s {
 	case "tmpfs+symlink":
 		opt.CopyUpDriver = tmpfssymlink.NewChildDriver()
 	default:
-		return nil, errors.Errorf("unknown copy-up mode: %s", s)
+		return opt, errors.Errorf("unknown copy-up mode: %s", s)
 	}
 	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
 	switch s := clicontext.String("port-driver"); s {
@@ -263,7 +280,7 @@ func createChildOpt(clicontext *cli.Context) (*child.Opt, error) {
 		logrus.Warn("\"builtin\" port driver is experimental")
 		opt.PortDriver = builtin.NewChildDriver(&logrusDebugWriter{})
 	default:
-		return nil, errors.Errorf("unknown port driver: %s", s)
+		return opt, errors.Errorf("unknown port driver: %s", s)
 	}
 	return opt, nil
 }

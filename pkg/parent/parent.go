@@ -24,7 +24,8 @@ import (
 )
 
 type Opt struct {
-	StateDir      string
+	PipeFDEnvKey  string               // needs to be set
+	StateDir      string               // directory needs to be precreated
 	NetworkDriver network.ParentDriver // nil for HostNetwork
 	PortDriver    port.ParentDriver    // nil for --port-driver=none
 }
@@ -36,20 +37,15 @@ const (
 	StateFileAPISock  = "api.sock"  // REST API Socket
 )
 
-func Parent(pipeFDEnvKey string, opt *Opt) error {
-	if opt == nil {
-		opt = &Opt{}
+func Parent(opt Opt) error {
+	if opt.PipeFDEnvKey == "" {
+		return errors.New("pipe FD env key is not set")
 	}
 	if opt.StateDir == "" {
-		var err error
-		opt.StateDir, err = ioutil.TempDir("", "rootlesskit")
-		if err != nil {
-			return errors.Wrap(err, "creating a state directory")
-		}
-	} else {
-		if err := os.MkdirAll(opt.StateDir, 0755); err != nil {
-			return errors.Wrapf(err, "creating a state directory %s", opt.StateDir)
-		}
+		return errors.New("state dir is not set")
+	}
+	if stat, err := os.Stat(opt.StateDir); err != nil || !stat.IsDir() {
+		return errors.Wrap(err, "state dir is inaccessible")
 	}
 	lockPath := filepath.Join(opt.StateDir, StateFileLock)
 	lock := flock.NewFlock(lockPath)
@@ -88,7 +84,7 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.ExtraFiles = []*os.File{pipeR}
-	cmd.Env = append(os.Environ(), pipeFDEnvKey+"=3")
+	cmd.Env = append(os.Environ(), opt.PipeFDEnvKey+"=3")
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "failed to start the child")
 	}
