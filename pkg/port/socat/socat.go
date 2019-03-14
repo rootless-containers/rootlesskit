@@ -47,8 +47,11 @@ func (d *driver) OpaqueForChild() map[string]string {
 	return nil
 }
 
-func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, childPID int) error {
-	d.childPID = childPID
+func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, cctx *port.ChildContext) error {
+	if cctx == nil || cctx.PID <= 0 {
+		return errors.New("child PID not set")
+	}
+	d.childPID = cctx.PID
 	initComplete <- struct{}{}
 	<-quit
 	return nil

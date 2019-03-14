@@ -117,9 +117,13 @@ func Parent(opt Opt) error {
 	portDriverErr := make(chan error)
 	if opt.PortDriver != nil {
 		msg.Port.Opaque = opt.PortDriver.OpaqueForChild()
+		cctx := &port.ChildContext{
+			PID: cmd.Process.Pid,
+			IP:  net.ParseIP(msg.Network.IP).To4(),
+		}
 		go func() {
 			portDriverErr <- opt.PortDriver.RunParentDriver(portDriverInitComplete,
-				portDriverQuit, cmd.Process.Pid)
+				portDriverQuit, cctx)
 		}()
 	}
 

@@ -61,7 +61,7 @@ func (d *driver) OpaqueForChild() map[string]string {
 	}
 }
 
-func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, _ int) error {
+func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, _ *port.ChildContext) error {
 	childReadyPipeR, err := os.OpenFile(d.childReadyPipePath, os.O_RDONLY, os.ModeNamedPipe)
 	if err != nil {
 		return err

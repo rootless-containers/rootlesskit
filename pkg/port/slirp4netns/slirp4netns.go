@@ -30,6 +30,7 @@ type driver struct {
 	logWriter     io.Writer
 	apiSocketPath string
 	mu            sync.Mutex
+	childIP       string // can be empty
 	ports         map[int]*port.Status
 }
 
@@ -38,7 +39,10 @@ func (d *driver) OpaqueForChild() map[string]string {
 	return nil
 }
 
-func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, _ int) error {
+func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, cctx *port.ChildContext) error {
+	if cctx != nil && cctx.IP != nil && cctx.IP.To4() != nil {
+		d.childIP = cctx.IP.To4().String()
+	}
 	initComplete <- struct{}{}
 	<-quit
 	return nil
@@ -57,7 +61,7 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 			Proto:     spec.Proto,
 			HostAddr:  spec.ParentIP,
 			HostPort:  spec.ParentPort,
-			GuestAddr: "",
+			GuestAddr: d.childIP,
 			GuestPort: spec.ChildPort,
 		},
 	}

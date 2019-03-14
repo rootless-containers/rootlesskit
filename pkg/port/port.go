@@ -2,6 +2,7 @@ package port
 
 import (
 	"context"
+	"net"
 )
 
 type Spec struct {
@@ -23,6 +24,14 @@ type Manager interface {
 	RemovePort(ctx context.Context, id int) error
 }
 
+// ChildContext is used for RunParentDriver
+type ChildContext struct {
+	// PID of the child, can be used for ns-entering to the child namespaces.
+	PID int
+	// IP of the tap device
+	IP net.IP
+}
+
 // ParentDriver is a driver for the parent process.
 type ParentDriver interface {
 	Manager
@@ -32,11 +41,9 @@ type ParentDriver interface {
 	// RunParentDriver signals initComplete when ParentDriver is ready to
 	// serve as Manager.
 	// RunParentDriver blocks until quit is signaled.
-	// childPID can be used for ns-entering to the child namespaces.
 	//
-	// TODO: remove childPID from RunParentDriver, let the parent receive the PID
-	// from the child via a socket specified in opaque, as SCM_CREDENTIALS instead?
-	RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, childPID int) error
+	// ChildContext is optional.
+	RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, cctx *ChildContext) error
 }
 
 type ChildDriver interface {

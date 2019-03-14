@@ -151,7 +151,11 @@ func testProtoWithPID(t *testing.T, proto string, d port.ParentDriver, childPID 
 	quit := make(chan struct{})
 	driverErr := make(chan error)
 	go func() {
-		driverErr <- d.RunParentDriver(initComplete, quit, childPID)
+		cctx := &port.ChildContext{
+			PID: childPID,
+			IP:  nil, // we don't have tap device in this test suite
+		}
+		driverErr <- d.RunParentDriver(initComplete, quit, cctx)
 	}()
 	select {
 	case <-initComplete:
