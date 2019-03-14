@@ -23,6 +23,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/port/builtin"
 	slirp4netns_port "github.com/rootless-containers/rootlesskit/pkg/port/slirp4netns"
 	"github.com/rootless-containers/rootlesskit/pkg/port/socat"
+	vpnkit_port "github.com/rootless-containers/rootlesskit/pkg/port/vpnkit"
 	"github.com/rootless-containers/rootlesskit/pkg/version"
 )
 
@@ -174,10 +175,12 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey string) (parent.Opt, 
 		logrus.Warn("specifying --disable-host-loopback is highly recommended to prohibit connecting to 127.0.0.1:* on the host namespace (requires slirp4netns v0.3.0+ or VPNKit)")
 	}
 
+	// empty by default, as API is not supported by slirp4netns < 0.3
 	slirp4netnsAPISocketPath := ""
 	if clicontext.String("port-driver") == "slirp4netns" {
 		slirp4netnsAPISocketPath = filepath.Join(opt.StateDir, ".s4nn.sock")
 	}
+	vpnkitAPISocketPath := filepath.Join(opt.StateDir, ".vk.sock")
 	switch s := clicontext.String("net"); s {
 	case "host":
 		// NOP
@@ -201,7 +204,10 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey string) (parent.Opt, 
 		if _, err := exec.LookPath(binary); err != nil {
 			return opt, err
 		}
-		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu, disableHostLoopback)
+		opt.NetworkDriver, err = vpnkit.NewParentDriver(binary, mtu, disableHostLoopback, vpnkitAPISocketPath)
+		if err != nil {
+			return opt, err
+		}
 	case "vdeplug_slirp":
 		if ipnet != nil {
 			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
@@ -229,6 +235,14 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey string) (parent.Opt, 
 			return opt, errors.New("port driver requires slirp4netns network")
 		}
 		opt.PortDriver, err = slirp4netns_port.NewParentDriver(&logrusDebugWriter{}, slirp4netnsAPISocketPath)
+		if err != nil {
+			return opt, err
+		}
+	case "vpnkit":
+		if clicontext.String("net") != "vpnkit" {
+			return opt, errors.New("port driver requires vpnkit network")
+		}
+		opt.PortDriver, err = vpnkit_port.NewParentDriver(&logrusDebugWriter{}, vpnkitAPISocketPath)
 		if err != nil {
 			return opt, err
 		}
@@ -288,6 +302,8 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		opt.PortDriver = socat.NewChildDriver()
 	case "slirp4netns":
 		opt.PortDriver = slirp4netns_port.NewChildDriver()
+	case "vpnkit":
+		opt.PortDriver = vpnkit_port.NewChildDriver()
 	case "builtin":
 		opt.PortDriver = builtin.NewChildDriver(&logrusDebugWriter{})
 	default:

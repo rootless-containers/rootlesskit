@@ -2,6 +2,22 @@
 
 
 [[projects]]
+  digest = "1:f9ae348e1f793dcf9ed930ed47136a67343dbd6809c5c91391322267f4476892"
+  name = "github.com/Microsoft/go-winio"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "1a8911d1ed007260465c3bfbbc785ac6915a0bb8"
+  version = "v0.4.12"
+
+[[projects]]
+  branch = "master"
+  digest = "1:3d958c079af9a144a5fa78c85233d6a72e2befc8eed0a161ff643755b801e8b8"
+  name = "github.com/docker/go-p9p"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "64abb42af527ed0dacbef777a5dbe36e3b1147f0"
+
+[[projects]]
   digest = "1:582b704bebaa06b48c29b0cec224a6058a09c86883aaddabde889cd1a5f73e1b"
   name = "github.com/google/uuid"
   packages = ["."]
@@ -34,9 +50,32 @@
   version = "v1.0.2"
 
 [[projects]]
-  digest = "1:7bd94fbd708f2d4c08cf092a2dc5abc60b63a496c73d8388da8e6686b19c347d"
+  branch = "master"
+  digest = "1:71f099e06b92187612832766c80a4bc4c8641b1a5cd262778c8b5716cb63fc4d"
+  name = "github.com/linuxkit/virtsock"
+  packages = [
+    "pkg/hvsock",
+    "pkg/vsock",
+  ]
+  pruneopts = "UT"
+  revision = "8e79449dea0735c1c056d814934dd035734cc97c"
+
+[[projects]]
+  digest = "1:75926eb066907b796aeaf801f2ca7f1b9b323218b42b1faa5a185381c68c5739"
+  name = "github.com/moby/datakit"
+  packages = ["api/go-datakit"]
+  pruneopts = "UT"
+  revision = "0c9585017f609596c65e57b4fc7ddbba8cc71a4b"
+  version = "v0.12.3"
+
+[[projects]]
+  digest = "1:7f0477fd1e21e9956089c050149c3ff04d6f0fdd5fe9a2d47774cecef119de72"
   name = "github.com/moby/vpnkit"
-  packages = ["go/pkg/vmnet"]
+  packages = [
+    "go/pkg/libproxy",
+    "go/pkg/vmnet",
+    "go/pkg/vpnkit",
+  ]
   pruneopts = "UT"
   revision = "c9726dc2c92b1216e73d0ca6415caa688518cb42"
   version = "v0.3.0"
@@ -116,6 +155,7 @@
     "github.com/gorilla/mux",
     "github.com/jamescun/tuntap",
     "github.com/moby/vpnkit/go/pkg/vmnet",
+    "github.com/moby/vpnkit/go/pkg/vpnkit",
     "github.com/opencontainers/runc/libcontainer/user",
     "github.com/pkg/errors",
     "github.com/sirupsen/logrus",

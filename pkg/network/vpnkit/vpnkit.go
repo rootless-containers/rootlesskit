@@ -20,12 +20,12 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 )
 
-func NewParentDriver(binary string, mtu int, disableHostLoopback bool) network.ParentDriver {
+func NewParentDriver(binary string, mtu int, disableHostLoopback bool, apiSocketPath string) (network.ParentDriver, error) {
 	if binary == "" {
-		panic("got empty vpnkit binary")
+		return nil, errors.New("got empty vpnkit binary")
 	}
 	if mtu < 0 {
-		panic("got negative mtu")
+		return nil, errors.New("got negative mtu")
 	}
 	if mtu == 0 {
 		mtu = 1500
@@ -34,11 +34,15 @@ func NewParentDriver(binary string, mtu int, disableHostLoopback bool) network.P
 		logrus.Warnf("vpnkit is known to have issues with non-1500 MTU (current: %d), see https://github.com/rootless-containers/rootlesskit/issues/6#issuecomment-403531453", mtu)
 		// NOTE: iperf3 stops working with MTU >= 16425
 	}
+	if apiSocketPath == "" {
+		return nil, errors.New("got empty socket path")
+	}
 	return &parentDriver{
 		binary:              binary,
 		mtu:                 mtu,
 		disableHostLoopback: disableHostLoopback,
-	}
+		apiSocketPath:       apiSocketPath,
+	}, nil
 }
 
 const (
@@ -51,6 +55,7 @@ type parentDriver struct {
 	binary              string
 	mtu                 int
 	disableHostLoopback bool
+	apiSocketPath       string
 }
 
 func (d *parentDriver) MTU() int {
@@ -61,7 +66,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	var cleanups []func() error
 	vpnkitSocket := filepath.Join(stateDir, "vpnkit-ethernet.sock")
 	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())
-	vpnkitCmd := exec.CommandContext(vpnkitCtx, d.binary, "--ethernet", vpnkitSocket, "--mtu", strconv.Itoa(d.mtu))
+	vpnkitCmd := exec.CommandContext(vpnkitCtx, d.binary, "--ethernet", vpnkitSocket, "--port", d.apiSocketPath, "--mtu", strconv.Itoa(d.mtu))
 	if d.disableHostLoopback {
 		vpnkitCmd.Args = append(vpnkitCmd.Args, "--host-ip", "0.0.0.0")
 	}

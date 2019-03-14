@@ -91,7 +91,10 @@ function benchmark::iperf3_reverse(){
 function benchmark::iperf3_reverse::main(){
     set -x
     benchmark::iperf3_reverse --net=slirp4netns --mtu=65520 --port-driver=socat
+    benchmark::iperf3_reverse --net=slirp4netns --mtu=1500  --port-driver=slirp4netns
     benchmark::iperf3_reverse --net=slirp4netns --mtu=65520 --port-driver=slirp4netns
+    benchmark::iperf3_reverse --net=vpnkit      --mtu=1500  --port-driver=vpnkit
+    benchmark::iperf3_reverse --net=vpnkit      --mtu=16384 --port-driver=vpnkit
     benchmark::iperf3_reverse --net=slirp4netns --mtu=65520 --port-driver=builtin
     set +x
 }
