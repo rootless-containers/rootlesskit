@@ -72,9 +72,11 @@ function benchmark::iperf3::main(){
     kill $iperf3pid
 }
 
-function benchmark::iperf3_reverse::socat_slirp4netns(){
+
+function benchmark::iperf3_reverse(){
     statedir=$(mktemp -d)
-    $ROOTLESSKIT --state-dir=$statedir --net=slirp4netns --mtu=65520 --port-driver=socat iperf3 -s > /dev/null &
+    INFO "[benchmark:iperf3_reverse] $@"
+    $ROOTLESSKIT --state-dir=$statedir $@ iperf3 -s > /dev/null &
     rkpid=$!
     # wait for socket to be available
     sleep 3
@@ -87,7 +89,11 @@ function benchmark::iperf3_reverse::socat_slirp4netns(){
 }
 
 function benchmark::iperf3_reverse::main(){
-    benchmark::iperf3_reverse::socat_slirp4netns
+    set -x
+    benchmark::iperf3_reverse --net=slirp4netns --mtu=65520 --port-driver=socat
+    benchmark::iperf3_reverse --net=slirp4netns --mtu=65520 --port-driver=slirp4netns
+    benchmark::iperf3_reverse --net=slirp4netns --mtu=65520 --port-driver=builtin
+    set +x
 }
 benchmark::iperf3::main
 benchmark::iperf3_reverse::main

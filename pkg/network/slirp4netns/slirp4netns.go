@@ -21,7 +21,8 @@ import (
 // ipnet MUST be nil for slirp4netns < v0.3.0.
 //
 // disableHostLoopback is supported only for slirp4netns v0.3.0+
-func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool) network.ParentDriver {
+// apiSocketPath is supported only for slirp4netns v0.3.0+
+func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool, apiSocketPath string) network.ParentDriver {
 	if binary == "" {
 		panic("got empty slirp4netns binary")
 	}
@@ -36,6 +37,7 @@ func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopba
 		mtu:                 mtu,
 		ipnet:               ipnet,
 		disableHostLoopback: disableHostLoopback,
+		apiSocketPath:       apiSocketPath,
 	}
 }
 
@@ -46,6 +48,7 @@ type parentDriver struct {
 	mtu                 int
 	ipnet               *net.IPNet
 	disableHostLoopback bool
+	apiSocketPath       string
 }
 
 func (d *parentDriver) MTU() int {
@@ -65,6 +68,9 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	}
 	if d.ipnet != nil {
 		opts = append(opts, "--cidr", d.ipnet.String())
+	}
+	if d.apiSocketPath != "" {
+		opts = append(opts, "--api-socket", d.apiSocketPath)
 	}
 	cmd := exec.CommandContext(ctx, d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{

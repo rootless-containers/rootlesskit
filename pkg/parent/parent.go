@@ -2,9 +2,6 @@ package parent
 
 import (
 	"context"
-	"encoding/binary"
-	"encoding/json"
-	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -21,12 +18,14 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/api/router"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 )
 
 type Opt struct {
-	StateDir      string
+	PipeFDEnvKey  string               // needs to be set
+	StateDir      string               // directory needs to be precreated
 	NetworkDriver network.ParentDriver // nil for HostNetwork
 	PortDriver    port.ParentDriver    // nil for --port-driver=none
 }
@@ -38,20 +37,15 @@ const (
 	StateFileAPISock  = "api.sock"  // REST API Socket
 )
 
-func Parent(pipeFDEnvKey string, opt *Opt) error {
-	if opt == nil {
-		opt = &Opt{}
+func Parent(opt Opt) error {
+	if opt.PipeFDEnvKey == "" {
+		return errors.New("pipe FD env key is not set")
 	}
 	if opt.StateDir == "" {
-		var err error
-		opt.StateDir, err = ioutil.TempDir("", "rootlesskit")
-		if err != nil {
-			return errors.Wrap(err, "creating a state directory")
-		}
-	} else {
-		if err := os.MkdirAll(opt.StateDir, 0755); err != nil {
-			return errors.Wrapf(err, "creating a state directory %s", opt.StateDir)
-		}
+		return errors.New("state dir is not set")
+	}
+	if stat, err := os.Stat(opt.StateDir); err != nil || !stat.IsDir() {
+		return errors.Wrap(err, "state dir is inaccessible")
 	}
 	lockPath := filepath.Join(opt.StateDir, StateFileLock)
 	lock := flock.NewFlock(lockPath)
@@ -90,7 +84,7 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.ExtraFiles = []*os.File{pipeR}
-	cmd.Env = append(os.Environ(), pipeFDEnvKey+"=3")
+	cmd.Env = append(os.Environ(), opt.PipeFDEnvKey+"=3")
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "failed to start the child")
 	}
@@ -118,21 +112,40 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	}
 
 	// configure Port driver
+	portDriverInitComplete := make(chan struct{})
+	portDriverQuit := make(chan struct{})
+	portDriverErr := make(chan error)
 	if opt.PortDriver != nil {
-		opt.PortDriver.SetChildPID(cmd.Process.Pid)
+		msg.Port.Opaque = opt.PortDriver.OpaqueForChild()
+		cctx := &port.ChildContext{
+			PID: cmd.Process.Pid,
+			IP:  net.ParseIP(msg.Network.IP).To4(),
+		}
+		go func() {
+			portDriverErr <- opt.PortDriver.RunParentDriver(portDriverInitComplete,
+				portDriverQuit, cctx)
+		}()
 	}
 
+	// wake up the child
+	if _, err := msgutil.MarshalToWriter(pipeW, &msg); err != nil {
+		return err
+	}
+	if err := pipeW.Close(); err != nil {
+		return err
+	}
+	// wait for port driver to be ready
+	if opt.PortDriver != nil {
+		select {
+		case <-portDriverInitComplete:
+		case err = <-portDriverErr:
+			return err
+		}
+	}
 	// listens the API
 	apiSockPath := filepath.Join(opt.StateDir, StateFileAPISock)
 	apiCloser, err := listenServeAPI(apiSockPath, &router.Backend{PortDriver: opt.PortDriver})
 	if err != nil {
-		return err
-	}
-	// wake up the child
-	if err := writeMessage(pipeW, &msg); err != nil {
-		return err
-	}
-	if err := pipeW.Close(); err != nil {
 		return err
 	}
 	// block until the child exits
@@ -143,17 +156,11 @@ func Parent(pipeFDEnvKey string, opt *Opt) error {
 	if err := apiCloser.Close(); err != nil {
 		return errors.Wrapf(err, "failed to close %s", apiSockPath)
 	}
-	return nil
-}
-
-func writeMessage(w io.Writer, msg *common.Message) error {
-	b, err := json.Marshal(msg)
-	if err != nil {
-		return err
+	// shut down port driver
+	if opt.PortDriver != nil {
+		portDriverQuit <- struct{}{}
+		err = <-portDriverErr
 	}
-	h := make([]byte, 4)
-	binary.LittleEndian.PutUint32(h, uint32(len(b)))
-	_, err = w.Write(append(h, b...))
 	return err
 }
 

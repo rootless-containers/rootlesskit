@@ -14,9 +14,10 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/rootless-containers/rootlesskit/pkg/port/portutil"
 )
 
-func New(logWriter io.Writer) (port.ParentDriver, error) {
+func NewParentDriver(logWriter io.Writer) (port.ParentDriver, error) {
 	if _, err := exec.LookPath("socat"); err != nil {
 		return nil, err
 	}
@@ -24,27 +25,36 @@ func New(logWriter io.Writer) (port.ParentDriver, error) {
 		return nil, err
 	}
 	d := driver{
-		logWriter:   logWriter,
-		ports:       make(map[int]*port.Status, 0),
-		cmdStoppers: make(map[int]func() error, 0),
-		nextID:      1,
+		logWriter: logWriter,
+		ports:     make(map[int]*port.Status, 0),
+		stoppers:  make(map[int]func() error, 0),
+		nextID:    1,
 	}
 	return &d, nil
 }
 
 type driver struct {
-	logWriter   io.Writer
-	mu          sync.Mutex
-	childPID    int
-	ports       map[int]*port.Status
-	cmdStoppers map[int]func() error
-	nextID      int
+	logWriter io.Writer
+	mu        sync.Mutex
+	childPID  int
+	ports     map[int]*port.Status
+	stoppers  map[int]func() error
+	nextID    int
 }
 
-func (d *driver) SetChildPID(pid int) {
-	d.mu.Lock()
-	d.childPID = pid
-	d.mu.Unlock()
+func (d *driver) OpaqueForChild() map[string]string {
+	// NOP, as this driver does not have child-side logic.
+	return nil
+}
+
+func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, cctx *port.ChildContext) error {
+	if cctx == nil || cctx.PID <= 0 {
+		return errors.New("child PID not set")
+	}
+	d.childPID = cctx.PID
+	initComplete <- struct{}{}
+	<-quit
+	return nil
 }
 
 func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, error) {
@@ -52,25 +62,21 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 		return nil, errors.New("child PID not set")
 	}
 	d.mu.Lock()
-	for id, p := range d.ports {
-		sp := p.Spec
-		// FIXME: add more ParentIP checks
-		if sp.Proto == spec.Proto && sp.ParentIP == spec.ParentIP && sp.ParentPort == spec.ParentPort {
-			d.mu.Unlock()
-			return nil, errors.Errorf("conflict with ID %d", id)
-		}
-	}
+	err := portutil.ValidatePortSpec(spec, d.ports)
 	d.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
 	cf := func() (*exec.Cmd, error) {
 		return createSocatCmd(ctx, spec, d.logWriter, d.childPID)
 	}
-	cmdErrorCh := make(chan error)
-	cmdStopCh := make(chan struct{})
-	cmdStop := func() error {
-		close(cmdStopCh)
-		return <-cmdErrorCh
+	routineErrorCh := make(chan error)
+	routineStopCh := make(chan struct{})
+	routineStop := func() error {
+		close(routineStopCh)
+		return <-routineErrorCh
 	}
-	go execRoutine(cf, cmdStopCh, cmdErrorCh, d.logWriter)
+	go portRoutine(cf, routineStopCh, routineErrorCh, d.logWriter)
 	d.mu.Lock()
 	id := d.nextID
 	st := port.Status{
@@ -78,7 +84,7 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 		Spec: spec,
 	}
 	d.ports[id] = &st
-	d.cmdStoppers[id] = cmdStop
+	d.stoppers[id] = routineStop
 	d.nextID++
 	d.mu.Unlock()
 	return &st, nil
@@ -97,12 +103,12 @@ func (d *driver) ListPorts(ctx context.Context) ([]port.Status, error) {
 func (d *driver) RemovePort(ctx context.Context, id int) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	cmdStop, ok := d.cmdStoppers[id]
+	stop, ok := d.stoppers[id]
 	if !ok {
-		return errors.Errorf("unknown socat id: %d", id)
+		return errors.Errorf("unknown port id: %d", id)
 	}
-	err := cmdStop()
-	delete(d.cmdStoppers, id)
+	err := stop()
+	delete(d.stoppers, id)
 	delete(d.ports, id)
 	return err
 }
@@ -155,7 +161,7 @@ func createSocatCmd(ctx context.Context, spec port.Spec, logWriter io.Writer, ch
 
 type cmdFactory func() (*exec.Cmd, error)
 
-func execRoutine(cf cmdFactory, stopCh <-chan struct{}, errWCh chan error, logWriter io.Writer) {
+func portRoutine(cf cmdFactory, stopCh <-chan struct{}, errWCh chan error, logWriter io.Writer) {
 	retry := 0
 	doneCh := make(chan error)
 	for {
@@ -196,4 +202,17 @@ func execRoutine(cf cmdFactory, stopCh <-chan struct{}, errWCh chan error, logWr
 			return
 		}
 	}
+}
+
+func NewChildDriver() port.ChildDriver {
+	return &childDriver{}
+}
+
+type childDriver struct {
+}
+
+func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struct{}) error {
+	// NOP
+	<-quit
+	return nil
 }

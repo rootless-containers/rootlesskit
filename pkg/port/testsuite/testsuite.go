@@ -3,8 +3,10 @@ package testsuite
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -18,19 +20,80 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 )
 
-func Run(t *testing.T, df func() port.ParentDriver) {
-	t.Run("TestTCP", func(t *testing.T) { TestProto(t, "tcp", df()) })
-	t.Run("TestUDP", func(t *testing.T) { TestProto(t, "udp", df()) })
+const (
+	reexecKeyMode   = "rootlesskit-port-testsuite.mode"
+	reexecKeyOpaque = "rootlesskit-port-testsuite.opaque"
+	reexecKeyQuitFD = "rootlesskit-port-testsuite.quitfd"
+)
+
+func Main(m *testing.M, cf func() port.ChildDriver) {
+	switch mode := os.Getenv(reexecKeyMode); mode {
+	case "":
+		os.Exit(m.Run())
+	case "child":
+	default:
+		panic(fmt.Errorf("unknown mode: %q", mode))
+	}
+	var opaque map[string]string
+	if err := json.Unmarshal([]byte(os.Getenv(reexecKeyOpaque)), &opaque); err != nil {
+		panic(err)
+	}
+	quit := make(chan struct{})
+	errCh := make(chan error)
+	go func() {
+		d := cf()
+		dErr := d.RunChildDriver(opaque, quit)
+		errCh <- dErr
+	}()
+	quitFD, err := strconv.Atoi(os.Getenv(reexecKeyQuitFD))
+	if err != nil {
+		panic(err)
+	}
+	quitR := os.NewFile(uintptr(quitFD), "")
+	defer quitR.Close()
+	if _, err = ioutil.ReadAll(quitR); err != nil {
+		panic(err)
+	}
+	quit <- struct{}{}
+	err = <-errCh
+	if err != nil {
+		panic(err)
+	}
+	// when race detector is enabled, it takes about 1s after leaving from Main()
+}
+
+func Run(t *testing.T, pf func() port.ParentDriver) {
+	RunTCP(t, pf)
+	RunUDP(t, pf)
+}
+
+func RunTCP(t *testing.T, pf func() port.ParentDriver) {
+	t.Run("TestTCP", func(t *testing.T) { TestProto(t, "tcp", pf()) })
+}
+
+func RunUDP(t *testing.T, pf func() port.ParentDriver) {
+	t.Run("TestUDP", func(t *testing.T) { TestProto(t, "udp", pf()) })
 }
 
 func TestProto(t *testing.T, proto string, d port.ParentDriver) {
 	ensureDeps(t, "nsenter")
 	t.Logf("creating USER+NET namespace")
+	opaque := d.OpaqueForChild()
+	opaqueJSON, err := json.Marshal(opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("cat", "/dev/fd/3")
+	cmd := exec.Command("/proc/self/exe")
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	cmd.Env = append([]string{
+		reexecKeyMode + "=child",
+		reexecKeyOpaque + "=" + string(opaqueJSON),
+		reexecKeyQuitFD + "=3"}, os.Environ()...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig:  syscall.SIGKILL,
 		Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWNET,
@@ -61,15 +124,16 @@ func TestProto(t *testing.T, proto string, d port.ParentDriver) {
 	if out, err := nsenterExec(childPID, "ip", "link", "set", "lo", "up"); err != nil {
 		t.Fatalf("%v, out=%s", err, string(out))
 	}
-	TestProtoWithPID(t, proto, d, childPID)
+	testProtoWithPID(t, proto, d, childPID)
 }
 
-func TestProtoWithPID(t *testing.T, proto string, d port.ParentDriver, childPID int) {
+func testProtoWithPID(t *testing.T, proto string, d port.ParentDriver, childPID int) {
 	ensureDeps(t, "nsenter", "ip", "nc")
 	// [child]parent
 	pairs := map[int]int{
-		80:   42080,
-		8080: 42880,
+		// FIXME: flaky
+		80:   (childPID + 80) % 60000,
+		8080: (childPID + 8080) % 60000,
 	}
 	if proto == "tcp" {
 		for _, parentPort := range pairs {
@@ -83,7 +147,21 @@ func TestProtoWithPID(t *testing.T, proto string, d port.ParentDriver, childPID 
 	}
 
 	t.Logf("namespace pid: %d", childPID)
-	d.SetChildPID(childPID)
+	initComplete := make(chan struct{})
+	quit := make(chan struct{})
+	driverErr := make(chan error)
+	go func() {
+		cctx := &port.ChildContext{
+			PID: childPID,
+			IP:  nil, // we don't have tap device in this test suite
+		}
+		driverErr <- d.RunParentDriver(initComplete, quit, cctx)
+	}()
+	select {
+	case <-initComplete:
+	case err := <-driverErr:
+		t.Fatal(err)
+	}
 	var wg sync.WaitGroup
 	for c, p := range pairs {
 		childP, parentP := c, p
@@ -94,6 +172,11 @@ func TestProtoWithPID(t *testing.T, proto string, d port.ParentDriver, childPID 
 		}()
 	}
 	wg.Wait()
+	quit <- struct{}{}
+	err := <-driverErr
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func nsenterExec(pid int, cmdss ...string) ([]byte, error) {

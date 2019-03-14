@@ -1,8 +1,6 @@
 package child
 
 import (
-	"encoding/binary"
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -14,7 +12,9 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/copyup"
+	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
+	"github.com/rootless-containers/rootlesskit/pkg/port"
 )
 
 func waitForParentSync(pipeFDStr string) (*common.Message, error) {
@@ -23,29 +23,9 @@ func waitForParentSync(pipeFDStr string) (*common.Message, error) {
 		return nil, errors.Wrapf(err, "unexpected fd value: %s", pipeFDStr)
 	}
 	pipeR := os.NewFile(uintptr(pipeFD), "")
-	hdr := make([]byte, 4)
-	n, err := pipeR.Read(hdr)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read fd %d", pipeFD)
-	}
-	if n != 4 {
-		return nil, errors.Errorf("read %d bytes, expected 4 bytes", n)
-	}
-	bLen := binary.LittleEndian.Uint32(hdr)
-	if bLen > 1<<16 || bLen < 1 {
-		return nil, errors.Errorf("bad message size: %d", bLen)
-	}
-	b := make([]byte, bLen)
-	n, err = pipeR.Read(b)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to read fd %d", pipeFD)
-	}
-	if n != int(bLen) {
-		return nil, errors.Errorf("read %d bytes, expected %d bytes", n, bLen)
-	}
 	var msg common.Message
-	if err := json.Unmarshal(b, &msg); err != nil {
-		return nil, errors.Wrapf(err, "parsing message from fd %d: %q (length %d)", pipeFD, string(b), bLen)
+	if _, err := msgutil.UnmarshalFromReader(pipeR, &msg); err != nil {
+		return nil, errors.Wrapf(err, "parsing message from fd %d", pipeFD)
 	}
 	if err := pipeR.Close(); err != nil {
 		return nil, errors.Wrapf(err, "failed to close fd %d", pipeFD)
@@ -188,20 +168,23 @@ func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver)
 }
 
 type Opt struct {
+	PipeFDEnvKey  string              // needs to be set
+	TargetCmd     []string            // needs to be set
 	NetworkDriver network.ChildDriver // nil for HostNetwork
 	CopyUpDriver  copyup.ChildDriver  // cannot be nil if len(CopyUpDirs) != 0
 	CopyUpDirs    []string
+	PortDriver    port.ChildDriver
 }
 
-func Child(pipeFDEnvKey string, targetCmd []string, opt *Opt) error {
-	if opt == nil {
-		opt = &Opt{}
+func Child(opt Opt) error {
+	if opt.PipeFDEnvKey == "" {
+		return errors.New("pipe FD env key is not set")
 	}
-	pipeFDStr := os.Getenv(pipeFDEnvKey)
+	pipeFDStr := os.Getenv(opt.PipeFDEnvKey)
 	if pipeFDStr == "" {
-		return errors.Errorf("%s is not set", pipeFDEnvKey)
+		return errors.Errorf("%s is not set", opt.PipeFDEnvKey)
 	}
-	os.Unsetenv(pipeFDEnvKey)
+	os.Unsetenv(opt.PipeFDEnvKey)
 	msg, err := waitForParentSync(pipeFDStr)
 	if err != nil {
 		return err
@@ -214,12 +197,24 @@ func Child(pipeFDEnvKey string, targetCmd []string, opt *Opt) error {
 	if err := setupNet(*msg, etcWasCopied, opt.NetworkDriver); err != nil {
 		return err
 	}
-	cmd, err := createCmd(targetCmd)
+	portQuitCh := make(chan struct{})
+	portErrCh := make(chan error)
+	if opt.PortDriver != nil {
+		go func() {
+			portErrCh <- opt.PortDriver.RunChildDriver(msg.Port.Opaque, portQuitCh)
+		}()
+	}
+
+	cmd, err := createCmd(opt.TargetCmd)
 	if err != nil {
 		return err
 	}
 	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "command %v exited", targetCmd)
+		return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
+	}
+	if opt.PortDriver != nil {
+		portQuitCh <- struct{}{}
+		return <-portErrCh
 	}
 	return nil
 }
