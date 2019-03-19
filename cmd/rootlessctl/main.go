@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -26,7 +27,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "socket",
-			Usage: "Path to api.sock (under the \"rootlesskit --state-dir\" directory)",
+			Usage: "Path to api.sock (under the \"rootlesskit --state-dir\" directory), defaults to $ROOTLESSKIT_STATE_DIR/api.sock",
 		},
 	}
 	app.Commands = []cli.Command{
@@ -53,7 +54,11 @@ func main() {
 func newClient(clicontext *cli.Context) (client.Client, error) {
 	socketPath := clicontext.GlobalString("socket")
 	if socketPath == "" {
-		return nil, errors.New("please specify --socket")
+		stateDir := os.Getenv("ROOTLESSKIT_STATE_DIR")
+		if stateDir == "" {
+			return nil, errors.New("please specify --socket or set $ROOTLESSKIT_STATE_DIR")
+		}
+		socketPath = filepath.Join(stateDir, "api.sock")
 	}
 	return client.New(socketPath)
 }
