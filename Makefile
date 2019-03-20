@@ -1,6 +1,6 @@
 GO=go
 GO_FILES=$(shell find . -name *.go)
-BINARIES=rootlesskit rootlessctl
+BINARIES=rootlesskit rootlessctl rootlesskit-docker-proxy
 
 .PHONY: all
 all: $(addprefix bin/, $(BINARIES))
@@ -14,6 +14,9 @@ bin/rootlesskit: $(GO_FILES)
 
 bin/rootlessctl: $(GO_FILES)
 	$(GO) build -o $@ -v github.com/rootless-containers/rootlesskit/cmd/rootlessctl
+
+bin/rootlesskit-docker-proxy: $(GO_FILES)
+	$(GO) build -o $@ -v github.com/rootless-containers/rootlesskit/cmd/rootlesskit-docker-proxy
 
 .PHONY: test
 test:
