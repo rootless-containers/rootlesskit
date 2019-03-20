@@ -27,7 +27,10 @@ import (
 )
 
 func main() {
-	pipeFDEnvKey := "_ROOTLESSKIT_PIPEFD_UNDOCUMENTED"
+	const (
+		pipeFDEnvKey   = "_ROOTLESSKIT_PIPEFD_UNDOCUMENTED"
+		stateDirEnvKey = "ROOTLESSKIT_STATE_DIR" // documented
+	)
 	iAmChild := os.Getenv(pipeFDEnvKey) != ""
 	debug := false
 	app := cli.NewApp()
@@ -104,7 +107,7 @@ func main() {
 			}
 			return child.Child(childOpt)
 		}
-		parentOpt, err := createParentOpt(clicontext, pipeFDEnvKey)
+		parentOpt, err := createParentOpt(clicontext, pipeFDEnvKey, stateDirEnvKey)
 		if err != nil {
 			return err
 		}
@@ -143,19 +146,24 @@ func parseCIDR(s string) (*net.IPNet, error) {
 	return ipnet, nil
 }
 
-func createParentOpt(clicontext *cli.Context, pipeFDEnvKey string) (parent.Opt, error) {
+func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey string) (parent.Opt, error) {
+	var err error
 	opt := parent.Opt{
-		PipeFDEnvKey: pipeFDEnvKey,
+		PipeFDEnvKey:   pipeFDEnvKey,
+		StateDirEnvKey: stateDirEnvKey,
 	}
 	opt.StateDir = clicontext.String("state-dir")
 	if opt.StateDir == "" {
-		var err error
 		opt.StateDir, err = ioutil.TempDir("", "rootlesskit")
 		if err != nil {
 			return opt, errors.Wrap(err, "creating a state directory")
 		}
 	} else {
-		if err := os.MkdirAll(opt.StateDir, 0755); err != nil {
+		opt.StateDir, err = filepath.Abs(opt.StateDir)
+		if err != nil {
+			return opt, err
+		}
+		if err = os.MkdirAll(opt.StateDir, 0755); err != nil {
 			return opt, errors.Wrapf(err, "creating a state directory %s", opt.StateDir)
 		}
 	}

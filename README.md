@@ -140,6 +140,13 @@ The following files will be created in the `--state-dir` directory:
 
 Undocumented files are subject to change.
 
+## Environment variables
+
+The following environment variables will be set for the child process:
+* `ROOTLESSKIT_STATE_DIR` (since v0.3.0): absolute path to the state dir
+
+Undocumented environment variables are subject to change.
+
 ## Slirp
 
 Remarks:

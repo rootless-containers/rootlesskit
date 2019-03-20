@@ -24,10 +24,11 @@ import (
 )
 
 type Opt struct {
-	PipeFDEnvKey  string               // needs to be set
-	StateDir      string               // directory needs to be precreated
-	NetworkDriver network.ParentDriver // nil for HostNetwork
-	PortDriver    port.ParentDriver    // nil for --port-driver=none
+	PipeFDEnvKey   string               // needs to be set
+	StateDir       string               // directory needs to be precreated
+	StateDirEnvKey string               // optional env key to propagate StateDir value
+	NetworkDriver  network.ParentDriver // nil for HostNetwork
+	PortDriver     port.ParentDriver    // nil for --port-driver=none
 }
 
 // Documented state files. Undocumented ones are subject to change.
@@ -43,6 +44,9 @@ func Parent(opt Opt) error {
 	}
 	if opt.StateDir == "" {
 		return errors.New("state dir is not set")
+	}
+	if !filepath.IsAbs(opt.StateDir) {
+		return errors.New("state dir must be absolute")
 	}
 	if stat, err := os.Stat(opt.StateDir); err != nil || !stat.IsDir() {
 		return errors.Wrap(err, "state dir is inaccessible")
@@ -85,6 +89,9 @@ func Parent(opt Opt) error {
 	cmd.Stderr = os.Stderr
 	cmd.ExtraFiles = []*os.File{pipeR}
 	cmd.Env = append(os.Environ(), opt.PipeFDEnvKey+"=3")
+	if opt.StateDirEnvKey != "" {
+		cmd.Env = append(cmd.Env, opt.StateDirEnvKey+"="+opt.StateDir)
+	}
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "failed to start the child")
 	}
