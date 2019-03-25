@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"syscall"
-    
+
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
@@ -172,83 +172,57 @@ func Parent(opt Opt) error {
 	return err
 }
 
-func newuidmapArgs() ([]string, error) {
+func newugidmapArgs() ([]string, []string, error) {
 	u, err := user.Current()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	res := []string{
+	uidMap := []string{
 		"0",
 		u.Uid,
 		"1",
 	}
-
-	//get both subid maps
-	//uses username for groupname in case primary groupname is not the same
-	//idtools will fall back to getent if /etc/passwd does not contain username
-	//works with external auth, ie sssd, ldap, nis
-	ims, err := idtools.NewIdentityMapping(u.Username, u.Username)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: continue with non-subgid on ENOENT maybe
-	last := 1
-	for _, im := range ims.UIDs() {
-		res = append(res, []string{
-			strconv.Itoa(last),
-			strconv.Itoa(im.HostID),
-			strconv.Itoa(im.Size),
-		}...)
-		last += im.Size
-	}   
-	return res, nil
-}
-
-func newgidmapArgs() ([]string, error) {
-	u, err := user.Current()
-	if err != nil {
-		return nil, err
-	}
-	//g, err := user.LookupGroupId(u.Gid)
-	if err != nil {
-		return nil, err
-	}
-	res := []string{
+	gidMap := []string{
 		"0",
 		u.Gid,
 		"1",
 	}
 
-	//get both subid maps
-	//uses username for groupname in case primary groupname is not the same
-	//idtools will fall back to getent if /etc/group does not contain group name
-	//works with external auth, ie sssd, ldap, nis
+	// get both subid maps
+	// uses username for groupname in case primary groupname is not the same
+	// idtools will fall back to getent if /etc/passwd does not contain username
+	// works with external auth, ie sssd, ldap, nis
 	ims, err := idtools.NewIdentityMapping(u.Username, u.Username)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	// TODO: continue with non-subgid on ENOENT maybe
-	last := 1
-	for _, im := range ims.GIDs() {
-		res = append(res, []string{
-			strconv.Itoa(last),
+
+	uidMapLast := 1
+	for _, im := range ims.UIDs() {
+		uidMap = append(uidMap, []string{
+			strconv.Itoa(uidMapLast),
 			strconv.Itoa(im.HostID),
 			strconv.Itoa(im.Size),
 		}...)
-		last += int(im.Size)
+		uidMapLast += im.Size
 	}
-	return res, nil
+	gidMapLast := 1
+	for _, im := range ims.GIDs() {
+		gidMap = append(gidMap, []string{
+			strconv.Itoa(gidMapLast),
+			strconv.Itoa(im.HostID),
+			strconv.Itoa(im.Size),
+		}...)
+		gidMapLast += im.Size
+	}
+
+	return uidMap, gidMap, nil
 }
 
 func setupUIDGIDMap(pid int) error {
-	uArgs, err := newuidmapArgs()
+	uArgs, gArgs, err := newugidmapArgs()
 	if err != nil {
-		return errors.Wrap(err, "failed to compute uid map")
-	}
-	gArgs, err := newgidmapArgs()
-	if err != nil {
-		return errors.Wrap(err, "failed to compute gid map")
+		return errors.Wrap(err, "failed to compute uid/gid map")
 	}
 	pidS := strconv.Itoa(pid)
 	cmd := exec.Command("newuidmap", append([]string{pidS}, uArgs...)...)
