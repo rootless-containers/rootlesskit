@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"syscall"
-
+    
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/gorilla/mux"
-	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/pkg/errors"
 	"github.com/theckman/go-flock"
 
@@ -172,55 +173,70 @@ func Parent(opt Opt) error {
 }
 
 func newuidmapArgs() ([]string, error) {
-	u, err := user.CurrentUser()
+	u, err := user.Current()
 	if err != nil {
 		return nil, err
 	}
 	res := []string{
 		"0",
-		strconv.Itoa(u.Uid),
+		u.Uid,
 		"1",
 	}
-	subs, err := user.CurrentUserSubUIDs()
+
+	//get both subid maps
+	//uses username for groupname in case primary groupname is not the same
+	//idtools will fall back to getent if /etc/passwd does not contain username
+	//works with external auth, ie sssd, ldap, nis
+	ims, err := idtools.NewIdentityMapping(u.Username, u.Username)
 	if err != nil {
 		return nil, err
 	}
-	// TODO: continue with non-subuid on ENOENT maybe
+
+	// TODO: continue with non-subgid on ENOENT maybe
 	last := 1
-	for _, sub := range subs {
+	for _, im := range ims.UIDs() {
 		res = append(res, []string{
 			strconv.Itoa(last),
-			strconv.Itoa(int(sub.SubID)),
-			strconv.Itoa(int(sub.Count)),
+			strconv.Itoa(im.HostID),
+			strconv.Itoa(im.Size),
 		}...)
-		last += int(sub.Count)
-	}
+		last += im.Size
+	}   
 	return res, nil
 }
 
 func newgidmapArgs() ([]string, error) {
-	g, err := user.CurrentGroup()
+	u, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+	//g, err := user.LookupGroupId(u.Gid)
 	if err != nil {
 		return nil, err
 	}
 	res := []string{
 		"0",
-		strconv.Itoa(g.Gid),
+		u.Gid,
 		"1",
 	}
-	subs, err := user.CurrentUserSubGIDs()
+
+	//get both subid maps
+	//uses username for groupname in case primary groupname is not the same
+	//idtools will fall back to getent if /etc/group does not contain group name
+	//works with external auth, ie sssd, ldap, nis
+	ims, err := idtools.NewIdentityMapping(u.Username, u.Username)
 	if err != nil {
 		return nil, err
 	}
 	// TODO: continue with non-subgid on ENOENT maybe
 	last := 1
-	for _, sub := range subs {
+	for _, im := range ims.GIDs() {
 		res = append(res, []string{
 			strconv.Itoa(last),
-			strconv.Itoa(int(sub.SubID)),
-			strconv.Itoa(int(sub.Count)),
+			strconv.Itoa(im.HostID),
+			strconv.Itoa(im.Size),
 		}...)
-		last += int(sub.Count)
+		last += int(im.Size)
 	}
 	return res, nil
 }
