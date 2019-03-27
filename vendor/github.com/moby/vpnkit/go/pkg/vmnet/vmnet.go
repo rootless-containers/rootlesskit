@@ -563,7 +563,9 @@ func (v *Vif) dhcp() (net.IP, error) {
 	ethernet := NewEthernetFrame(broadcastMAC, v.ClientMAC, 0x800)
 	ethernet.setData(ipv4.Bytes())
 
-	file, err := os.Create("/tmp/go.pcap")
+	runDir := os.Getenv("XDG_RUNTIME_DIR")
+	pcapPath := fmt.Sprintf("%s/go.pcap", runDir)
+	file, err := os.Create(pcapPath)
 	if err != nil {
 		panic(err)
 	}
