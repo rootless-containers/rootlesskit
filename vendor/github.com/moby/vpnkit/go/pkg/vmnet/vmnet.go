@@ -563,7 +563,14 @@ func (v *Vif) dhcp() (net.IP, error) {
 	ethernet := NewEthernetFrame(broadcastMAC, v.ClientMAC, 0x800)
 	ethernet.setData(ipv4.Bytes())
 
-	runDir := os.Getenv("XDG_RUNTIME_DIR")
+	// getEnv ref: https://stackoverflow.com/a/40326580
+	getEnv := func (key, fallback string) string {
+		if value, ok := os.LookupEnv(key); ok {
+			return value
+		}
+		return fallback
+	}
+	runDir := getEnv("XDG_RUNTIME_DIR", "/tmp")
 	pcapPath := fmt.Sprintf("%s/go.pcap", runDir)
 	file, err := os.Create(pcapPath)
 	if err != nil {
