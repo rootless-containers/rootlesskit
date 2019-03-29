@@ -564,7 +564,7 @@ func (v *Vif) dhcp() (net.IP, error) {
 	ethernet.setData(ipv4.Bytes())
 
 	// getEnv ref: https://stackoverflow.com/a/40326580
-	getEnv := func (key, fallback string) string {
+	getEnv := func(key, fallback string) string {
 		if value, ok := os.LookupEnv(key); ok {
 			return value
 		}
