@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -562,22 +561,10 @@ func (v *Vif) dhcp() (net.IP, error) {
 
 	ethernet := NewEthernetFrame(broadcastMAC, v.ClientMAC, 0x800)
 	ethernet.setData(ipv4.Bytes())
-
-	file, err := os.Create("/tmp/go.pcap")
-	if err != nil {
-		panic(err)
-	}
-	pcap, err := NewPcapWriter(file)
-	if err != nil {
-		panic(err)
-	}
 	finished := false
 	go func() {
 		for !finished {
 			if err := v.Write(ethernet.Bytes()); err != nil {
-				panic(err)
-			}
-			if err := pcap.Write(ethernet.Bytes()); err != nil {
 				panic(err)
 			}
 			time.Sleep(time.Second)
@@ -588,9 +575,6 @@ func (v *Vif) dhcp() (net.IP, error) {
 		response, err := v.Read()
 		if err != nil {
 			return nil, err
-		}
-		if err := pcap.Write(response); err != nil {
-			panic(err)
 		}
 		ethernet, err = ParseEthernetFrame(response)
 		if err != nil {

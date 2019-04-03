@@ -70,12 +70,12 @@
   version = "v1.0.2"
 
 [[projects]]
-  digest = "1:7bd94fbd708f2d4c08cf092a2dc5abc60b63a496c73d8388da8e6686b19c347d"
+  branch = "master"
+  digest = "1:7ebb95e7ff71069f17b26e1190df4cff019f170017202f00cd36a6262b03d20b"
   name = "github.com/moby/vpnkit"
   packages = ["go/pkg/vmnet"]
   pruneopts = "UT"
-  revision = "c9726dc2c92b1216e73d0ca6415caa688518cb42"
-  version = "v0.3.0"
+  revision = "c253dad08f384fa2ed3ad5961455eaa5c6531dd9"
 
 [[projects]]
   digest = "1:ee4d4af67d93cc7644157882329023ce9a7bcfce956a079069a9405521c7cc8d"
