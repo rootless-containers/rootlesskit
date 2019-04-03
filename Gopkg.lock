@@ -19,7 +19,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4ec2063cc431ea9abc4ebd6bf762f029fd9bce9452ce0ca54fa58b463e30d85f"
+  digest = "1:89dcd15024ee0d555b0b481e6e76a2b07dbd1e0824f4af19d10ace4736958e4a"
   name = "github.com/docker/docker"
   packages = [
     "pkg/idtools",
@@ -27,7 +27,7 @@
     "pkg/system",
   ]
   pruneopts = "UT"
-  revision = "29de017df7ffbe293bb06342737c3889c450b502"
+  revision = "c12f09bf99b54f274a5ae241dd154fa74020cbab"
 
 [[projects]]
   digest = "1:6f82cacd0af5921e99bf3f46748705239b36489464f4529a1589bc895764fb18"
@@ -70,12 +70,12 @@
   version = "v1.0.2"
 
 [[projects]]
-  digest = "1:7bd94fbd708f2d4c08cf092a2dc5abc60b63a496c73d8388da8e6686b19c347d"
+  branch = "master"
+  digest = "1:7ebb95e7ff71069f17b26e1190df4cff019f170017202f00cd36a6262b03d20b"
   name = "github.com/moby/vpnkit"
   packages = ["go/pkg/vmnet"]
   pruneopts = "UT"
-  revision = "c9726dc2c92b1216e73d0ca6415caa688518cb42"
-  version = "v0.3.0"
+  revision = "c253dad08f384fa2ed3ad5961455eaa5c6531dd9"
 
 [[projects]]
   digest = "1:ee4d4af67d93cc7644157882329023ce9a7bcfce956a079069a9405521c7cc8d"
@@ -102,7 +102,7 @@
   name = "github.com/opencontainers/runc"
   packages = ["libcontainer/user"]
   pruneopts = "UT"
-  revision = "11fc498ffa5c4561eef9242e7f7115d57e57055b"
+  revision = "6a3f4749b81768cd01ef3da117ef0a19cd572652"
 
 [[projects]]
   digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
@@ -113,12 +113,12 @@
   version = "v0.8.1"
 
 [[projects]]
-  digest = "1:e4c72127d910a96daf869a44f3dd563b86dbe6931a172863a0e99c5ff04b59e4"
+  digest = "1:fd61cf4ae1953d55df708acb6b91492d538f49c305b364a014049914495db426"
   name = "github.com/sirupsen/logrus"
   packages = ["."]
   pruneopts = "UT"
-  revision = "dae0fa8d5b0c810a8ab733fbd5510c7cae84eca4"
-  version = "v1.4.0"
+  revision = "8bdbc7bcc01dcbb8ec23dc8a28e332258d25251f"
+  version = "v1.4.1"
 
 [[projects]]
   digest = "1:d7b2d6ad2a9768bb5c9e3bfa4d9ceaa635ca2737cca288507986f116fa4b8da2"
@@ -138,30 +138,22 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:058e9504b9a79bfe86092974d05bb3298d2aa0c312d266d43148de289a5065d9"
-  name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
-  pruneopts = "UT"
-  revision = "a1f597ede03a7bef967a422b5b3a5bd08805a01e"
-
-[[projects]]
-  branch = "master"
   digest = "1:7ccb2dbb79f60b4e530c7dc3a0b3681b3869cf7ea91c645735e4dd4e6e3264fd"
   name = "golang.org/x/net"
   packages = ["context/ctxhttp"]
   pruneopts = "UT"
-  revision = "5c2c250b6a70e39b74bb544433a348a892b10530"
+  revision = "74de082e2cca95839e88aa0aeee5aadf6ce7710f"
 
 [[projects]]
   branch = "master"
-  digest = "1:944736317d4f2fb1c1015ef9ca05fd9313b4e19f1128901cc678f636435fa9b0"
+  digest = "1:aa9254a749f8b6d34bfa7e422b9365f255d0e2457d4bb8d3de1e7b22d8b81410"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = "UT"
-  revision = "fead79001313d15903fb4605b4a1b781532cd93e"
+  revision = "baf5eb976a8cd65845293cd814ea151018552292"
 
 [solve-meta]
   analyzer-name = "dep"
