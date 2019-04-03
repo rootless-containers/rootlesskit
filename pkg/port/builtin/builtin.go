@@ -30,8 +30,12 @@ func NewParentDriver(logWriter io.Writer, stateDir string) (port.ParentDriver, e
 	// TODO: consider using socketpair FD instead of socket file
 	socketPath := filepath.Join(stateDir, ".bp.sock")
 	childReadyPipePath := filepath.Join(stateDir, ".bp-ready.pipe")
+	// remove the path just incase the previous rootlesskit instance crashed
+	if err := os.RemoveAll(childReadyPipePath); err != nil {
+		return nil, errors.Wrapf(err, "cannot remove %s", childReadyPipePath)
+	}
 	if err := syscall.Mkfifo(childReadyPipePath, 0600); err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "cannot mkfifo %s", childReadyPipePath)
 	}
 	d := driver{
 		logWriter:          logWriter,
