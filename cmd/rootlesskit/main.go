@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -16,6 +17,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/child"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/copyup/tmpfssymlink"
+	"github.com/rootless-containers/rootlesskit/pkg/network/lxcusernic"
 	"github.com/rootless-containers/rootlesskit/pkg/network/slirp4netns"
 	"github.com/rootless-containers/rootlesskit/pkg/network/vdeplugslirp"
 	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
@@ -49,7 +51,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "net",
-			Usage: "network driver [host, slirp4netns, vpnkit, vdeplug_slirp]",
+			Usage: "network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp]",
 			Value: "host",
 		},
 		cli.StringFlag{
@@ -61,6 +63,16 @@ func main() {
 			Name:  "vpnkit-binary",
 			Usage: "path of VPNKit binary for --net=vpnkit",
 			Value: "vpnkit",
+		},
+		cli.StringFlag{
+			Name:  "lxc-user-nic-binary",
+			Usage: "path of lxc-user-nic binary for --net=lxc-user-nic",
+			Value: "/usr/lib/" + unameM() + "-linux-gnu/lxc/lxc-user-nic",
+		},
+		cli.StringFlag{
+			Name:  "lxc-user-nic-bridge",
+			Usage: "lxc-user-nic bridge name",
+			Value: "lxcbr0",
 		},
 		cli.IntFlag{
 			Name:  "mtu",
@@ -210,6 +222,22 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 			return opt, err
 		}
 		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu, disableHostLoopback)
+	case "lxc-user-nic":
+		logrus.Warn("\"lxc-user-nic\" network driver is experimental")
+		if ipnet != nil {
+			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
+		}
+		if !disableHostLoopback {
+			logrus.Warn("--disable-host-loopback is implicitly set for lxc-user-nic")
+		}
+		binary := clicontext.String("lxc-user-nic-binary")
+		if _, err := exec.LookPath(binary); err != nil {
+			return opt, err
+		}
+		opt.NetworkDriver, err = lxcusernic.NewParentDriver(binary, mtu, clicontext.String("lxc-user-nic-bridge"))
+		if err != nil {
+			return opt, err
+		}
 	case "vdeplug_slirp":
 		if ipnet != nil {
 			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
@@ -277,6 +305,8 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		opt.NetworkDriver = slirp4netns.NewChildDriver()
 	case "vpnkit":
 		opt.NetworkDriver = vpnkit.NewChildDriver()
+	case "lxc-user-nic":
+		opt.NetworkDriver = lxcusernic.NewChildDriver()
 	case "vdeplug_slirp":
 		opt.NetworkDriver = vdeplugslirp.NewChildDriver()
 	default:
@@ -302,4 +332,18 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		return opt, errors.Errorf("unknown port driver: %s", s)
 	}
 	return opt, nil
+}
+
+func unameM() string {
+	utsname := syscall.Utsname{}
+	if err := syscall.Uname(&utsname); err != nil {
+		panic(err)
+	}
+	var machine string
+	for _, u8 := range utsname.Machine {
+		if u8 != 0 {
+			machine += string(byte(u8))
+		}
+	}
+	return machine
 }

@@ -95,7 +95,7 @@ allow
 Full CLI options:
 
 ```console
-$ rootlesskit --help
+
 NAME:
    rootlesskit - the gate to the rootless world
 
@@ -103,25 +103,27 @@ USAGE:
    rootlesskit [global options] command [command options] [arguments...]
 
 VERSION:
-   0.3.0-alpha.0
+   0.3.0+dev
 
 COMMANDS:
      help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --debug                     debug mode
-   --state-dir value           state directory
-   --net value                 network driver [host, slirp4netns, vpnkit, vdeplug_slirp] (default: "host")
-   --slirp4netns-binary value  path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
-   --vpnkit-binary value       path of VPNKit binary for --net=vpnkit (default: "vpnkit")
-   --mtu value                 MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
-   --cidr value                CIDR for slirp4netns network (default: 10.0.2.0/24, requires slirp4netns v0.3.0+ for custom CIDR)
-   --disable-host-loopback     prohibit connecting to 127.0.0.1:* on the host namespace
-   --copy-up value             mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
-   --copy-up-mode value        copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
-   --port-driver value         port driver for non-host network. [none, socat] (default: "none")
-   --help, -h                  show help
-   --version, -v               print the version
+   --debug                      debug mode
+   --state-dir value            state directory
+   --net value                  network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp] (default: "host")
+   --slirp4netns-binary value   path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
+   --vpnkit-binary value        path of VPNKit binary for --net=vpnkit (default: "vpnkit")
+   --lxc-user-nic-binary value  path of lxc-user-nic binary for --net=lxc-user-nic (default: "/usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic")
+   --lxc-user-nic-bridge value  lxc-user-nic bridge name (default: "lxcbr0")
+   --mtu value                  MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
+   --cidr value                 CIDR for slirp4netns network (default: 10.0.2.0/24, requires slirp4netns v0.3.0+ for custom CIDR)
+   --disable-host-loopback      prohibit connecting to 127.0.0.1:* on the host namespace
+   --copy-up value              mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
+   --copy-up-mode value         copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
+   --port-driver value          port driver for non-host network. [none, socat, slirp4netns, builtin(experimental)] (default: "none")
+   --help, -h                   show help
+   --version, -v                print the version
 ```
 
 ## Building from source
@@ -198,6 +200,23 @@ Default network configuration for `--net=vpnkit`:
 `--net=slirp4netns` supports specifying custom CIDR, e.g. `--cidr=10.0.3.0/24` (requires slirp4netns v0.3.0+)
 
 It is highly recommended to disable host loopback address by specyfing `--disable-host-loopback`.
+
+## lxc-user-nic (experimental)
+
+SUID binary `lxc-user-nic` can be also used instead of Slirp networks: `--net=lxc-user-nic`.
+
+To use `lxc-user-nic`, you need to set up [`/etc/lxc/lxc-usernet`](https://linuxcontainers.org/lxc/manpages/man5/lxc-usernet.5.html):
+```
+# USERNAME TYPE BRIDGE COUNT
+penguin veth lxcbr0 100
+```
+
+It may take a few seconds to configure the interface using DHCP.
+
+If you start up RootlessKit too frequently, you might use up all available DHCP addresses.
+You might need to reset `/var/lib/misc/dnsmasq.lxcbr0.leases` and restart the `lxc-net` service.
+
+Currently, the MAC address is always set to a random address.
 
 ### Port forwarding
 
