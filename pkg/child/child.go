@@ -17,25 +17,6 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 )
 
-func waitForParentSync(pipeFDStr string) (*common.Message, error) {
-	pipeFD, err := strconv.Atoi(pipeFDStr)
-	if err != nil {
-		return nil, errors.Wrapf(err, "unexpected fd value: %s", pipeFDStr)
-	}
-	pipeR := os.NewFile(uintptr(pipeFD), "")
-	var msg common.Message
-	if _, err := msgutil.UnmarshalFromReader(pipeR, &msg); err != nil {
-		return nil, errors.Wrapf(err, "parsing message from fd %d", pipeFD)
-	}
-	if err := pipeR.Close(); err != nil {
-		return nil, errors.Wrapf(err, "failed to close fd %d", pipeFD)
-	}
-	if msg.StateDir == "" {
-		return nil, errors.New("got empty StateDir")
-	}
-	return &msg, nil
-}
-
 func createCmd(targetCmd []string) (*exec.Cmd, error) {
 	var args []string
 	if len(targetCmd) > 1 {
@@ -184,17 +165,40 @@ func Child(opt Opt) error {
 	if pipeFDStr == "" {
 		return errors.Errorf("%s is not set", opt.PipeFDEnvKey)
 	}
-	os.Unsetenv(opt.PipeFDEnvKey)
-	msg, err := waitForParentSync(pipeFDStr)
+	pipeFD, err := strconv.Atoi(pipeFDStr)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "unexpected fd value: %s", pipeFDStr)
+	}
+	pipeR := os.NewFile(uintptr(pipeFD), "")
+	var msg common.Message
+	if _, err := msgutil.UnmarshalFromReader(pipeR, &msg); err != nil {
+		return errors.Wrapf(err, "parsing message from fd %d", pipeFD)
 	}
 	logrus.Debugf("child: got msg from parent: %+v", msg)
+	if msg.Stage == 0 {
+		// the parent has configured the child's uid_map and gid_map, but the child doesn't have caps here.
+		// so we exec the child again to obtain caps.
+		// PID should be kept.
+		if err = syscall.Exec("/proc/self/exe", os.Args, os.Environ()); err != nil {
+			return err
+		}
+		panic("should not reach here")
+	}
+	if msg.Stage != 1 {
+		return errors.Errorf("expected stage 1, got stage %d", msg.Stage)
+	}
+	os.Unsetenv(opt.PipeFDEnvKey)
+	if err := pipeR.Close(); err != nil {
+		return errors.Wrapf(err, "failed to close fd %d", pipeFD)
+	}
+	if msg.StateDir == "" {
+		return errors.New("got empty StateDir")
+	}
 	etcWasCopied, err := setupCopyDir(opt.CopyUpDriver, opt.CopyUpDirs)
 	if err != nil {
 		return err
 	}
-	if err := setupNet(*msg, etcWasCopied, opt.NetworkDriver); err != nil {
+	if err := setupNet(msg, etcWasCopied, opt.NetworkDriver); err != nil {
 		return err
 	}
 	portQuitCh := make(chan struct{})
