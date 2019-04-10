@@ -76,12 +76,12 @@ func activateLoopback() error {
 	return nil
 }
 
-func activateTap(tap, ip string, netmask int, gateway string, mtu int) error {
+func activateDev(dev, ip string, netmask int, gateway string, mtu int) error {
 	cmds := [][]string{
-		{"ip", "link", "set", tap, "up"},
-		{"ip", "link", "set", "dev", tap, "mtu", strconv.Itoa(mtu)},
-		{"ip", "addr", "add", ip + "/" + strconv.Itoa(netmask), "dev", tap},
-		{"ip", "route", "add", "default", "via", gateway, "dev", tap},
+		{"ip", "link", "set", dev, "up"},
+		{"ip", "link", "set", "dev", dev, "mtu", strconv.Itoa(mtu)},
+		{"ip", "addr", "add", ip + "/" + strconv.Itoa(netmask), "dev", dev},
+		{"ip", "route", "add", "default", "via", gateway, "dev", dev},
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
 		return errors.Wrapf(err, "executing %v", cmds)
@@ -119,11 +119,11 @@ func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver)
 	if err := activateLoopback(); err != nil {
 		return err
 	}
-	tap, err := driver.ConfigureTap(msg.Network)
+	dev, err := driver.ConfigureNetworkChild(&msg.Network)
 	if err != nil {
 		return err
 	}
-	if err := activateTap(tap, msg.Network.IP, msg.Network.Netmask, msg.Network.Gateway, msg.Network.MTU); err != nil {
+	if err := activateDev(dev, msg.Network.IP, msg.Network.Netmask, msg.Network.Gateway, msg.Network.MTU); err != nil {
 		return err
 	}
 	if etcWasCopied {

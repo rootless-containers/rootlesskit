@@ -133,7 +133,7 @@ func NewChildDriver() network.ChildDriver {
 type childDriver struct {
 }
 
-func (d *childDriver) ConfigureTap(netmsg common.NetworkMessage) (tap string, err error) {
+func (d *childDriver) ConfigureNetworkChild(netmsg *common.NetworkMessage) (tap string, err error) {
 	macStr := netmsg.Opaque[opaqueMAC]
 	socket := netmsg.Opaque[opaqueSocket]
 	uuidStr := netmsg.Opaque[opaqueUUID]

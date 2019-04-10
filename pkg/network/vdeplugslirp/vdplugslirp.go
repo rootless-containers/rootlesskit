@@ -104,7 +104,7 @@ func NewChildDriver() network.ChildDriver {
 type childDriver struct {
 }
 
-func (d *childDriver) ConfigureTap(netmsg common.NetworkMessage) (string, error) {
+func (d *childDriver) ConfigureNetworkChild(netmsg *common.NetworkMessage) (string, error) {
 	tap := netmsg.Opaque[opaqueTap]
 	if tap == "" {
 		return "", errors.New("could not determine the preconfigured tap")
