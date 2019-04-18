@@ -5,7 +5,7 @@
 `rootlesskit` does an equivalent of [`unshare(1)`](http://man7.org/linux/man-pages/man1/unshare.1.html) and [`newuidmap(1)`](http://man7.org/linux/man-pages/man1/newuidmap.1.html)/[`newgidmap(1)`](http://man7.org/linux/man-pages/man1/newgidmap.1.html) in a single command, for creating unprivileged [`user_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) and [`mount_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) with [`subuid(5)`](http://man7.org/linux/man-pages/man5/subuid.5.html) and [`subgid(5)`](http://man7.org/linux/man-pages/man5/subgid.5.html).
 
 `rootlesskit` also supports network namespace isolation and userspace NAT using ["slirp"](#slirp).
-Kernel NAT using SUID-enabled [`lxc-user-nic(1)`](https://linuxcontainers.org/lxc/manpages/man1/lxc-user-nic.1.html) is also on the plan.
+Kernel NAT using SUID-enabled [`lxc-user-nic(1)`](https://linuxcontainers.org/lxc/manpages/man1/lxc-user-nic.1.html) is also experimentally supported.
 
 ## Projects using RootlessKit
 
@@ -111,7 +111,7 @@ COMMANDS:
 GLOBAL OPTIONS:
    --debug                      debug mode
    --state-dir value            state directory
-   --net value                  network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp] (default: "host")
+   --net value                  network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp(deprecated)] (default: "host")
    --slirp4netns-binary value   path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
    --vpnkit-binary value        path of VPNKit binary for --net=vpnkit (default: "vpnkit")
    --lxc-user-nic-binary value  path of lxc-user-nic binary for --net=lxc-user-nic (default: "/usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic")
@@ -157,7 +157,7 @@ Remarks:
 Currently there are three slirp implementations supported by rootlesskit:
 * `--net=slirp4netns`, using [slirp4netns](https://github.com/rootless-containers/slirp4netns) (recommended)
 * `--net=vpnkit`, using [VPNKit](https://github.com/moby/vpnkit)
-* `--net=vdeplug_slirp`, using [vdeplug_slirp](https://github.com/rd235/vdeplug_slirp)
+* `--net=vdeplug_slirp`, using [vdeplug_slirp](https://github.com/rd235/vdeplug_slirp) (deprecated)
 
 Usage:
 
@@ -185,7 +185,7 @@ rootlesskit$ curl https://www.google.com
 <!doctype html><html ...>...</html>
 ```
 
-Default network configuration for `--net=slirp4netns` and `--net=vdeplug_slirp`:
+Default network configuration for `--net=slirp4netns`:
 * IP: 10.0.2.100/24
 * Gateway: 10.0.2.2
 * DNS: 10.0.2.3
@@ -290,13 +290,3 @@ $ make
 $ cp vpnkit.exe ~/bin/vpnkit
 ```
 
-### Annex: how to install `vdeplug_slirp` (required for `--net=vdeplug_slirp`)
-
-You need to install the following components:
-
-* https://github.com/rd235/s2argv-execs
-* https://github.com/rd235/vdeplug4 (depends on `s2argv-execs`)
-* https://github.com/rd235/libslirp
-* https://github.com/rd235/vdeplug_slirp (depends on `vdeplug4` and `libslirp`)
-
-Please refer to README in the each of the components.

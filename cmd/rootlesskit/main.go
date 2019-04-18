@@ -51,7 +51,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "net",
-			Usage: "network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp]",
+			Usage: "network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp(deprecated)]",
 			Value: "host",
 		},
 		cli.StringFlag{
@@ -239,6 +239,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 			return opt, err
 		}
 	case "vdeplug_slirp":
+		logrus.Warn("\"vdeplug_slirp\" network driver is deprecated")
 		if ipnet != nil {
 			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
 		}
