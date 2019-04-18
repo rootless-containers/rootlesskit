@@ -1,4 +1,4 @@
-FROM golang:1.11 AS rootlesskit
+FROM golang:1.12 AS rootlesskit
 ADD . /go/src/github.com/rootless-containers/rootlesskit
 RUN go build -o /rootlesskit github.com/rootless-containers/rootlesskit/cmd/rootlesskit
 RUN go build -o /rootlessctl github.com/rootless-containers/rootlesskit/cmd/rootlessctl
@@ -26,7 +26,7 @@ RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux -
 && cp src/newuidmap src/newgidmap /usr/bin
 
 FROM build-c AS slirp4netns
-ARG SLIRP4NETNS_COMMIT=v0.3.0-beta.1
+ARG SLIRP4NETNS_COMMIT=v0.3.0
 RUN git clone https://github.com/rootless-containers/slirp4netns.git /slirp4netns && \
   cd /slirp4netns && git checkout ${SLIRP4NETNS_COMMIT} && \
   ./autogen.sh && ./configure && make
