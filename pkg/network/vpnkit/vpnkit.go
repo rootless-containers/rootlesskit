@@ -95,6 +95,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	logrus.Debugf("connected to VPNKit vmnet")
 	// TODO: support configuration
 	netmsg := common.NetworkMessage{
+		Dev:     "tap0",
 		IP:      vif.IP.String(),
 		Netmask: 24,
 		Gateway: "192.168.65.1",
@@ -134,6 +135,10 @@ type childDriver struct {
 }
 
 func (d *childDriver) ConfigureNetworkChild(netmsg *common.NetworkMessage) (tap string, err error) {
+	tapName := netmsg.Dev
+	if tapName == "" {
+		return "", errors.New("no dev is set")
+	}
 	macStr := netmsg.Opaque[opaqueMAC]
 	socket := netmsg.Opaque[opaqueSocket]
 	uuidStr := netmsg.Opaque[opaqueUUID]
@@ -146,11 +151,10 @@ func (d *childDriver) ConfigureNetworkChild(netmsg *common.NetworkMessage) (tap 
 	if uuidStr == "" {
 		return "", errors.New("no VPNKit UUID is set")
 	}
-	return startVPNKitRoutines(context.TODO(), macStr, socket, uuidStr)
+	return startVPNKitRoutines(context.TODO(), tapName, macStr, socket, uuidStr)
 }
 
-func startVPNKitRoutines(ctx context.Context, macStr, socket, uuidStr string) (string, error) {
-	tapName := "tap0"
+func startVPNKitRoutines(ctx context.Context, tapName, macStr, socket, uuidStr string) (string, error) {
 	cmds := [][]string{
 		{"ip", "tuntap", "add", "name", tapName, "mode", "tap"},
 		{"ip", "link", "set", tapName, "address", macStr},

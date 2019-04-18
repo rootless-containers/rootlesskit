@@ -41,8 +41,6 @@ func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopba
 	}
 }
 
-const opaqueTap = "slirp4netns.tap"
-
 type parentDriver struct {
 	binary              string
 	mtu                 int
@@ -87,10 +85,8 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 		return nil, common.Seq(cleanups), errors.Wrapf(err, "executing %v", cmd)
 	}
 	netmsg := common.NetworkMessage{
+		Dev: tap,
 		MTU: d.mtu,
-		Opaque: map[string]string{
-			opaqueTap: tap,
-		},
 	}
 	if d.ipnet != nil {
 		// TODO: get the actual configuration via slirp4netns API?
@@ -127,7 +123,7 @@ type childDriver struct {
 }
 
 func (d *childDriver) ConfigureNetworkChild(netmsg *common.NetworkMessage) (string, error) {
-	tap := netmsg.Opaque[opaqueTap]
+	tap := netmsg.Dev
 	if tap == "" {
 		return "", errors.New("could not determine the preconfigured tap")
 	}

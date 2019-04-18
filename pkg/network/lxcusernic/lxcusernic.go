@@ -36,8 +36,6 @@ func NewParentDriver(binary string, mtu int, bridge string) (network.ParentDrive
 	}, nil
 }
 
-const opaqueDev = "lxcusernic.dev"
-
 type parentDriver struct {
 	binary string
 	mtu    int
@@ -59,12 +57,9 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 		return nil, common.Seq(cleanups), errors.Wrapf(err, "%s failed: %s", d.binary, string(b))
 	}
 	netmsg := common.NetworkMessage{
+		Dev: dev,
 		// IP, Netmask, Gateway, and DNS are configured in Child (via DHCP)
 		MTU: d.mtu,
-		Opaque: map[string]string{
-			// TODO(AkihiroSuda): the device should be moved the regular NetworkMessage struct
-			opaqueDev: dev,
-		},
 	}
 	return &netmsg, common.Seq(cleanups), nil
 }
@@ -99,7 +94,7 @@ func exchangeDHCP(c *client4.Client, dev string) (*dhcpv4.DHCPv4, error) {
 }
 
 func (d *childDriver) ConfigureNetworkChild(netmsg *common.NetworkMessage) (string, error) {
-	dev := netmsg.Opaque[opaqueDev]
+	dev := netmsg.Dev
 	if dev == "" {
 		return "", errors.New("could not determine the dev")
 	}
