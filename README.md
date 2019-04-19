@@ -322,7 +322,7 @@ The network is configured as follows by default:
 * DNS: 192.168.65.1
 
 As in `--net=slirp4netns`, specifying `--copy-up=/etc` and `--disable-host-loopback` is highly recommended.
-If `--disable-host-loopback` if not specified, ports listening on 127.0.0.1 in the host are accessible as 192.168.65.2 in the RootlessKit's network namespace.
+If `--disable-host-loopback` is not specified, ports listening on 127.0.0.1 in the host are accessible as 192.168.65.2 in the RootlessKit's network namespace.
 
 ### `--net=lxc-user-nic` (experimental)
 
