@@ -4,11 +4,13 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"syscall"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/copyup"
@@ -186,6 +188,14 @@ func Child(opt Opt) error {
 	}
 	if msg.Stage != 1 {
 		return errors.Errorf("expected stage 1, got stage %d", msg.Stage)
+	}
+	// The parent calls child with Pdeathsig, but it is cleared when newuidmap SUID binary is called
+	// https://github.com/rootless-containers/rootlesskit/issues/65#issuecomment-492343646
+	runtime.LockOSThread()
+	err = unix.Prctl(unix.PR_SET_PDEATHSIG, uintptr(unix.SIGKILL), 0, 0, 0)
+	runtime.UnlockOSThread()
+	if err != nil {
+		return err
 	}
 	os.Unsetenv(opt.PipeFDEnvKey)
 	if err := pipeR.Close(); err != nil {
