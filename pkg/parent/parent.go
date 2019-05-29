@@ -30,6 +30,7 @@ type Opt struct {
 	StateDirEnvKey string               // optional env key to propagate StateDir value
 	NetworkDriver  network.ParentDriver // nil for HostNetwork
 	PortDriver     port.ParentDriver    // nil for --port-driver=none
+	CreatePIDNS    bool
 }
 
 // Documented state files. Undocumented ones are subject to change.
@@ -84,6 +85,10 @@ func Parent(opt Opt) error {
 	}
 	if opt.NetworkDriver != nil {
 		cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
+	}
+	if opt.CreatePIDNS {
+		// cannot be Unshareflags (panics)
+		cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWPID
 	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

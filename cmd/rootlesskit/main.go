@@ -101,6 +101,10 @@ func main() {
 			Usage: "port driver for non-host network. [none, socat, slirp4netns, builtin(experimental)]",
 			Value: "none",
 		},
+		cli.BoolFlag{
+			Name:  "pidns",
+			Usage: "create a PID namespace",
+		},
 	}
 	app.Before = func(context *cli.Context) error {
 		if debug {
@@ -163,6 +167,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 	opt := parent.Opt{
 		PipeFDEnvKey:   pipeFDEnvKey,
 		StateDirEnvKey: stateDirEnvKey,
+		CreatePIDNS:    clicontext.Bool("pidns"),
 	}
 	opt.StateDir = clicontext.String("state-dir")
 	if opt.StateDir == "" {
@@ -298,6 +303,7 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 	opt := child.Opt{
 		PipeFDEnvKey: pipeFDEnvKey,
 		TargetCmd:    targetCmd,
+		MountProcfs:  clicontext.Bool("pidns"),
 	}
 	switch s := clicontext.String("net"); s {
 	case "host":
