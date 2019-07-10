@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"github.com/theckman/go-flock"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api/router"
@@ -30,6 +31,7 @@ type Opt struct {
 	StateDirEnvKey string               // optional env key to propagate StateDir value
 	NetworkDriver  network.ParentDriver // nil for HostNetwork
 	PortDriver     port.ParentDriver    // nil for --port-driver=none
+	PublishPorts   []port.Spec
 	CreatePIDNS    bool
 }
 
@@ -158,12 +160,20 @@ func Parent(opt Opt) error {
 	if err := pipeW.Close(); err != nil {
 		return err
 	}
-	// wait for port driver to be ready
 	if opt.PortDriver != nil {
+		// wait for port driver to be ready
 		select {
 		case <-portDriverInitComplete:
 		case err = <-portDriverErr:
 			return err
+		}
+		// publish ports
+		for _, p := range opt.PublishPorts {
+			st, err := opt.PortDriver.AddPort(context.TODO(), p)
+			if err != nil {
+				return errors.Wrapf(err, "failed to expose port %v", p)
+			}
+			logrus.Debugf("published port %v", st)
 		}
 	}
 	// listens the API
