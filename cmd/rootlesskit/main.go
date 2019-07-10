@@ -23,6 +23,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
 	"github.com/rootless-containers/rootlesskit/pkg/parent"
 	"github.com/rootless-containers/rootlesskit/pkg/port/builtin"
+	"github.com/rootless-containers/rootlesskit/pkg/port/portutil"
 	slirp4netns_port "github.com/rootless-containers/rootlesskit/pkg/port/slirp4netns"
 	"github.com/rootless-containers/rootlesskit/pkg/port/socat"
 	"github.com/rootless-containers/rootlesskit/pkg/version"
@@ -100,6 +101,10 @@ func main() {
 			Name:  "port-driver",
 			Usage: "port driver for non-host network. [none, socat, slirp4netns, builtin(experimental)]",
 			Value: "none",
+		},
+		cli.StringSliceFlag{
+			Name:  "publish,p",
+			Usage: "publish ports. e.g. \"127.0.0.1:8080:80/tcp\"",
 		},
 		cli.BoolFlag{
 			Name:  "pidns",
@@ -286,7 +291,16 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 	default:
 		return opt, errors.Errorf("unknown port driver: %s", s)
 	}
-
+	for _, s := range clicontext.StringSlice("publish") {
+		spec, err := portutil.ParsePortSpec(s)
+		if err != nil {
+			return opt, err
+		}
+		if err := portutil.ValidatePortSpec(*spec, nil); err != nil {
+			return opt, err
+		}
+		opt.PublishPorts = append(opt.PublishPorts, *spec)
+	}
 	return opt, nil
 }
 
