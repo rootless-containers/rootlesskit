@@ -1,0 +1,53 @@
+# github.com/Microsoft/go-winio v0.4.12
+github.com/Microsoft/go-winio
+# github.com/containerd/continuity v0.0.0-20181203112020-004b46473808
+github.com/containerd/continuity/pathdriver
+# github.com/docker/docker v0.0.0-20190403025210-c12f09bf99b5
+github.com/docker/docker/pkg/idtools
+github.com/docker/docker/pkg/system
+github.com/docker/docker/pkg/mount
+# github.com/docker/go-units v0.3.3
+github.com/docker/go-units
+# github.com/google/uuid v1.1.1
+github.com/google/uuid
+# github.com/gorilla/mux v1.7.0
+github.com/gorilla/mux
+# github.com/insomniacslk/dhcp v0.0.0-20190403152226-625d653f5191
+github.com/insomniacslk/dhcp/dhcpv4
+github.com/insomniacslk/dhcp/dhcpv4/client4
+github.com/insomniacslk/dhcp/iana
+github.com/insomniacslk/dhcp/rfc1035label
+# github.com/jamescun/tuntap v0.0.0-20160211173210-434f1022c06e
+github.com/jamescun/tuntap
+# github.com/konsorten/go-windows-terminal-sequences v1.0.2
+github.com/konsorten/go-windows-terminal-sequences
+# github.com/moby/vpnkit v0.0.0-20190403093833-c253dad08f38
+github.com/moby/vpnkit/go/pkg/vmnet
+# github.com/opencontainers/go-digest v1.0.0-rc1
+github.com/opencontainers/go-digest
+# github.com/opencontainers/image-spec v1.0.1
+github.com/opencontainers/image-spec/specs-go/v1
+github.com/opencontainers/image-spec/specs-go
+# github.com/opencontainers/runc v0.0.0-20190402203948-6a3f4749b817
+github.com/opencontainers/runc/libcontainer/user
+# github.com/pkg/errors v0.8.1
+github.com/pkg/errors
+# github.com/sirupsen/logrus v1.4.1
+github.com/sirupsen/logrus
+# github.com/theckman/go-flock v0.7.1
+github.com/theckman/go-flock
+# github.com/u-root/u-root v0.0.0-20190404052821-34b144e97033
+github.com/u-root/u-root/pkg/rand
+github.com/u-root/u-root/pkg/uio
+github.com/u-root/u-root/pkg/ubinary
+# github.com/urfave/cli v1.20.0
+github.com/urfave/cli
+# golang.org/x/net v0.0.0-20190328230028-74de082e2cca
+golang.org/x/net/context/ctxhttp
+golang.org/x/net/ipv4
+golang.org/x/net/bpf
+golang.org/x/net/internal/iana
+golang.org/x/net/internal/socket
+# golang.org/x/sys v0.0.0-20190402142545-baf5eb976a8c
+golang.org/x/sys/unix
+golang.org/x/sys/windows
