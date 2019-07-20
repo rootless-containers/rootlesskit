@@ -31,8 +31,8 @@ RUN git clone https://github.com/rootless-containers/slirp4netns.git /slirp4netn
   cd /slirp4netns && git checkout ${SLIRP4NETNS_COMMIT} && \
   ./autogen.sh && ./configure && make
 
-# github.com/moby/vpnkit@67041ad2655038c5462b3466f89a1853f2b894e5
-FROM djs55/vpnkit@sha256:e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e AS vpnkit
+# github.com/moby/vpnkit@7dd3dcce7d3d8ffa85d43640f70158583d6fa882 (Jul 20, 2019)
+FROM djs55/vpnkit@sha256:4cd1ff4d6555b762ebbad78c9aea1d191854d6550b5d4dcc4ff83a282a657244 AS vpnkit
 
 FROM build-c as vdeplug_slirp
 ARG S2ARGVEXECS_COMMIT=880b436157ec5a871cd2ed32c7f7223d9c1e05ee
