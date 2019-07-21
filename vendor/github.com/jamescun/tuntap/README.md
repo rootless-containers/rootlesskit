@@ -1,3 +1,5 @@
+**This repository is unmaintained:** You should use the more comprehensive and well maintained [water library](https://github.com/songgao/water).
+
 TUN/TAP
 =======
 
