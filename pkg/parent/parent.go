@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -22,6 +21,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
+	"github.com/rootless-containers/rootlesskit/pkg/parent/idtools"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 )
 
