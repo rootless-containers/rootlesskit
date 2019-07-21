@@ -17,6 +17,7 @@ package dhcpv4
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -33,10 +34,10 @@ const (
 	// minPacketLen is the minimum DHCP header length.
 	minPacketLen = 236
 
-	// Maximum length of the ClientHWAddr (client hardware address) according to
-	// RFC 2131, Section 2. This is the link-layer destination a server
-	// must send responses to.
-	maxHWAddrLen = 16
+	// MaxHWAddrLen is the maximum hardware address length of the ClientHWAddr
+	// (client hardware address) according to RFC 2131, Section 2. This is the
+	// link-layer destination a server must send responses to.
+	MaxHWAddrLen = 16
 
 	// MaxMessageSize is the maximum size in bytes that a DHCPv4 packet can hold.
 	MaxMessageSize = 576
@@ -44,6 +45,10 @@ const (
 	// Per RFC 951, the minimum length of a packet is 300 bytes.
 	bootpMinLen = 300
 )
+
+// RandomTimeout is the amount of time to wait until random number generation
+// is canceled.
+var RandomTimeout = 2 * time.Minute
 
 // magicCookie is the magic 4-byte value at the beginning of the list of options
 // in a DHCPv4 packet.
@@ -115,9 +120,11 @@ func GetExternalIPv4Addrs(addrs []net.Addr) ([]net.IP, error) {
 // TransactionID
 func GenerateTransactionID() (TransactionID, error) {
 	var xid TransactionID
-	n, err := rand.Read(xid[:])
+	ctx, cancel := context.WithTimeout(context.Background(), RandomTimeout)
+	defer cancel()
+	n, err := rand.ReadContext(ctx, xid[:])
 	if err != nil {
-		return xid, err
+		return xid, fmt.Errorf("could not get random number: %v", err)
 	}
 	if n != 4 {
 		return xid, errors.New("invalid random sequence for transaction ID: smaller than 32 bits")
@@ -168,7 +175,6 @@ func NewDiscoveryForInterface(ifname string, modifiers ...Modifier) (*DHCPv4, er
 // HW type and specified hardware address.
 func NewDiscovery(hwaddr net.HardwareAddr, modifiers ...Modifier) (*DHCPv4, error) {
 	return New(PrependModifiers(modifiers,
-		WithBroadcast(true),
 		WithHwAddr(hwaddr),
 		WithRequestedOptions(
 			OptionSubnetMask,
@@ -242,12 +248,21 @@ func NewRequestFromOffer(offer *DHCPv4, modifiers ...Modifier) (*DHCPv4, error) 
 		WithClientIP(offer.ClientIPAddr),
 		WithOption(OptRequestedIPAddress(offer.YourIPAddr)),
 		WithOption(OptServerIdentifier(serverIP)),
+		WithRequestedOptions(
+			OptionSubnetMask,
+			OptionRouter,
+			OptionDomainName,
+			OptionDomainNameServer,
+		),
 	)...)
 }
 
 // NewReplyFromRequest builds a DHCPv4 reply from a request.
 func NewReplyFromRequest(request *DHCPv4, modifiers ...Modifier) (*DHCPv4, error) {
-	return New(PrependModifiers(modifiers, WithReply(request))...)
+	return New(PrependModifiers(modifiers,
+		WithReply(request),
+		WithGatewayIP(request.GatewayIPAddr),
+	)...)
 }
 
 // FromBytes encodes the DHCPv4 packet into a sequence of bytes, and returns an
@@ -365,8 +380,8 @@ func (d *DHCPv4) UpdateOption(opt Option) {
 
 // String implements fmt.Stringer.
 func (d *DHCPv4) String() string {
-	return fmt.Sprintf("DHCPv4(opcode=%s xid=%s hwtype=%s hwaddr=%s)",
-		d.OpCode, d.TransactionID, d.HWType, d.ClientHWAddr)
+	return fmt.Sprintf("DHCPv4(xid=%s hwaddr=%s msg_type=%s, your_ip=%s, server_ip=%s)",
+		d.TransactionID, d.ClientHWAddr, d.MessageType(), d.YourIPAddr, d.ServerIPAddr)
 }
 
 // SummaryWithVendor prints a summary of the packet, interpreting the
@@ -520,6 +535,21 @@ func (d *DHCPv4) Router() []net.IP {
 	return GetIPs(OptionRouter, d.Options)
 }
 
+// ClasslessStaticRoute parses the DHCPv4 Classless Static Route option if present.
+//
+// The Classless Static Route option is described by RFC 3442.
+func (d *DHCPv4) ClasslessStaticRoute() []*Route {
+	v := d.Options.Get(OptionClasslessStaticRoute)
+	if v == nil {
+		return nil
+	}
+	var routes Routes
+	if err := routes.FromBytes(v); err != nil {
+		return nil
+	}
+	return routes
+}
+
 // NTPServers parses the DHCPv4 NTP Servers option if present.
 //
 // The NTP servers option is described by RFC 2132, Section 8.3.
@@ -559,14 +589,16 @@ func (d *DHCPv4) RootPath() string {
 //
 // The Bootfile Name option is described by RFC 2132, Section 9.5.
 func (d *DHCPv4) BootFileNameOption() string {
-	return GetString(OptionBootfileName, d.Options)
+	name := GetString(OptionBootfileName, d.Options)
+	return strings.TrimRight(name, "\x00")
 }
 
 // TFTPServerName parses the DHCPv4 TFTP Server Name option if present.
 //
 // The TFTP Server Name option is described by RFC 2132, Section 9.4.
 func (d *DHCPv4) TFTPServerName() string {
-	return GetString(OptionTFTPServerName, d.Options)
+	name := GetString(OptionTFTPServerName, d.Options)
+	return strings.TrimRight(name, "\x00")
 }
 
 // ClassIdentifier parses the DHCPv4 Class Identifier option if present.
