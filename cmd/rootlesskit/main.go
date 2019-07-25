@@ -61,6 +61,12 @@ func main() {
 			Value: "slirp4netns",
 		},
 		cli.StringFlag{
+			Name:  "slirp4netns-sandbox",
+			Usage: "enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be \"auto\" in future)",
+			Value: "false",
+		},
+
+		cli.StringFlag{
 			Name:  "vpnkit-binary",
 			Usage: "path of VPNKit binary for --net=vpnkit",
 			Value: "vpnkit",
@@ -222,7 +228,34 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 		if _, err := exec.LookPath(binary); err != nil {
 			return opt, err
 		}
-		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback, slirp4netnsAPISocketPath)
+		features, err := slirp4netns.DetectFeatures(binary)
+		if err != nil {
+			return opt, err
+		}
+		logrus.Debugf("slirp4netns features %+v", features)
+		if disableHostLoopback && !features.SupportsDisableHostLoopback {
+			return opt, errors.New("unsupported slirp4netns version: lacks SupportsDisableHostLoopback, please install v0.3.0+")
+		}
+		if slirp4netnsAPISocketPath != "" && !features.SupportsAPISocket {
+			return opt, errors.New("unsupported slirp4netns version: lacks SupportsAPISocket, please install v0.3.0+")
+		}
+		createSandbox := false
+		switch s := clicontext.String("slirp4netns-sandbox"); s {
+		case "auto":
+			// this might not work when /etc/resolv.conf is a symlink to a file outside /etc or /run
+			// https://github.com/rootless-containers/slirp4netns/issues/116
+			createSandbox = features.SupportsCreateSandbox
+		case "true":
+			createSandbox = true
+			if !features.SupportsCreateSandbox {
+				return opt, errors.New("unsupported slirp4netns version: lacks SupportsCreateSandbox, please install v0.4.0+")
+			}
+		case "false", "": // default
+			// NOP
+		default:
+			return opt, errors.Errorf("unsupported slirp4netns-sandbox mode: %q", s)
+		}
+		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback, slirp4netnsAPISocketPath, createSandbox)
 	case "vpnkit":
 		if ipnet != nil {
 			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
