@@ -3,8 +3,10 @@ package slirp4netns
 import (
 	"context"
 	"net"
+	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -16,13 +18,51 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network/parentutils"
 )
 
+type Features struct {
+	// SupportsCIDR --cidr (v0.3.0)
+	SupportsCIDR bool
+	// SupportsDisableHostLoopback --disable-host-loopback (v0.3.0)
+	SupportsDisableHostLoopback bool
+	// SupportsAPISocket --api-socket (v0.3.0)
+	SupportsAPISocket bool
+	// SupportsCreateSandbox --create-sandbox (v0.4.0)
+	SupportsCreateSandbox bool
+}
+
+func DetectFeatures(binary string) (*Features, error) {
+	if binary == "" {
+		return nil, errors.New("got empty slirp4netns binary")
+	}
+	realBinary, err := exec.LookPath(binary)
+	if err != nil {
+		return nil, errors.Wrapf(err, "slirp4netns binary %q is not installed", binary)
+	}
+	cmd := exec.Command(realBinary, "--help")
+	cmd.Env = os.Environ()
+	b, err := cmd.CombinedOutput()
+	s := string(b)
+	if err != nil {
+		return nil, errors.Wrapf(err,
+			"command \"%s --help\" failed, make sure slirp4netns v0.2.0+ is installed: %q",
+			realBinary, s)
+	}
+	f := Features{
+		SupportsCIDR:                strings.Contains(s, "--cidr"),
+		SupportsDisableHostLoopback: strings.Contains(s, "--disable-host-loopback"),
+		SupportsAPISocket:           strings.Contains(s, "--api-socket"),
+		SupportsCreateSandbox:       strings.Contains(s, "--create-sandbox"),
+	}
+	return &f, nil
+}
+
 // NewParentDriver instantiates new parent driver.
 // ipnet is supported only for slirp4netns v0.3.0+.
 // ipnet MUST be nil for slirp4netns < v0.3.0.
 //
 // disableHostLoopback is supported only for slirp4netns v0.3.0+
 // apiSocketPath is supported only for slirp4netns v0.3.0+
-func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool, apiSocketPath string) network.ParentDriver {
+// createSandbox is supported only for slirp4netns v0.4.0+
+func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool, apiSocketPath string, createSandbox bool) network.ParentDriver {
 	if binary == "" {
 		panic("got empty slirp4netns binary")
 	}
@@ -38,6 +78,7 @@ func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopba
 		ipnet:               ipnet,
 		disableHostLoopback: disableHostLoopback,
 		apiSocketPath:       apiSocketPath,
+		createSandbox:       createSandbox,
 	}
 }
 
@@ -47,6 +88,7 @@ type parentDriver struct {
 	ipnet               *net.IPNet
 	disableHostLoopback bool
 	apiSocketPath       string
+	createSandbox       bool
 }
 
 func (d *parentDriver) MTU() int {
@@ -69,6 +111,9 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	}
 	if d.apiSocketPath != "" {
 		opts = append(opts, "--api-socket", d.apiSocketPath)
+	}
+	if d.createSandbox {
+		opts = append(opts, "--create-sandbox")
 	}
 	cmd := exec.CommandContext(ctx, d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
