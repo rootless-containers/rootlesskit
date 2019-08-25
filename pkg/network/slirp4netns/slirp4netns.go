@@ -25,8 +25,8 @@ type Features struct {
 	SupportsDisableHostLoopback bool
 	// SupportsAPISocket --api-socket (v0.3.0)
 	SupportsAPISocket bool
-	// SupportsCreateSandbox --create-sandbox (v0.4.0)
-	SupportsCreateSandbox bool
+	// SupportsEnableSandbox --enable-sandbox (v0.4.0)
+	SupportsEnableSandbox bool
 }
 
 func DetectFeatures(binary string) (*Features, error) {
@@ -50,7 +50,7 @@ func DetectFeatures(binary string) (*Features, error) {
 		SupportsCIDR:                strings.Contains(s, "--cidr"),
 		SupportsDisableHostLoopback: strings.Contains(s, "--disable-host-loopback"),
 		SupportsAPISocket:           strings.Contains(s, "--api-socket"),
-		SupportsCreateSandbox:       strings.Contains(s, "--create-sandbox"),
+		SupportsEnableSandbox:       strings.Contains(s, "--enable-sandbox"),
 	}
 	return &f, nil
 }
@@ -61,8 +61,8 @@ func DetectFeatures(binary string) (*Features, error) {
 //
 // disableHostLoopback is supported only for slirp4netns v0.3.0+
 // apiSocketPath is supported only for slirp4netns v0.3.0+
-// createSandbox is supported only for slirp4netns v0.4.0+
-func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool, apiSocketPath string, createSandbox bool) network.ParentDriver {
+// enableSandbox is supported only for slirp4netns v0.4.0+
+func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool, apiSocketPath string, enableSandbox bool) network.ParentDriver {
 	if binary == "" {
 		panic("got empty slirp4netns binary")
 	}
@@ -78,7 +78,7 @@ func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopba
 		ipnet:               ipnet,
 		disableHostLoopback: disableHostLoopback,
 		apiSocketPath:       apiSocketPath,
-		createSandbox:       createSandbox,
+		enableSandbox:       enableSandbox,
 	}
 }
 
@@ -88,7 +88,7 @@ type parentDriver struct {
 	ipnet               *net.IPNet
 	disableHostLoopback bool
 	apiSocketPath       string
-	createSandbox       bool
+	enableSandbox       bool
 }
 
 func (d *parentDriver) MTU() int {
@@ -112,8 +112,8 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	if d.apiSocketPath != "" {
 		opts = append(opts, "--api-socket", d.apiSocketPath)
 	}
-	if d.createSandbox {
-		opts = append(opts, "--create-sandbox")
+	if d.enableSandbox {
+		opts = append(opts, "--enable-sandbox")
 	}
 	cmd := exec.CommandContext(ctx, d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
