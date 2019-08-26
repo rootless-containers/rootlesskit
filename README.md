@@ -143,7 +143,7 @@ USAGE:
    rootlesskit [global options] command [command options] [arguments...]
 
 VERSION:
-   0.5.0+dev
+   0.6.0+dev
 
 COMMANDS:
      help, h  Shows a list of commands or help for one command
@@ -153,6 +153,8 @@ GLOBAL OPTIONS:
    --state-dir value            state directory
    --net value                  network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp(deprecated)] (default: "host")
    --slirp4netns-binary value   path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
+   --slirp4netns-sandbox value  enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
+   --slirp4netns-seccomp value  enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
    --vpnkit-binary value        path of VPNKit binary for --net=vpnkit (default: "vpnkit")
    --lxc-user-nic-binary value  path of lxc-user-nic binary for --net=lxc-user-nic (default: "/usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic")
    --lxc-user-nic-bridge value  lxc-user-nic bridge name (default: "lxcbr0")
@@ -240,6 +242,7 @@ $ sudo sh -c "echo 0   2147483647  > /proc/sys/net/ipv4/ping_group_range"
 Pros:
 * Possible to perform network-namespaced operations, e.g. creating iptables rules, running `tcpdump`
 * Supports ICMP Echo (`ping`) when `/proc/sys/net/ipv4/ping_group_range` is configured
+* Supports hardening using mount namespace and seccomp (`--slirp4netns-sandbox=auto`, `--slirp4netns-seccomp=auto`, since RootlessKit v0.7.0, slirp4netns v0.4.0)
 
 Cons:
 * Extra performance overhead (but still faster than `--net=vpnkit`)
@@ -305,6 +308,7 @@ rootlesskit$ curl https://www.google.com
 <!doctype html><html ...>...</html>
 ```
 
+Starting with RootlessKit v0.7.0 + slirp4netns v0.4.0, `--slirp4netns-sandbox=auto/true/false` (enables mount namespace) and `--slirp4netns-seccomp=auto/true/false` (enables seccomp rules) can be used to harden the slirp4netns process.
 
 ### `--net=vpnkit`
 

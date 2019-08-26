@@ -27,6 +27,8 @@ type Features struct {
 	SupportsAPISocket bool
 	// SupportsEnableSandbox --enable-sandbox (v0.4.0)
 	SupportsEnableSandbox bool
+	// SupportsEnableSeccomp --enable-seccomp (v0.4.0)
+	SupportsEnableSeccomp bool
 }
 
 func DetectFeatures(binary string) (*Features, error) {
@@ -51,6 +53,7 @@ func DetectFeatures(binary string) (*Features, error) {
 		SupportsDisableHostLoopback: strings.Contains(s, "--disable-host-loopback"),
 		SupportsAPISocket:           strings.Contains(s, "--api-socket"),
 		SupportsEnableSandbox:       strings.Contains(s, "--enable-sandbox"),
+		SupportsEnableSeccomp:       strings.Contains(s, "--enable-seccomp"),
 	}
 	return &f, nil
 }
@@ -62,7 +65,8 @@ func DetectFeatures(binary string) (*Features, error) {
 // disableHostLoopback is supported only for slirp4netns v0.3.0+
 // apiSocketPath is supported only for slirp4netns v0.3.0+
 // enableSandbox is supported only for slirp4netns v0.4.0+
-func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool, apiSocketPath string, enableSandbox bool) network.ParentDriver {
+// enableSeccomp is supported only for slirp4netns v0.4.0+
+func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool, apiSocketPath string, enableSandbox, enableSeccomp bool) network.ParentDriver {
 	if binary == "" {
 		panic("got empty slirp4netns binary")
 	}
@@ -79,6 +83,7 @@ func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopba
 		disableHostLoopback: disableHostLoopback,
 		apiSocketPath:       apiSocketPath,
 		enableSandbox:       enableSandbox,
+		enableSeccomp:       enableSeccomp,
 	}
 }
 
@@ -89,6 +94,7 @@ type parentDriver struct {
 	disableHostLoopback bool
 	apiSocketPath       string
 	enableSandbox       bool
+	enableSeccomp       bool
 }
 
 func (d *parentDriver) MTU() int {
@@ -114,6 +120,9 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	}
 	if d.enableSandbox {
 		opts = append(opts, "--enable-sandbox")
+	}
+	if d.enableSeccomp {
+		opts = append(opts, "--enable-seccomp")
 	}
 	cmd := exec.CommandContext(ctx, d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
