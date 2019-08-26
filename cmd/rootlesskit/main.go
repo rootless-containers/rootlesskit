@@ -65,7 +65,11 @@ func main() {
 			Usage: "enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be \"auto\" in future)",
 			Value: "false",
 		},
-
+		cli.StringFlag{
+			Name:  "slirp4netns-seccomp",
+			Usage: "enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be \"auto\" in future)",
+			Value: "false",
+		},
 		cli.StringFlag{
 			Name:  "vpnkit-binary",
 			Usage: "path of VPNKit binary for --net=vpnkit",
@@ -255,7 +259,21 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 		default:
 			return opt, errors.Errorf("unsupported slirp4netns-sandbox mode: %q", s)
 		}
-		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback, slirp4netnsAPISocketPath, enableSandbox)
+		enableSeccomp := false
+		switch s := clicontext.String("slirp4netns-seccomp"); s {
+		case "auto":
+			enableSeccomp = features.SupportsEnableSeccomp
+		case "true":
+			enableSeccomp = true
+			if !features.SupportsEnableSeccomp {
+				return opt, errors.New("unsupported slirp4netns version: lacks SupportsEnableSeccomp, please install v0.4.0+")
+			}
+		case "false", "": // default
+			// NOP
+		default:
+			return opt, errors.Errorf("unsupported slirp4netns-seccomp mode: %q", s)
+		}
+		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback, slirp4netnsAPISocketPath, enableSandbox, enableSeccomp)
 	case "vpnkit":
 		if ipnet != nil {
 			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
