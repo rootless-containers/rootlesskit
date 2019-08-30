@@ -262,11 +262,14 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 		enableSeccomp := false
 		switch s := clicontext.String("slirp4netns-seccomp"); s {
 		case "auto":
-			enableSeccomp = features.SupportsEnableSeccomp
+			enableSeccomp = features.SupportsEnableSeccomp && features.KernelSupportsEnableSeccomp
 		case "true":
 			enableSeccomp = true
 			if !features.SupportsEnableSeccomp {
 				return opt, errors.New("unsupported slirp4netns version: lacks SupportsEnableSeccomp, please install v0.4.0+")
+			}
+			if !features.KernelSupportsEnableSeccomp {
+				return opt, errors.New("kernel doesn't support seccomp")
 			}
 		case "false", "": // default
 			// NOP

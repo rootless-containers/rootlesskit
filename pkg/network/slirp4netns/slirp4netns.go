@@ -11,6 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
@@ -29,6 +30,8 @@ type Features struct {
 	SupportsEnableSandbox bool
 	// SupportsEnableSeccomp --enable-seccomp (v0.4.0)
 	SupportsEnableSeccomp bool
+	// KernelSupportsSeccomp whether the kernel supports slirp4netns --enable-seccomp
+	KernelSupportsEnableSeccomp bool
 }
 
 func DetectFeatures(binary string) (*Features, error) {
@@ -48,12 +51,17 @@ func DetectFeatures(binary string) (*Features, error) {
 			"command \"%s --help\" failed, make sure slirp4netns v0.2.0+ is installed: %q",
 			realBinary, s)
 	}
+	kernelSupportsEnableSeccomp := false
+	if unix.Prctl(unix.PR_GET_SECCOMP, 0, 0, 0, 0) != unix.EINVAL {
+		kernelSupportsEnableSeccomp = unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, 0, 0, 0) != unix.EINVAL
+	}
 	f := Features{
 		SupportsCIDR:                strings.Contains(s, "--cidr"),
 		SupportsDisableHostLoopback: strings.Contains(s, "--disable-host-loopback"),
 		SupportsAPISocket:           strings.Contains(s, "--api-socket"),
 		SupportsEnableSandbox:       strings.Contains(s, "--enable-sandbox"),
 		SupportsEnableSeccomp:       strings.Contains(s, "--enable-seccomp"),
+		KernelSupportsEnableSeccomp: kernelSupportsEnableSeccomp,
 	}
 	return &f, nil
 }
