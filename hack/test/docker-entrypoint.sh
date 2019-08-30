@@ -54,6 +54,7 @@ function benchmark::iperf3::main(){
     iperf3pid=$!
     for mtu in 1500 4000 16384 65520; do
         benchmark::iperf3::slirp4netns --mtu=$mtu
+        benchmark::iperf3::slirp4netns --mtu=$mtu --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto
         if [[ $mtu -gt 16424 ]]; then
             INFO "Skipping benchmark::iperf3::vpnkit --mtu=$mtu (MTU greater than 16424 is known not to work for VPNKit)"
         else
