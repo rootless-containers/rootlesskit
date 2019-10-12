@@ -68,14 +68,15 @@ penguin:231072:65536
 
 Debian (excluding Ubuntu):
 * `sudo sh -c "echo 1 > /proc/sys/kernel/unprivileged_userns_clone"` is required
+* [`sudo modprobe overlay permit_mounts_in_userns=1` is recommended to enable overlayfs](https://salsa.debian.org/kernel-team/linux/blob/283390e7feb21b47779b48e0c8eb0cc409d2c815/debian/patches/debian/overlayfs-permit-mounts-in-userns.patch)
 
 Arch Linux:
 * `sudo sh -c "echo 1 > /proc/sys/kernel/unprivileged_userns_clone"` is required
 
-RHEL/CentOS 7:
+RHEL/CentOS 7 (excluding RHEL/CentOS 8):
 * `sudo sh -c "echo 28633 > /proc/sys/user/max_user_namespaces"` is required
-* [COPR package `vbatts/shadow-utils-newxidmap`](https://copr.fedorainfracloud.org/coprs/vbatts/shadow-utils-newxidmap/) needs to be installed
 
+To persist sysctl configurations, edit `/etc/sysctl.conf` or add a file under `/etc/sysctl.d`.
 
 ## Usage
 
