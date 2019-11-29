@@ -109,7 +109,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "port-driver",
-			Usage: "port driver for non-host network. [none, socat, slirp4netns, builtin(experimental)]",
+			Usage: "port driver for non-host network. [none, builtin, socat(deprecated), slirp4netns(deprecated)]",
 			Value: "none",
 		},
 		cli.StringSliceFlag{
@@ -318,6 +318,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 	case "none":
 		// NOP
 	case "socat":
+		logrus.Warn("\"socat\" port driver is deprecated")
 		if opt.NetworkDriver == nil {
 			return opt, errors.New("port driver requires non-host network")
 		}
@@ -326,6 +327,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 			return opt, err
 		}
 	case "slirp4netns":
+		logrus.Warn("\"slirp4netns\" port driver is deprecated")
 		if clicontext.String("net") != "slirp4netns" {
 			return opt, errors.New("port driver requires slirp4netns network")
 		}
@@ -334,7 +336,6 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 			return opt, err
 		}
 	case "builtin":
-		logrus.Warn("\"builtin\" port driver is experimental")
 		if opt.NetworkDriver == nil {
 			return opt, errors.New("port driver requires non-host network")
 		}
