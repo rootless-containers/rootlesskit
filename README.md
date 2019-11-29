@@ -144,7 +144,7 @@ USAGE:
    rootlesskit [global options] command [command options] [arguments...]
 
 VERSION:
-   0.6.0+dev
+   0.7.0+dev
 
 COMMANDS:
      help, h  Shows a list of commands or help for one command
@@ -164,7 +164,7 @@ GLOBAL OPTIONS:
    --disable-host-loopback      prohibit connecting to 127.0.0.1:* on the host namespace
    --copy-up value              mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
    --copy-up-mode value         copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
-   --port-driver value          port driver for non-host network. [none, socat, slirp4netns, builtin(experimental)] (default: "none")
+   --port-driver value          port driver for non-host network. [none, builtin, socat(deprecated), slirp4netns(deprecated)] (default: "none")
    --publish value, -p value    publish ports. e.g. "127.0.0.1:8080:80/tcp"
    --pidns                      create a PID namespace
    --help, -h                   show help
@@ -375,8 +375,21 @@ Currently, the MAC address is always set to a random address.
 
 ## Port Drivers
 
-`rootlessctl` can be used for exposing the ports in the network namespace to the host network namespace.
-You also need to launch `rootlesskit` with `--port-driver=(socat|slirp4netns|builtin)`. `builtin` is the fastest but currently experimental.
+To the ports in the network namespace to the host network namespace, `--port-driver` needs to be specified.
+
+* `--port-driver=none`: do not expose ports (default)
+* `--port-driver=builtin`: use built-in port driver (recommended)
+* `--port-driver=socat`: use `socat` binary (deprecated)
+* `--port-driver=slirp4netns`: use slirp4netns API (deprecated)
+
+[Benchmark (October 13, 2019)](https://travis-ci.org/rootless-containers/rootlesskit/builds/597056377):
+
+| `--port-driver` |  Throughput
+|-----------------|------------
+| `builtin`       | 27.3 Gbps
+| `slirp4netns`   |  8.3 Gbps
+| `socat`         |  5.2 Gbps
+
 
 For example, to expose 80 in the child as 8080 in the parent:
 
