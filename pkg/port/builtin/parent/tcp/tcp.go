@@ -1,4 +1,4 @@
-package builtin
+package tcp
 
 import (
 	"fmt"
@@ -8,9 +8,10 @@ import (
 	"sync"
 
 	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/msg"
 )
 
-func startTCPRoutines(socketPath string, spec port.Spec, stopCh <-chan struct{}, logWriter io.Writer) error {
+func Run(socketPath string, spec port.Spec, stopCh <-chan struct{}, logWriter io.Writer) error {
 	ln, err := net.Listen("tcp", fmt.Sprintf("%s:%d", spec.ParentIP, spec.ParentPort))
 	if err != nil {
 		fmt.Fprintf(logWriter, "listen: %v\n", err)
@@ -54,7 +55,7 @@ func startTCPRoutines(socketPath string, spec port.Spec, stopCh <-chan struct{},
 func copyConnToChild(c net.Conn, socketPath string, spec port.Spec, stopCh <-chan struct{}) error {
 	defer c.Close()
 	// get fd from the child as an SCM_RIGHTS cmsg
-	fd, err := connectToChildWithRetry(socketPath, spec, 10)
+	fd, err := msg.ConnectToChildWithRetry(socketPath, spec, 10)
 	if err != nil {
 		return err
 	}

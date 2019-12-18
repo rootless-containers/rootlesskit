@@ -1,4 +1,4 @@
-package builtin
+package udp
 
 import (
 	"fmt"
@@ -9,10 +9,11 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/rootless-containers/rootlesskit/pkg/port"
-	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/udpproxy"
+	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/msg"
+	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/parent/udp/udpproxy"
 )
 
-func startUDPRoutines(socketPath string, spec port.Spec, stopCh <-chan struct{}, logWriter io.Writer) error {
+func Run(socketPath string, spec port.Spec, stopCh <-chan struct{}, logWriter io.Writer) error {
 	addr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("%s:%d", spec.ParentIP, spec.ParentPort))
 	if err != nil {
 		return err
@@ -26,7 +27,7 @@ func startUDPRoutines(socketPath string, spec port.Spec, stopCh <-chan struct{},
 		Listener:  c,
 		BackendDial: func() (*net.UDPConn, error) {
 			// get fd from the child as an SCM_RIGHTS cmsg
-			fd, err := connectToChildWithRetry(socketPath, spec, 10)
+			fd, err := msg.ConnectToChildWithRetry(socketPath, spec, 10)
 			if err != nil {
 				return nil, err
 			}

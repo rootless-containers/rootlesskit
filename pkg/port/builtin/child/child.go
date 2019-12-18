@@ -1,4 +1,4 @@
-package builtin
+package child
 
 import (
 	"fmt"
@@ -11,9 +11,11 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/msg"
+	opaquepkg "github.com/rootless-containers/rootlesskit/pkg/port/builtin/opaque"
 )
 
-func NewChildDriver(logWriter io.Writer) port.ChildDriver {
+func NewDriver(logWriter io.Writer) port.ChildDriver {
 	return &childDriver{
 		logWriter: logWriter,
 	}
@@ -24,11 +26,11 @@ type childDriver struct {
 }
 
 func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struct{}) error {
-	socketPath := opaque[opaqueKeySocketPath]
+	socketPath := opaque[opaquepkg.SocketPath]
 	if socketPath == "" {
 		return errors.New("socket path not set")
 	}
-	childReadyPipePath := opaque[opaqueKeyChildReadyPipePath]
+	childReadyPipePath := opaque[opaquepkg.ChildReadyPipePath]
 	if childReadyPipePath == "" {
 		return errors.New("child ready pipe path not set")
 	}
@@ -65,7 +67,7 @@ func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struc
 		}
 		go func() {
 			if rerr := d.routine(c); rerr != nil {
-				rep := reply{
+				rep := msg.Reply{
 					Error: rerr.Error(),
 				}
 				msgutil.MarshalToWriter(c, &rep)
@@ -77,26 +79,26 @@ func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struc
 }
 
 func (d *childDriver) routine(c *net.UnixConn) error {
-	var req request
+	var req msg.Request
 	if _, err := msgutil.UnmarshalFromReader(c, &req); err != nil {
 		return err
 	}
 	switch req.Type {
-	case requestTypeInit:
+	case msg.RequestTypeInit:
 		return d.handleConnectInit(c, &req)
-	case requestTypeConnect:
+	case msg.RequestTypeConnect:
 		return d.handleConnectRequest(c, &req)
 	default:
 		return errors.Errorf("unknown request type %q", req.Type)
 	}
 }
 
-func (d *childDriver) handleConnectInit(c *net.UnixConn, req *request) error {
+func (d *childDriver) handleConnectInit(c *net.UnixConn, req *msg.Request) error {
 	_, err := msgutil.MarshalToWriter(c, nil)
 	return err
 }
 
-func (d *childDriver) handleConnectRequest(c *net.UnixConn, req *request) error {
+func (d *childDriver) handleConnectRequest(c *net.UnixConn, req *msg.Request) error {
 	switch req.Proto {
 	case "tcp":
 	case "udp":

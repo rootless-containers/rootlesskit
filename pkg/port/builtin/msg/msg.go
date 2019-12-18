@@ -1,4 +1,4 @@
-package builtin
+package msg
 
 import (
 	"net"
@@ -12,25 +12,25 @@ import (
 )
 
 const (
-	requestTypeInit    = "init"
-	requestTypeConnect = "connect"
+	RequestTypeInit    = "init"
+	RequestTypeConnect = "connect"
 )
 
-// request and response are encoded as JSON with uint32le length header.
-type request struct {
+// Request and Response are encoded as JSON with uint32le length header.
+type Request struct {
 	Type  string // "init" or "connect"
 	Proto string // "tcp" or "udp"
 	Port  int
 }
 
-// may contain FD as OOB
-type reply struct {
+// Reply may contain FD as OOB
+type Reply struct {
 	Error string
 }
 
-func initiate(c *net.UnixConn) error {
-	req := request{
-		Type: requestTypeInit,
+func Initiate(c *net.UnixConn) error {
+	req := Request{
+		Type: RequestTypeInit,
 	}
 	if _, err := msgutil.MarshalToWriter(c, &req); err != nil {
 		return err
@@ -38,14 +38,14 @@ func initiate(c *net.UnixConn) error {
 	if err := c.CloseWrite(); err != nil {
 		return err
 	}
-	var rep reply
+	var rep Reply
 	if _, err := msgutil.UnmarshalFromReader(c, &rep); err != nil {
 		return err
 	}
 	return c.CloseRead()
 }
 
-func connectToChild(socketPath string, spec port.Spec) (int, error) {
+func ConnectToChild(socketPath string, spec port.Spec) (int, error) {
 	var dialer net.Dialer
 	conn, err := dialer.Dial("unix", socketPath)
 	if err != nil {
@@ -53,8 +53,8 @@ func connectToChild(socketPath string, spec port.Spec) (int, error) {
 	}
 	defer conn.Close()
 	c := conn.(*net.UnixConn)
-	req := request{
-		Type:  requestTypeConnect,
+	req := Request{
+		Type:  RequestTypeConnect,
 		Proto: spec.Proto,
 		Port:  spec.ChildPort,
 	}
@@ -84,9 +84,9 @@ func connectToChild(socketPath string, spec port.Spec) (int, error) {
 	return fd, nil
 }
 
-func connectToChildWithRetry(socketPath string, spec port.Spec, retries int) (int, error) {
+func ConnectToChildWithRetry(socketPath string, spec port.Spec, retries int) (int, error) {
 	for i := 0; i < retries; i++ {
-		fd, err := connectToChild(socketPath, spec)
+		fd, err := ConnectToChild(socketPath, spec)
 		if i == retries-1 && err != nil {
 			return 0, err
 		}

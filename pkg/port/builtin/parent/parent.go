@@ -1,4 +1,4 @@
-package builtin
+package parent
 
 import (
 	"context"
@@ -13,11 +13,15 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/msg"
+	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/opaque"
+	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/parent/tcp"
+	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/parent/udp"
 	"github.com/rootless-containers/rootlesskit/pkg/port/portutil"
 )
 
-// NewParentDriver for builtin driver.
-func NewParentDriver(logWriter io.Writer, stateDir string) (port.ParentDriver, error) {
+// NewDriver for builtin driver.
+func NewDriver(logWriter io.Writer, stateDir string) (port.ParentDriver, error) {
 	// TODO: consider using socketpair FD instead of socket file
 	socketPath := filepath.Join(stateDir, ".bp.sock")
 	childReadyPipePath := filepath.Join(stateDir, ".bp-ready.pipe")
@@ -51,8 +55,8 @@ type driver struct {
 
 func (d *driver) OpaqueForChild() map[string]string {
 	return map[string]string{
-		opaqueKeySocketPath:         d.socketPath,
-		opaqueKeyChildReadyPipePath: d.childReadyPipePath,
+		opaque.SocketPath:         d.socketPath,
+		opaque.ChildReadyPipePath: d.childReadyPipePath,
 	}
 }
 
@@ -70,7 +74,7 @@ func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{
 	if err != nil {
 		return err
 	}
-	err = initiate(conn.(*net.UnixConn))
+	err = msg.Initiate(conn.(*net.UnixConn))
 	conn.Close()
 	if err != nil {
 		return err
@@ -94,9 +98,9 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 	}
 	switch spec.Proto {
 	case "tcp":
-		err = startTCPRoutines(d.socketPath, spec, routineStopCh, d.logWriter)
+		err = tcp.Run(d.socketPath, spec, routineStopCh, d.logWriter)
 	case "udp":
-		err = startUDPRoutines(d.socketPath, spec, routineStopCh, d.logWriter)
+		err = udp.Run(d.socketPath, spec, routineStopCh, d.logWriter)
 	default:
 		// NOTREACHED
 		return nil, errors.New("spec was not validated?")
