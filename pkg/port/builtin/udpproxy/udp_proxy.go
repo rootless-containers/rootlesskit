@@ -3,7 +3,8 @@ package udpproxy
 
 import (
 	"encoding/binary"
-	"log"
+	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -43,29 +44,14 @@ func newConnTrackKey(addr *net.UDPAddr) *connTrackKey {
 
 type connTrackMap map[connTrackKey]*net.UDPConn
 
-// UDPProxy is proxy for which handles UDP datagrams. It implements the Proxy
-// interface to handle UDP traffic forwarding between the frontend and backend
-// addresses.
+// UDPProxy is proxy for which handles UDP datagrams.
+// From libnetwork udp_proxy.go .
 type UDPProxy struct {
-	listener       *net.UDPConn
-	frontendAddr   *net.UDPAddr
-	backendAddr    *net.UDPAddr
+	LogWriter      io.Writer
+	Listener       *net.UDPConn
+	BackendDial    func() (*net.UDPConn, error)
 	connTrackTable connTrackMap
 	connTrackLock  sync.Mutex
-}
-
-// NewUDPProxy creates a new UDPProxy.
-func NewUDPProxy(frontendAddr, backendAddr *net.UDPAddr) (*UDPProxy, error) {
-	listener, err := net.ListenUDP("udp", frontendAddr)
-	if err != nil {
-		return nil, err
-	}
-	return &UDPProxy{
-		listener:       listener,
-		frontendAddr:   listener.LocalAddr().(*net.UDPAddr),
-		backendAddr:    backendAddr,
-		connTrackTable: make(connTrackMap),
-	}, nil
 }
 
 func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr, clientKey *connTrackKey) {
@@ -93,7 +79,7 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr
 			return
 		}
 		for i := 0; i != read; {
-			written, err := proxy.listener.WriteToUDP(readBuf[i:read], clientAddr)
+			written, err := proxy.Listener.WriteToUDP(readBuf[i:read], clientAddr)
 			if err != nil {
 				return
 			}
@@ -104,15 +90,16 @@ func (proxy *UDPProxy) replyLoop(proxyConn *net.UDPConn, clientAddr *net.UDPAddr
 
 // Run starts forwarding the traffic using UDP.
 func (proxy *UDPProxy) Run() {
+	proxy.connTrackTable = make(connTrackMap)
 	readBuf := make([]byte, UDPBufSize)
 	for {
-		read, from, err := proxy.listener.ReadFromUDP(readBuf)
+		read, from, err := proxy.Listener.ReadFromUDP(readBuf)
 		if err != nil {
 			// NOTE: Apparently ReadFrom doesn't return
 			// ECONNREFUSED like Read do (see comment in
 			// UDPProxy.replyLoop)
 			if !isClosedError(err) {
-				log.Printf("Stopping proxy on udp/%v for udp/%v (%s)", proxy.frontendAddr, proxy.backendAddr, err)
+				fmt.Fprintf(proxy.LogWriter, "Stopping proxy on udp: %v\n", err)
 			}
 			break
 		}
@@ -121,9 +108,9 @@ func (proxy *UDPProxy) Run() {
 		proxy.connTrackLock.Lock()
 		proxyConn, hit := proxy.connTrackTable[*fromKey]
 		if !hit {
-			proxyConn, err = net.DialUDP("udp", nil, proxy.backendAddr)
+			proxyConn, err = proxy.BackendDial()
 			if err != nil {
-				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
+				fmt.Fprintf(proxy.LogWriter, "Can't proxy a datagram to udp: %v\n", err)
 				proxy.connTrackLock.Unlock()
 				continue
 			}
@@ -134,7 +121,7 @@ func (proxy *UDPProxy) Run() {
 		for i := 0; i != read; {
 			written, err := proxyConn.Write(readBuf[i:read])
 			if err != nil {
-				log.Printf("Can't proxy a datagram to udp/%s: %s\n", proxy.backendAddr, err)
+				fmt.Fprintf(proxy.LogWriter, "Can't proxy a datagram to udp: %v\n", err)
 				break
 			}
 			i += written
@@ -144,19 +131,13 @@ func (proxy *UDPProxy) Run() {
 
 // Close stops forwarding the traffic.
 func (proxy *UDPProxy) Close() {
-	proxy.listener.Close()
+	proxy.Listener.Close()
 	proxy.connTrackLock.Lock()
 	defer proxy.connTrackLock.Unlock()
 	for _, conn := range proxy.connTrackTable {
 		conn.Close()
 	}
 }
-
-// FrontendAddr returns the UDP address on which the proxy is listening.
-func (proxy *UDPProxy) FrontendAddr() net.Addr { return proxy.frontendAddr }
-
-// BackendAddr returns the proxied UDP address.
-func (proxy *UDPProxy) BackendAddr() net.Addr { return proxy.backendAddr }
 
 func isClosedError(err error) bool {
 	/* This comparison is ugly, but unfortunately, net.go doesn't export errClosing.
