@@ -96,5 +96,29 @@ function benchmark::iperf3_reverse::main(){
     benchmark::iperf3_reverse --net=slirp4netns --mtu=65520 --port-driver=builtin
     set +x
 }
+
+function benchmark::iperf3_reverse_udp(){
+    statedir=$(mktemp -d)
+    INFO "[benchmark:iperf3_reverse_udp] $@"
+    $ROOTLESSKIT --state-dir=$statedir $@ iperf3 -s > /dev/null &
+    rkpid=$!
+    # wait for socket to be available
+    sleep 3
+    rootlessctl="rootlessctl --socket=$statedir/api.sock"
+    portids=$($rootlessctl add-ports 127.0.0.1:5201:5201/tcp 127.0.0.1:5201:5201/udp)
+    $rootlessctl list-ports
+    sleep 3
+    $IPERF3C 127.0.0.1 -u -b 100G
+    $rootlessctl remove-ports $portids
+    kill $rkpid
+}
+
+function benchmark::iperf3_reverse_udp::main(){
+    set -x
+    benchmark::iperf3_reverse_udp --net=slirp4netns --mtu=65520 --port-driver=builtin
+    set +x
+}
+
 benchmark::iperf3::main
 benchmark::iperf3_reverse::main
+benchmark::iperf3_reverse_udp::main
