@@ -28,6 +28,7 @@ type Reply struct {
 	Error string
 }
 
+// Initiate sends "init" request to the child UNIX socket.
 func Initiate(c *net.UnixConn) error {
 	req := Request{
 		Type: RequestTypeInit,
@@ -45,14 +46,9 @@ func Initiate(c *net.UnixConn) error {
 	return c.CloseRead()
 }
 
-func ConnectToChild(socketPath string, spec port.Spec) (int, error) {
-	var dialer net.Dialer
-	conn, err := dialer.Dial("unix", socketPath)
-	if err != nil {
-		return 0, err
-	}
-	defer conn.Close()
-	c := conn.(*net.UnixConn)
+// ConnectToChild connects to the child UNIX socket, and obtains TCP or UDP socket FD
+// that corresponds to the port spec.
+func ConnectToChild(c *net.UnixConn, spec port.Spec) (int, error) {
 	req := Request{
 		Type:  RequestTypeConnect,
 		Proto: spec.Proto,
@@ -84,9 +80,22 @@ func ConnectToChild(socketPath string, spec port.Spec) (int, error) {
 	return fd, nil
 }
 
+// ConnectToChildWithSocketPath wraps ConnectToChild
+func ConnectToChildWithSocketPath(socketPath string, spec port.Spec) (int, error) {
+	var dialer net.Dialer
+	conn, err := dialer.Dial("unix", socketPath)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+	c := conn.(*net.UnixConn)
+	return ConnectToChild(c, spec)
+}
+
+// ConnectToChildWithRetry retries ConnectToChild every (i*5) milliseconds.
 func ConnectToChildWithRetry(socketPath string, spec port.Spec, retries int) (int, error) {
 	for i := 0; i < retries; i++ {
-		fd, err := ConnectToChild(socketPath, spec)
+		fd, err := ConnectToChildWithSocketPath(socketPath, spec)
 		if i == retries-1 && err != nil {
 			return 0, err
 		}
