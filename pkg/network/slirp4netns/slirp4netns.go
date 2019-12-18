@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -116,7 +117,14 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 		return nil, common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	opts := []string{"--mtu", strconv.Itoa(d.mtu)}
+	readyR, readyW, err := os.Pipe()
+	if err != nil {
+		return nil, common.Seq(cleanups), err
+	}
+	defer readyR.Close()
+	defer readyW.Close()
+	// -r: readyFD
+	opts := []string{"--mtu", strconv.Itoa(d.mtu), "-r", "3"}
 	if d.disableHostLoopback {
 		opts = append(opts, "--disable-host-loopback")
 	}
@@ -136,6 +144,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
+	cmd.ExtraFiles = append(cmd.ExtraFiles, readyW)
 	cleanups = append(cleanups, func() error {
 		logrus.Debugf("killing slirp4netns")
 		cancel()
@@ -145,6 +154,10 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	})
 	if err := cmd.Start(); err != nil {
 		return nil, common.Seq(cleanups), errors.Wrapf(err, "executing %v", cmd)
+	}
+
+	if err := waitForReadyFD(cmd.Process.Pid, readyR); err != nil {
+		return nil, common.Seq(cleanups), errors.Wrapf(err, "waiting for ready fd (%v)", cmd)
 	}
 	netmsg := common.NetworkMessage{
 		Dev: tap,
@@ -175,6 +188,41 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 		netmsg.DNS = "10.0.2.3"
 	}
 	return &netmsg, common.Seq(cleanups), nil
+}
+
+// waitForReady is from libpod
+// https://github.com/containers/libpod/blob/e6b843312b93ddaf99d0ef94a7e60ff66bc0eac8/libpod/networking_linux.go#L272-L308
+func waitForReadyFD(cmdPid int, r *os.File) error {
+	b := make([]byte, 16)
+	for {
+		if err := r.SetDeadline(time.Now().Add(1 * time.Second)); err != nil {
+			return errors.Wrapf(err, "error setting slirp4netns pipe timeout")
+		}
+		if _, err := r.Read(b); err == nil {
+			break
+		} else {
+			if os.IsTimeout(err) {
+				// Check if the process is still running.
+				var status syscall.WaitStatus
+				pid, err := syscall.Wait4(cmdPid, &status, syscall.WNOHANG, nil)
+				if err != nil {
+					return errors.Wrapf(err, "failed to read slirp4netns process status")
+				}
+				if pid != cmdPid {
+					continue
+				}
+				if status.Exited() {
+					return errors.New("slirp4netns failed")
+				}
+				if status.Signaled() {
+					return errors.New("slirp4netns killed by signal")
+				}
+				continue
+			}
+			return errors.Wrapf(err, "failed to read from slirp4netns sync pipe")
+		}
+	}
+	return nil
 }
 
 func NewChildDriver() network.ChildDriver {
