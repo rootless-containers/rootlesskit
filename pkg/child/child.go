@@ -48,13 +48,13 @@ func mountSysfs() error {
 		return errors.Wrapf(err, "failed to create bind mount on %s", cgroupDir)
 	}
 
-	if err := unix.Mount("", "/sys", "sysfs", 0, ""); err != nil {
+	if err := unix.Mount("none", "/sys", "sysfs", 0, ""); err != nil {
 		// when the sysfs in the parent namespace is RO,
 		// we can't mount RW sysfs even in the child namespace.
 		// https://github.com/rootless-containers/rootlesskit/pull/23#issuecomment-429292632
 		// https://github.com/torvalds/linux/blob/9f203e2f2f065cd74553e6474f0ae3675f39fb0f/fs/namespace.c#L3326-L3328
 		logrus.Warnf("failed to mount sysfs, falling back to read-only mount: %v", err)
-		if err := unix.Mount("", "/sys", "sysfs", uintptr(unix.MS_RDONLY), ""); err != nil {
+		if err := unix.Mount("none", "/sys", "sysfs", uintptr(unix.MS_RDONLY), ""); err != nil {
 			// when /sys/firmware is masked, even RO sysfs can't be mounted
 			logrus.Warnf("failed to mount sysfs: %v", err)
 		}
@@ -66,9 +66,9 @@ func mountSysfs() error {
 }
 
 func mountProcfs() error {
-	if err := unix.Mount("", "/proc", "proc", 0, ""); err != nil {
+	if err := unix.Mount("none", "/proc", "proc", 0, ""); err != nil {
 		logrus.Warnf("failed to mount procfs, falling back to read-only mount: %v", err)
-		if err := unix.Mount("", "/proc", "proc", uintptr(unix.MS_RDONLY), ""); err != nil {
+		if err := unix.Mount("none", "/proc", "proc", uintptr(unix.MS_RDONLY), ""); err != nil {
 			logrus.Warnf("failed to mount procfs: %v", err)
 		}
 	}
