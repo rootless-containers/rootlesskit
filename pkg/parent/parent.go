@@ -103,10 +103,6 @@ func Parent(opt Opt) error {
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "failed to start the child")
 	}
-	childPIDPath := filepath.Join(opt.StateDir, StateFileChildPID)
-	if err := ioutil.WriteFile(childPIDPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0444); err != nil {
-		return errors.Wrapf(err, "failed to write the child PID %d to %s", cmd.Process.Pid, childPIDPath)
-	}
 	if err := setupUIDGIDMap(cmd.Process.Pid); err != nil {
 		return errors.Wrap(err, "failed to setup UID/GID map")
 	}
@@ -151,6 +147,12 @@ func Parent(opt Opt) error {
 			portDriverErr <- opt.PortDriver.RunParentDriver(portDriverInitComplete,
 				portDriverQuit, cctx)
 		}()
+	}
+
+	// after child is fully configured, write PID to child_pid file
+	childPIDPath := filepath.Join(opt.StateDir, StateFileChildPID)
+	if err := ioutil.WriteFile(childPIDPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0444); err != nil {
+		return errors.Wrapf(err, "failed to write the child PID %d to %s", cmd.Process.Pid, childPIDPath)
 	}
 
 	// send message 1
