@@ -149,12 +149,6 @@ func Parent(opt Opt) error {
 		}()
 	}
 
-	// after child is fully configured, write PID to child_pid file
-	childPIDPath := filepath.Join(opt.StateDir, StateFileChildPID)
-	if err := ioutil.WriteFile(childPIDPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0444); err != nil {
-		return errors.Wrapf(err, "failed to write the child PID %d to %s", cmd.Process.Pid, childPIDPath)
-	}
-
 	// send message 1
 	if _, err := msgutil.MarshalToWriter(pipeW, &msg); err != nil {
 		return err
@@ -177,6 +171,12 @@ func Parent(opt Opt) error {
 			}
 			logrus.Debugf("published port %v", st)
 		}
+	}
+
+	// after child is fully configured, write PID to child_pid file
+	childPIDPath := filepath.Join(opt.StateDir, StateFileChildPID)
+	if err := ioutil.WriteFile(childPIDPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0444); err != nil {
+		return errors.Wrapf(err, "failed to write the child PID %d to %s", cmd.Process.Pid, childPIDPath)
 	}
 	// listens the API
 	apiSockPath := filepath.Join(opt.StateDir, StateFileAPISock)
