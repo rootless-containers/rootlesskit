@@ -37,7 +37,7 @@ func mountResolvConf(tempDir, dns string) error {
 	}
 
 	if err := unix.Mount(myResolvConf, "/etc/resolv.conf", "", uintptr(unix.MS_BIND), ""); err != nil {
-		return errors.Wrapf(err, "failed to create bind mount on %s", myResolvConf)
+		return errors.Wrapf(err, "failed to create bind mount /etc/resolv.conf for %s", myResolvConf)
 	}
 	return nil
 }

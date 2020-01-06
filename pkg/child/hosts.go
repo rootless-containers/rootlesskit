@@ -58,7 +58,7 @@ func mountEtcHosts(tempDir string) error {
 	}
 
 	if err := unix.Mount(myEtcHosts, "/etc/hosts", "", uintptr(unix.MS_BIND), ""); err != nil {
-		return errors.Wrapf(err, "failed to create bind mount on %s", myEtcHosts)
+		return errors.Wrapf(err, "failed to create bind mount /etc/hosts for %s", myEtcHosts)
 	}
 	return nil
 }
