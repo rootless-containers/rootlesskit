@@ -122,6 +122,11 @@ func main() {
 			Name:  "pidns",
 			Usage: "create a PID namespace",
 		},
+		cli.StringFlag{
+			Name:  "propagation",
+			Usage: "allows to select mount propagation type from: rslave, rshared",
+			Value: "private",
+		},
 	}
 	app.Before = func(context *cli.Context) error {
 		if debug {
@@ -378,6 +383,7 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		PipeFDEnvKey: pipeFDEnvKey,
 		TargetCmd:    targetCmd,
 		MountProcfs:  clicontext.Bool("pidns"),
+		Propagation:  clicontext.String("propagation"),
 		Reaper:       clicontext.Bool("pidns"),
 	}
 	switch s := clicontext.String("net"); s {

@@ -20,6 +20,11 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 )
 
+var propagationStates = map[string]uintptr{
+	"rslave":  uintptr(unix.MS_REC | unix.MS_SLAVE),
+	"rshared": uintptr(unix.MS_REC | unix.MS_SHARED),
+}
+
 func createCmd(targetCmd []string) (*exec.Cmd, error) {
 	var args []string
 	if len(targetCmd) > 1 {
@@ -165,8 +170,8 @@ type Opt struct {
 	CopyUpDriver  copyup.ChildDriver  // cannot be nil if len(CopyUpDirs) != 0
 	CopyUpDirs    []string
 	PortDriver    port.ChildDriver
-	MountProcfs   bool // needs to be set if (and only if) parent.Opt.CreatePIDNS is set
-	Reaper        bool
+	MountProcfs   bool   // needs to be set if (and only if) parent.Opt.CreatePIDNS is set
+	Propagation   string // mount propagation type
 }
 
 func Child(opt Opt) error {
@@ -214,6 +219,9 @@ func Child(opt Opt) error {
 	if msg.StateDir == "" {
 		return errors.New("got empty StateDir")
 	}
+	if err := setMountPropagation(opt.Propagation); err != nil {
+		return err
+	}
 	etcWasCopied, err := setupCopyDir(opt.CopyUpDriver, opt.CopyUpDirs)
 	if err != nil {
 		return err
@@ -250,6 +258,16 @@ func Child(opt Opt) error {
 	if opt.PortDriver != nil {
 		portQuitCh <- struct{}{}
 		return <-portErrCh
+	}
+	return nil
+}
+
+func setMountPropagation(propagation string) error {
+	flags, ok := propagationStates[propagation]
+	if ok {
+		if err := unix.Mount("none", "/", "", flags, ""); err != nil {
+			return errors.Wrapf(err, "failed to share mount point: /")
+		}
 	}
 	return nil
 }
