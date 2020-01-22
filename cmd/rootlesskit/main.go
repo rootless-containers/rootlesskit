@@ -373,6 +373,7 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		PipeFDEnvKey: pipeFDEnvKey,
 		TargetCmd:    targetCmd,
 		MountProcfs:  clicontext.Bool("pidns"),
+		Reaper:       clicontext.Bool("pidns"),
 	}
 	switch s := clicontext.String("net"); s {
 	case "host":

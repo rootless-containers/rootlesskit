@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/signal"
 	"runtime"
 	"strconv"
 	"syscall"
@@ -165,6 +166,7 @@ type Opt struct {
 	CopyUpDirs    []string
 	PortDriver    port.ChildDriver
 	MountProcfs   bool // needs to be set if (and only if) parent.Opt.CreatePIDNS is set
+	Reaper        bool
 }
 
 func Child(opt Opt) error {
@@ -236,12 +238,42 @@ func Child(opt Opt) error {
 	if err != nil {
 		return err
 	}
-	if err := cmd.Run(); err != nil {
-		return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
+	if opt.Reaper {
+		if err := runAndReap(cmd); err != nil {
+			return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
+		}
+	} else {
+		if err := cmd.Run(); err != nil {
+			return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
+		}
 	}
 	if opt.PortDriver != nil {
 		portQuitCh <- struct{}{}
 		return <-portErrCh
 	}
 	return nil
+}
+
+func runAndReap(cmd *exec.Cmd) error {
+	c := make(chan os.Signal, 32)
+	signal.Notify(c, syscall.SIGCHLD)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	result := make(chan error)
+	go func() {
+		defer close(result)
+		for range c {
+			for {
+				if pid, err := syscall.Wait4(-1, nil, syscall.WNOHANG, nil); err != nil || pid <= 0 {
+					break
+				} else {
+					if pid == cmd.Process.Pid {
+						result <- cmd.Wait()
+					}
+				}
+			}
+		}
+	}()
+	return <-result
 }
