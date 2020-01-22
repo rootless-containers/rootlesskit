@@ -22,6 +22,14 @@ function benchmark::iperf3::vpnkit(){
     set +x
 }
 
+function benchmark::iperf3::slirpnetstack(){
+    INFO "[benchmark:iperf3] slirpnetstack ($@)"
+    set -x
+    # slirpnetstack doesn't support host loopback on 10.0.2.2
+    $ROOTLESSKIT --net=slirpnetstack $@ $IPERF3C $(hostname -i)
+    set +x
+}
+
 function benchmark::iperf3::vdeplug_slirp(){
     INFO "[benchmark:iperf3] vdeplug_slirp ($@)"
     set -x
@@ -63,6 +71,7 @@ function benchmark::iperf3::main(){
             fi
             benchmark::iperf3::vpnkit --mtu=$mtu
         fi
+        benchmark::iperf3::slirpnetstack --mtu=$mtu
         if [[ $mtu -ne 1500 ]]; then
             INFO "Skipping benchmark::iperf3::vdeplug_slirp --mtu=$mtu (non-1500 MTU is not effective for vdeplug_slirp)"
         else

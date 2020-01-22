@@ -19,6 +19,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/copyup/tmpfssymlink"
 	"github.com/rootless-containers/rootlesskit/pkg/network/lxcusernic"
 	"github.com/rootless-containers/rootlesskit/pkg/network/slirp4netns"
+	"github.com/rootless-containers/rootlesskit/pkg/network/slirpnetstack"
 	"github.com/rootless-containers/rootlesskit/pkg/network/vdeplugslirp"
 	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
 	"github.com/rootless-containers/rootlesskit/pkg/parent"
@@ -52,7 +53,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "net",
-			Usage: "network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp(deprecated)]",
+			Usage: "network driver [host, slirp4netns, vpnkit, slirpnetstack(experimental), lxc-user-nic(experimental), vdeplug_slirp(deprecated)]",
 			Value: "host",
 		},
 		cli.StringFlag{
@@ -87,8 +88,8 @@ func main() {
 		},
 		cli.IntFlag{
 			Name:  "mtu",
-			Usage: "MTU for non-host network (default: 65520 for slirp4netns, 1500 for others)",
-			Value: 0, // resolved into 65520 for slirp4netns, 1500 for others
+			Usage: "MTU for non-host network (default: 65520 for slirp4netns and slirpnetstack, 1500 for others)",
+			Value: 0, // resolved into 65520 for slirp4netns and slirpnetstack, 1500 for others
 		},
 		cli.StringFlag{
 			Name:  "cidr",
@@ -286,6 +287,15 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey strin
 			return opt, err
 		}
 		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu, disableHostLoopback)
+	case "slirpnetstack":
+		logrus.Warn("\"slirpnetstack\" network driver is experimental")
+		if ipnet != nil {
+			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
+		}
+		if !disableHostLoopback {
+			logrus.Warn("--disable-host-loopback is implicitly set for slirpnetstack")
+		}
+		opt.NetworkDriver = slirpnetstack.NewParentDriver(mtu)
 	case "lxc-user-nic":
 		logrus.Warn("\"lxc-user-nic\" network driver is experimental")
 		if ipnet != nil {
@@ -381,6 +391,8 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		opt.NetworkDriver = slirp4netns.NewChildDriver()
 	case "vpnkit":
 		opt.NetworkDriver = vpnkit.NewChildDriver()
+	case "slirpnetstack":
+		opt.NetworkDriver = slirpnetstack.NewChildDriver()
 	case "lxc-user-nic":
 		opt.NetworkDriver = lxcusernic.NewChildDriver()
 	case "vdeplug_slirp":

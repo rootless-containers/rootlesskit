@@ -19,6 +19,7 @@ RootlessKit is a kind of Linux-native "fake root" utility, made for mainly runni
   - [`--net=host` (default)](#--nethost-default)
   - [`--net=slirp4netns` (recommended)](#--netslirp4netns-recommended)
   - [`--net=vpnkit`](#--netvpnkit)
+  - [`--net=slirpnetstack`](#--netslirpnetstack)
   - [`--net=lxc-user-nic` (experimental)](#--netlxc-user-nic-experimental)
 - [Port Drivers](#port-drivers)
 
@@ -144,7 +145,7 @@ USAGE:
    rootlesskit [global options] command [command options] [arguments...]
 
 VERSION:
-   0.7.0+dev
+   0.7.1+dev
 
 COMMANDS:
      help, h  Shows a list of commands or help for one command
@@ -152,14 +153,14 @@ COMMANDS:
 GLOBAL OPTIONS:
    --debug                      debug mode
    --state-dir value            state directory
-   --net value                  network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp(deprecated)] (default: "host")
+   --net value                  network driver [host, slirp4netns, vpnkit, slirpnetstack(experimental), lxc-user-nic(experimental), vdeplug_slirp(deprecated)] (default: "host")
    --slirp4netns-binary value   path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
    --slirp4netns-sandbox value  enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
    --slirp4netns-seccomp value  enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
    --vpnkit-binary value        path of VPNKit binary for --net=vpnkit (default: "vpnkit")
    --lxc-user-nic-binary value  path of lxc-user-nic binary for --net=lxc-user-nic (default: "/usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic")
    --lxc-user-nic-bridge value  lxc-user-nic bridge name (default: "lxcbr0")
-   --mtu value                  MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
+   --mtu value                  MTU for non-host network (default: 65520 for slirp4netns and slirpnetstack, 1500 for others) (default: 0)
    --cidr value                 CIDR for slirp4netns network (default: 10.0.2.0/24, requires slirp4netns v0.3.0+ for custom CIDR)
    --disable-host-loopback      prohibit connecting to 127.0.0.1:* on the host namespace
    --copy-up value              mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
@@ -204,6 +205,7 @@ RootlessKit provides several drivers for providing network connectivity:
 * `--net=host`: use host network namespace (default)
 * `--net=slirp4netns`: use [slirp4netns](https://github.com/rootless-containers/slirp4netns) (recommended)
 * `--net=vpnkit`: use [VPNKit](https://github.com/moby/vpnkit)
+* `--net=slirpnetstack`: use [slirpnetstack](https://github.com/majek/slirpnetstack) (experimental)
 * `--net=lxc-user-nic`: use `lxc-user-nic` (experimental)
 * `--net=vdeplug_slirp`: use [vdeplug_slirp](https://github.com/rd235/vdeplug_slirp) (deprecated)
 
@@ -338,6 +340,15 @@ The network is configured as follows by default:
 
 As in `--net=slirp4netns`, specifying `--copy-up=/etc` and `--disable-host-loopback` is highly recommended.
 If `--disable-host-loopback` is not specified, ports listening on 127.0.0.1 in the host are accessible as 192.168.65.2 in the RootlessKit's network namespace.
+
+### `--net=slirpnetstack` (experimental)
+
+[slirpnetstack](https://github.com/majek/slirpnetstack) is similar to slirp4netns but written in Go and based on [gVisor](https://github.com/google/gvisor)'s `netstack` implementation.
+
+The Pros and the Cons of slirpnetstack are almost same as slirp4netns, but slirpnetstack is considered to be more secure.
+However, [Ping and UDP are known to be broken as of January 2020](https://github.com/majek/slirpnetstack/tree/787641460c59bedabcbd074105fd6c9c89e5adbc#non-features-of-slirpnetstack). These issues are probably going to be fixed soon in the slirpnetstack/gVisor upstream.
+
+See `SLIRPNETSTACK_COMMIT` in [`./hack/test/Dockerfile`](./hack/test/Dockerfile) for the latest slirpnetstack version known to compatible with RootlessKit.
 
 ### `--net=lxc-user-nic` (experimental)
 

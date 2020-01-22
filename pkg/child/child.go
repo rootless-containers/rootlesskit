@@ -132,8 +132,10 @@ func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver)
 	if err != nil {
 		return err
 	}
-	if err := activateDev(dev, msg.Network.IP, msg.Network.Netmask, msg.Network.Gateway, msg.Network.MTU); err != nil {
-		return err
+	if dev != "" {
+		if err := activateDev(dev, msg.Network.IP, msg.Network.Netmask, msg.Network.Gateway, msg.Network.MTU); err != nil {
+			return err
+		}
 	}
 	if etcWasCopied {
 		if err := writeResolvConf(msg.Network.DNS); err != nil {

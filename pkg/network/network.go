@@ -15,6 +15,7 @@ type ParentDriver interface {
 // ChildDriver is called from the child namespace
 type ChildDriver interface {
 	// netmsg MAY be modified.
-	// devName is like "tap" or "eth0"
+	// devName is like "tap" or "eth0".
+	// If devName is non-empty, child executes (equivalents of) `ip addr add` and `ip route add` stuff
 	ConfigureNetworkChild(netmsg *common.NetworkMessage) (devName string, err error)
 }
