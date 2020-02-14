@@ -35,6 +35,13 @@ RUN git clone https://github.com/rootless-containers/slirp4netns.git /slirp4netn
 # github.com/moby/vpnkit@7dd3dcce7d3d8ffa85d43640f70158583d6fa882 (Jul 20, 2019)
 FROM djs55/vpnkit@sha256:4cd1ff4d6555b762ebbad78c9aea1d191854d6550b5d4dcc4ff83a282a657244 AS vpnkit
 
+FROM golang:1.13 AS slirpnetstack
+# Jan 24, 2020
+ARG SLIRPNETSTACK_COMMIT=14ee235b5533982e243e6da09c4cd7e3cb050ecd
+RUN git clone https://github.com/majek/slirpnetstack.git /go/src/github.com/majek/slirpnetstack && \
+  cd /go/src/github.com/majek/slirpnetstack && git checkout ${SLIRPNETSTACK_COMMIT} && \
+  go build -o /slirpnetstack
+
 FROM build-c as vdeplug_slirp
 ARG S2ARGVEXECS_COMMIT=880b436157ec5a871cd2ed32c7f7223d9c1e05ee
 RUN git clone https://github.com/rd235/s2argv-execs.git /s2argv-execs && \
@@ -81,6 +88,7 @@ COPY --from=slirp4netns /slirp4netns/slirp4netns /home/user/bin/
 
 FROM test-light AS test-full
 COPY --from=vpnkit /vpnkit /home/user/bin/vpnkit
+COPY --from=slirpnetstack /slirpnetstack /home/user/bin/
 COPY --from=vdeplug_slirp /usr/local/bin/* /home/user/bin/
 COPY --from=vdeplug_slirp /usr/local/lib/* /home/user/lib/
 ADD ./hack/test/docker-entrypoint.sh /home/user/bin/
