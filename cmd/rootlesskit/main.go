@@ -31,8 +31,10 @@ import (
 
 func main() {
 	const (
-		pipeFDEnvKey   = "_ROOTLESSKIT_PIPEFD_UNDOCUMENTED"
-		stateDirEnvKey = "ROOTLESSKIT_STATE_DIR" // documented
+		pipeFDEnvKey     = "_ROOTLESSKIT_PIPEFD_UNDOCUMENTED"
+		stateDirEnvKey   = "ROOTLESSKIT_STATE_DIR"   // documented
+		parentEUIDEnvKey = "ROOTLESSKIT_PARENT_EUID" // documented
+		parentEGIDEnvKey = "ROOTLESSKIT_PARENT_EGID" // documented
 	)
 	iAmChild := os.Getenv(pipeFDEnvKey) != ""
 	debug := false
@@ -138,7 +140,8 @@ func main() {
 			}
 			return child.Child(childOpt)
 		}
-		parentOpt, err := createParentOpt(clicontext, pipeFDEnvKey, stateDirEnvKey)
+		parentOpt, err := createParentOpt(clicontext, pipeFDEnvKey, stateDirEnvKey,
+			parentEUIDEnvKey, parentEGIDEnvKey)
 		if err != nil {
 			return err
 		}
@@ -177,12 +180,14 @@ func parseCIDR(s string) (*net.IPNet, error) {
 	return ipnet, nil
 }
 
-func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey string) (parent.Opt, error) {
+func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, parentEUIDEnvKey, parentEGIDEnvKey string) (parent.Opt, error) {
 	var err error
 	opt := parent.Opt{
-		PipeFDEnvKey:   pipeFDEnvKey,
-		StateDirEnvKey: stateDirEnvKey,
-		CreatePIDNS:    clicontext.Bool("pidns"),
+		PipeFDEnvKey:     pipeFDEnvKey,
+		StateDirEnvKey:   stateDirEnvKey,
+		CreatePIDNS:      clicontext.Bool("pidns"),
+		ParentEUIDEnvKey: parentEUIDEnvKey,
+		ParentEGIDEnvKey: parentEGIDEnvKey,
 	}
 	opt.StateDir = clicontext.String("state-dir")
 	if opt.StateDir == "" {
