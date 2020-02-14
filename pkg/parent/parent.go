@@ -2,6 +2,7 @@ package parent
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -26,13 +27,15 @@ import (
 )
 
 type Opt struct {
-	PipeFDEnvKey   string               // needs to be set
-	StateDir       string               // directory needs to be precreated
-	StateDirEnvKey string               // optional env key to propagate StateDir value
-	NetworkDriver  network.ParentDriver // nil for HostNetwork
-	PortDriver     port.ParentDriver    // nil for --port-driver=none
-	PublishPorts   []port.Spec
-	CreatePIDNS    bool
+	PipeFDEnvKey     string               // needs to be set
+	StateDir         string               // directory needs to be precreated
+	StateDirEnvKey   string               // optional env key to propagate StateDir value
+	NetworkDriver    network.ParentDriver // nil for HostNetwork
+	PortDriver       port.ParentDriver    // nil for --port-driver=none
+	PublishPorts     []port.Spec
+	CreatePIDNS      bool
+	ParentEUIDEnvKey string // optional env key to propagate geteuid() value
+	ParentEGIDEnvKey string // optional env key to propagate getegid() value
 }
 
 // Documented state files. Undocumented ones are subject to change.
@@ -99,6 +102,12 @@ func Parent(opt Opt) error {
 	cmd.Env = append(os.Environ(), opt.PipeFDEnvKey+"=3")
 	if opt.StateDirEnvKey != "" {
 		cmd.Env = append(cmd.Env, opt.StateDirEnvKey+"="+opt.StateDir)
+	}
+	if opt.ParentEUIDEnvKey != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", opt.ParentEUIDEnvKey, os.Geteuid()))
+	}
+	if opt.ParentEGIDEnvKey != "" {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", opt.ParentEGIDEnvKey, os.Getegid()))
 	}
 	if err := cmd.Start(); err != nil {
 		return errors.Wrap(err, "failed to start the child")

@@ -186,6 +186,8 @@ Undocumented files are subject to change.
 
 The following environment variables will be set for the child process:
 * `ROOTLESSKIT_STATE_DIR` (since v0.3.0): absolute path to the state dir
+* `ROOTLESSKIT_PARENT_EUID` (since v0.8.0): effective UID
+* `ROOTLESSKIT_PARENT_EGID` (since v0.8.0): effective GID
 
 Undocumented environment variables are subject to change.
 
