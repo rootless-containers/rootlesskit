@@ -83,5 +83,6 @@ FROM test-light AS test-full
 COPY --from=vpnkit /vpnkit /home/user/bin/vpnkit
 COPY --from=vdeplug_slirp /usr/local/bin/* /home/user/bin/
 COPY --from=vdeplug_slirp /usr/local/lib/* /home/user/lib/
-ADD ./hack/test/docker-entrypoint.sh /home/user/bin/
-ENTRYPOINT ["/home/user/bin/docker-entrypoint.sh"]
+ADD ./hack/test /home/user/test
+WORKDIR /home/user/test
+ENTRYPOINT ["./docker-entrypoint.sh"]

@@ -122,6 +122,11 @@ func main() {
 			Name:  "pidns",
 			Usage: "create a PID namespace",
 		},
+		cli.StringFlag{
+			Name:  "propagation",
+			Usage: "mount propagation [rprivate, rslave]",
+			Value: "rprivate",
+		},
 	}
 	app.Before = func(context *cli.Context) error {
 		if debug {
@@ -378,6 +383,7 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		PipeFDEnvKey: pipeFDEnvKey,
 		TargetCmd:    targetCmd,
 		MountProcfs:  clicontext.Bool("pidns"),
+		Propagation:  clicontext.String("propagation"),
 		Reaper:       clicontext.Bool("pidns"),
 	}
 	switch s := clicontext.String("net"); s {
@@ -394,13 +400,16 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 	default:
 		return opt, errors.Errorf("unknown network mode: %s", s)
 	}
+	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
 	switch s := clicontext.String("copy-up-mode"); s {
 	case "tmpfs+symlink":
 		opt.CopyUpDriver = tmpfssymlink.NewChildDriver()
+		if len(opt.CopyUpDirs) != 0 && (opt.Propagation == "rshared" || opt.Propagation == "shared") {
+			return opt, errors.Errorf("propagation %s does not support copy-up driver %s", opt.Propagation, s)
+		}
 	default:
 		return opt, errors.Errorf("unknown copy-up mode: %s", s)
 	}
-	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
 	switch s := clicontext.String("port-driver"); s {
 	case "none":
 		// NOP

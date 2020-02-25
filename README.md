@@ -15,6 +15,7 @@ RootlessKit is a kind of Linux-native "fake root" utility, made for mainly runni
 - [State directory](#state-directory)
 - [Environment variables](#environment-variables)
 - [PID Namespace](#pid-namespace)
+- [Mount Propagation](#mount-propagation)
 - [Network Drivers](#network-drivers)
   - [`--net=host` (default)](#--nethost-default)
   - [`--net=slirp4netns` (recommended)](#--netslirp4netns-recommended)
@@ -144,7 +145,7 @@ USAGE:
    rootlesskit [global options] command [command options] [arguments...]
 
 VERSION:
-   0.7.0+dev
+   0.8.0+dev
 
 COMMANDS:
      help, h  Shows a list of commands or help for one command
@@ -167,6 +168,7 @@ GLOBAL OPTIONS:
    --port-driver value          port driver for non-host network. [none, builtin, socat(deprecated), slirp4netns(deprecated)] (default: "none")
    --publish value, -p value    publish ports. e.g. "127.0.0.1:8080:80/tcp"
    --pidns                      create a PID namespace
+   --propagation value          mount propagation [rprivate, rslave] (default: "rprivate")
    --help, -h                   show help
    --version, -v                print the version
 ```
@@ -198,6 +200,17 @@ The RootlessKit child process becomes the init (PID=1).
 When RootlessKit terminates, all the processes in the namespace are killed with `SIGKILL`.
 
 See also [`pid_namespaces(7)`](http://man7.org/linux/man-pages/man7/pid_namespaces.7.html).
+
+## Mount Propagation
+
+The mount namespace created by RootlessKit has `rprivate` propagation by default.
+
+Starting with v0.9.0, the propagation can be set to `rslave` by specifying `--propagation=rslave`.
+
+The propagation can be also set to `rshared`, but known not to work with `--copy-up`.
+
+Note that `rslave` and `rshared` do not work as expected when the host root filesystem isn't mounted with "shared".
+(Use `findmnt -n -l -o propagation /` to inspect the current mount flag.)
 
 ## Network Drivers
 
