@@ -84,9 +84,8 @@ func Parent(opt Opt) error {
 	}
 	cmd := exec.Command("/proc/self/exe", os.Args[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Pdeathsig:    syscall.SIGKILL,
-		Cloneflags:   syscall.CLONE_NEWUSER,
-		Unshareflags: syscall.CLONE_NEWNS,
+		Pdeathsig:  syscall.SIGKILL,
+		Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS,
 	}
 	if opt.NetworkDriver != nil {
 		cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET

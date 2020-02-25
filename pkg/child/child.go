@@ -172,6 +172,7 @@ type Opt struct {
 	PortDriver    port.ChildDriver
 	MountProcfs   bool   // needs to be set if (and only if) parent.Opt.CreatePIDNS is set
 	Propagation   string // mount propagation type
+	Reaper        bool
 }
 
 func Child(opt Opt) error {
