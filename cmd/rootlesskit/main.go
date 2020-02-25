@@ -124,8 +124,8 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "propagation",
-			Usage: "allows to select mount propagation type from: rslave, rshared",
-			Value: "private",
+			Usage: "mount propagation [rprivate, rslave]",
+			Value: "rprivate",
 		},
 	}
 	app.Before = func(context *cli.Context) error {
@@ -400,13 +400,16 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 	default:
 		return opt, errors.Errorf("unknown network mode: %s", s)
 	}
+	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
 	switch s := clicontext.String("copy-up-mode"); s {
 	case "tmpfs+symlink":
 		opt.CopyUpDriver = tmpfssymlink.NewChildDriver()
+		if len(opt.CopyUpDirs) != 0 && (opt.Propagation == "rshared" || opt.Propagation == "shared") {
+			return opt, errors.Errorf("propagation %s does not support copy-up driver %s", opt.Propagation, s)
+		}
 	default:
 		return opt, errors.Errorf("unknown copy-up mode: %s", s)
 	}
-	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
 	switch s := clicontext.String("port-driver"); s {
 	case "none":
 		// NOP

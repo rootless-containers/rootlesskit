@@ -21,8 +21,12 @@ import (
 )
 
 var propagationStates = map[string]uintptr{
-	"rslave":  uintptr(unix.MS_REC | unix.MS_SLAVE),
-	"rshared": uintptr(unix.MS_REC | unix.MS_SHARED),
+	"private":  uintptr(unix.MS_PRIVATE),
+	"rprivate": uintptr(unix.MS_REC | unix.MS_PRIVATE),
+	"shared":   uintptr(unix.MS_SHARED),
+	"rshared":  uintptr(unix.MS_REC | unix.MS_SHARED),
+	"slave":    uintptr(unix.MS_SLAVE),
+	"rslave":   uintptr(unix.MS_REC | unix.MS_SLAVE),
 }
 
 func createCmd(targetCmd []string) (*exec.Cmd, error) {
