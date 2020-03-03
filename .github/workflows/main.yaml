@@ -8,7 +8,7 @@ jobs:
     - name: "Check out"
       uses: actions/checkout@v1
     - name: "Build unit test image"
-      run: docker build -t rootlesskit:test-unit --target test-unit .
+      run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-unit --target test-unit .
     - name: "Unit test"
       run: docker run --rm --privileged rootlesskit:test-unit
   test-integration:
@@ -18,7 +18,7 @@ jobs:
     - name: "Check out"
       uses: actions/checkout@v1
     - name: "Build integration test image"
-      run: docker build -t rootlesskit:test-integration --target test-integration .
+      run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration --target test-integration .
     - name: "Integration test"
       run: docker run --rm --privileged rootlesskit:test-integration ./integration.sh
 # ===== Benchmark: Network (MTU=1500) =====
