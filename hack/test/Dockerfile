@@ -1,9 +1,20 @@
-FROM golang:1.14 AS rootlesskit
-ADD . /go/src/github.com/rootless-containers/rootlesskit
-RUN go build -o /rootlesskit github.com/rootless-containers/rootlesskit/cmd/rootlesskit
-RUN go build -o /rootlessctl github.com/rootless-containers/rootlesskit/cmd/rootlessctl
+ARG GO_VERSION=1.14
 
-FROM rootlesskit AS test-unit
+FROM golang:${GO_VERSION}-alpine3.11 AS rootlesskit
+ADD . /go/src/github.com/rootless-containers/rootlesskit
+RUN apk add --no-cache file
+ENV CGO_ENABLED=0
+RUN mkdir -p /out && \
+  go build -o /out github.com/rootless-containers/rootlesskit/cmd/... && \
+  file /out/* | grep -v dynamic
+
+FROM scratch AS artifact
+COPY --from=rootlesskit /out/rootlesskit /rootlesskit-x86_64
+COPY --from=rootlesskit /out/rootlessctl /rootlessctl-x86_64
+
+# `go test -race` requires non-Alpine
+FROM golang:${GO_VERSION} AS test-unit
+ADD . /go/src/github.com/rootless-containers/rootlesskit
 RUN apt update && apt install -y iproute2 socat netcat-openbsd
 CMD ["go","test","-v","-race","github.com/rootless-containers/rootlesskit/..."]
 
@@ -62,8 +73,8 @@ FROM ubuntu:18.04 AS test-base
 RUN apt update && apt install -y iproute2 socat iperf3 busybox sudo libglib2.0-0
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
-COPY --from=rootlesskit /rootlesskit /home/user/bin/
-COPY --from=rootlesskit /rootlessctl /home/user/bin/
+COPY --from=rootlesskit /out/rootlesskit /home/user/bin/
+COPY --from=rootlesskit /out/rootlessctl /home/user/bin/
 RUN chmod u+s /usr/bin/newuidmap /usr/bin/newgidmap \
   && useradd --create-home --home-dir /home/user --uid 1000 user \
   && mkdir -p /run/user/1000 \
