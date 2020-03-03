@@ -19,7 +19,6 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/copyup/tmpfssymlink"
 	"github.com/rootless-containers/rootlesskit/pkg/network/lxcusernic"
 	"github.com/rootless-containers/rootlesskit/pkg/network/slirp4netns"
-	"github.com/rootless-containers/rootlesskit/pkg/network/vdeplugslirp"
 	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
 	"github.com/rootless-containers/rootlesskit/pkg/parent"
 	"github.com/rootless-containers/rootlesskit/pkg/port/builtin"
@@ -54,7 +53,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "net",
-			Usage: "network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp(deprecated)]",
+			Usage: "network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental)]",
 			Value: "host",
 		},
 		cli.StringFlag{
@@ -312,15 +311,6 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		if err != nil {
 			return opt, err
 		}
-	case "vdeplug_slirp":
-		logrus.Warn("\"vdeplug_slirp\" network driver is deprecated")
-		if ipnet != nil {
-			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
-		}
-		if disableHostLoopback {
-			return opt, errors.New("--disable-host-loopback is not supported for vdeplug_slirp")
-		}
-		opt.NetworkDriver = vdeplugslirp.NewParentDriver(mtu)
 	default:
 		return opt, errors.Errorf("unknown network mode: %s", s)
 	}
@@ -395,8 +385,6 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		opt.NetworkDriver = vpnkit.NewChildDriver()
 	case "lxc-user-nic":
 		opt.NetworkDriver = lxcusernic.NewChildDriver()
-	case "vdeplug_slirp":
-		opt.NetworkDriver = vdeplugslirp.NewChildDriver()
 	default:
 		return opt, errors.Errorf("unknown network mode: %s", s)
 	}
