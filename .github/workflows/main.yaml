@@ -1,0 +1,73 @@
+name: Main
+on: [push, pull_request]
+jobs:
+  test-unit:
+    name: "Unit test"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Check out"
+      uses: actions/checkout@v1
+    - name: "Build unit test image"
+      run: docker build -t rootlesskit:test-unit --target test-unit .
+    - name: "Unit test"
+      run: docker run --rm --privileged rootlesskit:test-unit
+  test-integration:
+    name: "Integration test"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Check out"
+      uses: actions/checkout@v1
+    - name: "Build integration test image"
+      run: docker build -t rootlesskit:test-integration --target test-integration .
+    - name: "Integration test"
+      run: docker run --rm --privileged rootlesskit:test-integration ./integration.sh
+# ===== Benchmark: Network (MTU=1500) =====
+    - name: "Benchmark: Network (MTU=1500, network driver=slirp4netns)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh slirp4netns 1500
+    - name: "Benchmark: Network (MTU=1500, network driver=slirp4netns with sandbox and seccomp)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh slirp4netns 1500 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto
+# NOTE: MTU greater than 16424 is known not to work for VPNKit.
+# Also, MTU greather than 4K might not be effective for VPNKit: https://twitter.com/mugofsoup/status/1017665057738641408
+    - name: "Benchmark: Network (MTU=1500, network driver=vpnkit)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh vpnkit 1500
+    - name: "Benchmark: Network (MTU=1500, rootful veth for comparison)"
+      run: |
+          docker run --rm --privileged \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh rootful_veth 1500
+# ===== Benchmark: Network (MTU=65520) =====
+    - name: "Benchmark: Network (MTU=65520, network driver=slirp4netns)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh slirp4netns 65520
+    - name: "Benchmark: Network (MTU=65520, network driver=slirp4netns with sandbox and seccomp)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh slirp4netns 65520 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto
+    - name: "Benchmark: Network (MTU=65520, rootful veth for comparison)"
+      run: |
+          docker run --rm --privileged \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh rootful_veth 65520
+# ===== Benchmark: TCP Ports =====
+    - name: "Benchmark: TCP Ports (port driver=socat)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port.sh socat
+    - name: "Benchmark: TCP Ports (port driver=slirp4netns)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port.sh slirp4netns
+    - name: "Benchmark: TCP Ports (port driver=builtin)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port.sh builtin
+# ===== Benchmark: UDP Ports =====
+    - name: "Benchmark: UDP Ports (port driver=builtin)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh builtin

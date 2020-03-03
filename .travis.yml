@@ -1,9 +1,0 @@
-dist: bionic
-sudo: required
-
-services:
-  - docker
-
-script:
-  - docker info
-  - ./hack/test.sh
