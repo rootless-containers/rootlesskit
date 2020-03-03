@@ -1,36 +1,64 @@
+# github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d
+github.com/cpuguy83/go-md2man/v2/md2man
+# github.com/gofrs/flock v0.7.1
+## explicit
 # github.com/google/uuid v1.1.1
+## explicit
 github.com/google/uuid
-# github.com/gorilla/mux v1.7.3
+# github.com/gorilla/mux v1.7.4
+## explicit
 github.com/gorilla/mux
-# github.com/insomniacslk/dhcp v0.0.0-20190712084813-dc1a53400564
+# github.com/insomniacslk/dhcp v0.0.0-20200221232812-81b9770086ea
+## explicit
 github.com/insomniacslk/dhcp/dhcpv4
 github.com/insomniacslk/dhcp/dhcpv4/client4
 github.com/insomniacslk/dhcp/iana
+github.com/insomniacslk/dhcp/interfaces
 github.com/insomniacslk/dhcp/rfc1035label
 # github.com/jamescun/tuntap v0.0.0-20190712092105-cb1fb277045c
+## explicit
 github.com/jamescun/tuntap
 # github.com/konsorten/go-windows-terminal-sequences v1.0.2
+## explicit
 github.com/konsorten/go-windows-terminal-sequences
-# github.com/moby/vpnkit v0.3.1-0.20190720080441-7dd3dcce7d3d
+# github.com/moby/vpnkit v0.3.1-0.20191118170531-0b84b8673f8e
+## explicit
 github.com/moby/vpnkit/go/pkg/vmnet
-# github.com/pkg/errors v0.8.1
+# github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
+## explicit
+# github.com/pkg/errors v0.9.1
+## explicit
 github.com/pkg/errors
+# github.com/russross/blackfriday/v2 v2.0.1
+github.com/russross/blackfriday/v2
+# github.com/shurcooL/sanitized_anchor_name v1.0.0
+github.com/shurcooL/sanitized_anchor_name
 # github.com/sirupsen/logrus v1.4.2
+## explicit
 github.com/sirupsen/logrus
+# github.com/stretchr/testify v1.5.1
+## explicit
 # github.com/theckman/go-flock v0.7.1
+## explicit
 github.com/theckman/go-flock
-# github.com/u-root/u-root v5.0.0+incompatible
+# github.com/u-root/u-root v6.0.0+incompatible
+## explicit
 github.com/u-root/u-root/pkg/rand
-github.com/u-root/u-root/pkg/uio
 github.com/u-root/u-root/pkg/ubinary
-# github.com/urfave/cli v1.20.0
+github.com/u-root/u-root/pkg/uio
+# github.com/urfave/cli v1.22.2
+## explicit
 github.com/urfave/cli
-# golang.org/x/net v0.0.0-20190628185345-da137c7871d7
-golang.org/x/net/context/ctxhttp
-golang.org/x/net/ipv4
+# golang.org/x/net v0.0.0-20200301022130-244492dfa37a
+## explicit
 golang.org/x/net/bpf
+golang.org/x/net/context/ctxhttp
 golang.org/x/net/internal/iana
 golang.org/x/net/internal/socket
-# golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7
+golang.org/x/net/ipv4
+# golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
+## explicit
 golang.org/x/sys/unix
 golang.org/x/sys/windows
+# gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
+## explicit

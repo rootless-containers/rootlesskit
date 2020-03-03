@@ -43,8 +43,16 @@ func WithGatewayIP(ip net.IP) Modifier {
 	}
 }
 
-// WithReply fills in opcode, hwtype, xid, clienthwaddr, flags, and gateway ip
-// addr from the given packet.
+// WithOptionCopied copies the value of option opt from request.
+func WithOptionCopied(request *DHCPv4, opt OptionCode) Modifier {
+	return func(d *DHCPv4) {
+		if val := request.Options.Get(opt); val != nil {
+			d.UpdateOption(OptGeneric(opt, val))
+		}
+	}
+}
+
+// WithReply fills in opcode, hwtype, xid, clienthwaddr, and flags from the given packet.
 func WithReply(request *DHCPv4) Modifier {
 	return func(d *DHCPv4) {
 		if request.OpCode == OpcodeBootRequest {
