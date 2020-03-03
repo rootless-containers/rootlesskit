@@ -153,7 +153,7 @@ COMMANDS:
 GLOBAL OPTIONS:
    --debug                      debug mode
    --state-dir value            state directory
-   --net value                  network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental), vdeplug_slirp(deprecated)] (default: "host")
+   --net value                  network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental)] (default: "host")
    --slirp4netns-binary value   path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
    --slirp4netns-sandbox value  enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
    --slirp4netns-seccomp value  enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
@@ -220,7 +220,6 @@ RootlessKit provides several drivers for providing network connectivity:
 * `--net=slirp4netns`: use [slirp4netns](https://github.com/rootless-containers/slirp4netns) (recommended)
 * `--net=vpnkit`: use [VPNKit](https://github.com/moby/vpnkit)
 * `--net=lxc-user-nic`: use `lxc-user-nic` (experimental)
-* `--net=vdeplug_slirp`: use [vdeplug_slirp](https://github.com/rd235/vdeplug_slirp) (deprecated)
 
 [Benchmark (Aug 28, 2018)](https://github.com/rootless-containers/rootlesskit/pull/16):
 
