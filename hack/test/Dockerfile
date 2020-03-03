@@ -1,4 +1,4 @@
-FROM golang:1.12 AS rootlesskit
+FROM golang:1.14 AS rootlesskit
 ADD . /go/src/github.com/rootless-containers/rootlesskit
 RUN go build -o /rootlesskit github.com/rootless-containers/rootlesskit/cmd/rootlesskit
 RUN go build -o /rootlessctl github.com/rootless-containers/rootlesskit/cmd/rootlessctl
