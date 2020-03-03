@@ -1,0 +1,40 @@
+# Release guide (since v0.9.0):
+# 1. Bump up the version string to `vX.Y.Z` (or `vX.Y.Z-beta.W`) in `pkg/version/version.go`.
+# 2. `git commit -a -s -m vX.Y.Z`
+# 3. Bump up the version string to `vX.Y.Z+dev` (or `vX.Y.Z-beta.W`+dev) in `pkg/version/version.go`.
+# 4. `git commit -a -s -m vX.Y.Z+dev`
+# 5. Open a PR and merge it.
+# 6. Create a tag `v.X.Y.Z` for the `vX.Y.Z` commit, and push the tag to the upstream: `git push upstream vX.Y.Z`
+# 7. GitHub Actions automatically ships a draft release with a statically compiled binary: https://github.com/rootless-containers/rootlesskit/releases
+#    If it fails, check the GitHub Actions log: https://github.com/rootless-containers/rootlesskit/actions?query=workflow%3ARelease
+# 8. Add release notes to the draft release and ship the release.
+name: Release
+on:
+  push:
+    tags:
+    - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - run: DOCKER_BUILDKIT=1 docker build -o type=tar,dest=/tmp/rootlesskit-x86_64.tar --target artifact .
+    - run: gzip -9 /tmp/rootlesskit-x86_64.tar
+    - run: (cd /tmp; sha256sum rootlesskit-x86_64.tar.gz)
+    - uses: actions/create-release@v1
+      id: create_release
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: ${{ github.ref }}
+        draft: true
+    - uses: actions/upload-release-asset@v1.0.1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: /tmp/rootlesskit-x86_64.tar.gz
+        asset_name: rootlesskit-x86_64.tar.gz
+        asset_content_type: application/octet-stream

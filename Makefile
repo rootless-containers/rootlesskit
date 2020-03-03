@@ -17,7 +17,3 @@ bin/rootlessctl: $(GO_FILES)
 
 bin/rootlesskit-docker-proxy: $(GO_FILES)
 	$(GO) build -o $@ -v github.com/rootless-containers/rootlesskit/cmd/rootlesskit-docker-proxy
-
-.PHONY: test
-test:
-	./hack/test.sh
