@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api/client"
 	"github.com/rootless-containers/rootlesskit/pkg/version"
@@ -20,20 +20,20 @@ func main() {
 	app.Version = version.Version
 	app.Usage = "RootlessKit API client"
 	app.Flags = []cli.Flag{
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:        "debug",
 			Usage:       "debug mode",
 			Destination: &debug,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "socket",
 			Usage: "Path to api.sock (under the \"rootlesskit --state-dir\" directory), defaults to $ROOTLESSKIT_STATE_DIR/api.sock",
 		},
 	}
-	app.Commands = []cli.Command{
-		listPortsCommand,
-		addPortsCommand,
-		removePortsCommand,
+	app.Commands = []*cli.Command{
+		&listPortsCommand,
+		&addPortsCommand,
+		&removePortsCommand,
 	}
 	app.Before = func(clicontext *cli.Context) error {
 		if debug {
@@ -52,7 +52,7 @@ func main() {
 }
 
 func newClient(clicontext *cli.Context) (client.Client, error) {
-	socketPath := clicontext.GlobalString("socket")
+	socketPath := clicontext.String("socket")
 	if socketPath == "" {
 		stateDir := os.Getenv("ROOTLESSKIT_STATE_DIR")
 		if stateDir == "" {

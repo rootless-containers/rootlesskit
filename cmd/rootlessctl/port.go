@@ -9,7 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/pkg/errors"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/port/portutil"
@@ -20,7 +20,7 @@ var listPortsCommand = cli.Command{
 	Usage:     "List ports",
 	ArgsUsage: "[flags]",
 	Flags: []cli.Flag{
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "json",
 			Usage: "Prints as JSON",
 		},
@@ -70,7 +70,7 @@ var addPortsCommand = cli.Command{
 	ArgsUsage:   "[flags] PARENTIP:PARENTPORT:CHILDPORT/PROTO [PARENTIP:PARENTPORT:CHILDPORT/PROTO...]",
 	Description: "Add exposed ports. The port spec is similar to `docker run -p`. e.g. \"127.0.0.1:8080:80/tcp\".",
 	Flags: []cli.Flag{
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "json",
 			Usage: "Prints as JSON",
 		},
@@ -83,7 +83,7 @@ func addPortsAction(clicontext *cli.Context) error {
 		return errors.New("no port specified")
 	}
 	var portSpecs []port.Spec
-	for _, s := range clicontext.Args() {
+	for _, s := range clicontext.Args().Slice() {
 		sp, err := portutil.ParsePortSpec(s)
 		if err != nil {
 			return err
@@ -127,7 +127,7 @@ func removePortsAction(clicontext *cli.Context) error {
 		return errors.New("no ID specified")
 	}
 	var ids []int
-	for _, s := range clicontext.Args() {
+	for _, s := range clicontext.Args().Slice() {
 		id, err := strconv.Atoi(s)
 		if err != nil {
 			return err
