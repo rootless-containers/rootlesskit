@@ -12,7 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/urfave/cli"
+	"github.com/urfave/cli/v2"
 
 	"github.com/rootless-containers/rootlesskit/pkg/child"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
@@ -61,86 +61,87 @@ func main() {
 
    Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.`
 	app.Flags = []cli.Flag{
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:        "debug",
 			Usage:       "debug mode",
 			Destination: &debug,
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "state-dir",
 			Usage: "state directory",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "net",
 			Usage: "network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental)]",
 			Value: "host",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "slirp4netns-binary",
 			Usage: "path of slirp4netns binary for --net=slirp4netns",
 			Value: "slirp4netns",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "slirp4netns-sandbox",
 			Usage: "enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be \"auto\" in future)",
 			Value: "false",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "slirp4netns-seccomp",
 			Usage: "enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be \"auto\" in future)",
 			Value: "false",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "vpnkit-binary",
 			Usage: "path of VPNKit binary for --net=vpnkit",
 			Value: "vpnkit",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "lxc-user-nic-binary",
 			Usage: "path of lxc-user-nic binary for --net=lxc-user-nic",
 			Value: "/usr/lib/" + unameM() + "-linux-gnu/lxc/lxc-user-nic",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "lxc-user-nic-bridge",
 			Usage: "lxc-user-nic bridge name",
 			Value: "lxcbr0",
 		},
-		cli.IntFlag{
+		&cli.IntFlag{
 			Name:  "mtu",
 			Usage: "MTU for non-host network (default: 65520 for slirp4netns, 1500 for others)",
 			Value: 0, // resolved into 65520 for slirp4netns, 1500 for others
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "cidr",
 			Usage: "CIDR for slirp4netns network (default: 10.0.2.0/24, requires slirp4netns v0.3.0+ for custom CIDR)",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "disable-host-loopback",
 			Usage: "prohibit connecting to 127.0.0.1:* on the host namespace",
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "copy-up",
 			Usage: "mount a filesystem and copy-up the contents. e.g. \"--copy-up=/etc\" (typically required for non-host network)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "copy-up-mode",
 			Usage: "copy-up mode [tmpfs+symlink]",
 			Value: "tmpfs+symlink",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "port-driver",
 			Usage: "port driver for non-host network. [none, builtin, socat(deprecated), slirp4netns(deprecated)]",
 			Value: "none",
 		},
-		cli.StringSliceFlag{
-			Name:  "publish,p",
-			Usage: "publish ports. e.g. \"127.0.0.1:8080:80/tcp\"",
+		&cli.StringSliceFlag{
+			Name:    "publish",
+			Aliases: []string{"p"},
+			Usage:   "publish ports. e.g. \"127.0.0.1:8080:80/tcp\"",
 		},
-		cli.BoolFlag{
+		&cli.BoolFlag{
 			Name:  "pidns",
 			Usage: "create a PID namespace",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "propagation",
 			Usage: "mount propagation [rprivate, rslave]",
 			Value: "rprivate",
@@ -157,7 +158,7 @@ func main() {
 			return errors.New("no command specified")
 		}
 		if iAmChild {
-			childOpt, err := createChildOpt(clicontext, pipeFDEnvKey, clicontext.Args())
+			childOpt, err := createChildOpt(clicontext, pipeFDEnvKey, clicontext.Args().Slice())
 			if err != nil {
 				return err
 			}
