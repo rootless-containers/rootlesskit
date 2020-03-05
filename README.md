@@ -37,15 +37,14 @@ Kernel-mode NAT using SUID-enabled [`lxc-user-nic(1)`](https://linuxcontainers.o
 
 ## Similar projects
 
-Tools based on `LD_PRELOAD` (not enough to run rootless containers and yet lacks support for dynamnic binaries):
+Tools based on `LD_PRELOAD` (not enough to run rootless containers and yet lacks support for static binaries):
 * [`fakeroot`](https://wiki.debian.org/FakeRoot)
 
 Tools based on `ptrace(2)` (not enough to run rootless containers and yet slow):
-:
 * [`fakeroot-ng`](https://fakeroot-ng.lingnu.com/)
 * [`proot`](https://proot-me.github.io/)
 
-Tools based on `user_namespaces(7)` (as in RootlessKit, but without support for `--copy-up`, `--net`, ...)
+Tools based on `user_namespaces(7)` (as in RootlessKit, but without support for `--copy-up`, `--net`, ...):
 * [`unshare -r`](http://man7.org/linux/man-pages/man1/unshare.1.html)
 * [`podman unshare`](https://github.com/containers/libpod/blob/master/docs/source/markdown/podman-unshare.1.md)
 * [`become-root`](https://github.com/giuseppe/become-root)
