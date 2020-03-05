@@ -1,17 +1,20 @@
-# RootlessKit: the gate to the rootless world
+# RootlessKit: Linux-native fakeroot using user namespaces
 
-RootlessKit is a kind of Linux-native "fake root" utility, made for mainly running [Docker and Kubernetes as an unprivileged user](https://github.com/rootless-containers/usernetes), so as to protect the real root on the host from potential container-breakout attacks.
+RootlessKit is a Linux-native implementation of "fake root" using  [`user_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html).
+The purpose of RootlessKit is to run [Docker and Kubernetes as an unprivileged user (known as "Rootless mode")](https://github.com/rootless-containers/usernetes), so as to protect the real root on the host from potential container-breakout attacks.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 
-- [What it actually does](#what-it-actually-does)
+- [What RootlessKit actually does](#what-rootlesskit-actually-does)
+- [Similar projects](#similar-projects)
 - [Projects using RootlessKit](#projects-using-rootlesskit)
 - [Setup](#setup)
   - [Requirements](#requirements)
     - [Distribution-specific hints](#distribution-specific-hints)
 - [Usage](#usage)
+  - [Full CLI options](#full-cli-options)
 - [State directory](#state-directory)
 - [Environment variables](#environment-variables)
 - [PID Namespace](#pid-namespace)
@@ -25,19 +28,40 @@ RootlessKit is a kind of Linux-native "fake root" utility, made for mainly runni
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-## What it actually does
+## What RootlessKit actually does
 
 RootlessKit creates [`user_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html) and [`mount_namespaces(7)`](http://man7.org/linux/man-pages/man7/mount_namespaces.7.html), and executes [`newuidmap(1)`](http://man7.org/linux/man-pages/man1/newuidmap.1.html)/[`newgidmap(1)`](http://man7.org/linux/man-pages/man1/newgidmap.1.html) along with [`subuid(5)`](http://man7.org/linux/man-pages/man5/subuid.5.html) and [`subgid(5)`](http://man7.org/linux/man-pages/man5/subgid.5.html).
 
 RootlessKit also supports isolating [`network_namespaces(7)`](http://man7.org/linux/man-pages/man7/network_namespaces.7.html) with userspace NAT using ["slirp"](#network-drivers).
-Kernel NAT using SUID-enabled [`lxc-user-nic(1)`](https://linuxcontainers.org/lxc/manpages/man1/lxc-user-nic.1.html) is also experimentally supported.
+Kernel-mode NAT using SUID-enabled [`lxc-user-nic(1)`](https://linuxcontainers.org/lxc/manpages/man1/lxc-user-nic.1.html) is also experimentally supported.
+
+## Similar projects
+
+Tools based on `LD_PRELOAD` (not enough to run rootless containers and yet lacks support for dynamnic binaries):
+* [`fakeroot`](https://wiki.debian.org/FakeRoot)
+
+Tools based on `ptrace(2)` (not enough to run rootless containers and yet slow):
+:
+* [`fakeroot-ng`](https://fakeroot-ng.lingnu.com/)
+* [`proot`](https://proot-me.github.io/)
+
+Tools based on `user_namespaces(7)` (as in RootlessKit, but without support for `--copy-up`, `--net`, ...)
+* [`unshare -r`](http://man7.org/linux/man-pages/man1/unshare.1.html)
+* [`podman unshare`](https://github.com/containers/libpod/blob/master/docs/source/markdown/podman-unshare.1.md)
+* [`become-root`](https://github.com/giuseppe/become-root)
 
 ## Projects using RootlessKit
 
+Container engines:
 * [Docker/Moby](https://get.docker.com/rootless)
+* [Podman](https://podman.io/) (since Podman v1.8.0)
+
+Container image builders:
+* [BuildKit](https://github.com/moby/buildkit): Next-generation `docker build` backend
+
+Kubernetes distributions:
 * [Usernetes](https://github.com/rootless-containers/usernetes): Docker & Kubernetes, installable under a non-root user's `$HOME`.
 * [k3s](https://k3s.io/): Lightweight Kubernetes
-* [BuildKit](https://github.com/moby/buildkit): Next-generation `docker build` backend
 
 ## Setup
 
@@ -69,7 +93,6 @@ penguin:231072:65536
 
 Debian (excluding Ubuntu):
 * `sudo sh -c "echo 1 > /proc/sys/kernel/unprivileged_userns_clone"` is required
-* [`sudo modprobe overlay permit_mounts_in_userns=1` is recommended to enable overlayfs](https://salsa.debian.org/kernel-team/linux/blob/283390e7feb21b47779b48e0c8eb0cc409d2c815/debian/patches/debian/overlayfs-permit-mounts-in-userns.patch)
 
 Arch Linux:
 * `sudo sh -c "echo 1 > /proc/sys/kernel/unprivileged_userns_clone"` is required
@@ -135,20 +158,40 @@ rootlesskit$ cat /proc/self/setgroups
 allow
 ```
 
-Full CLI options:
+### Full CLI options
 
 ```console
 NAME:
-   rootlesskit - the gate to the rootless world
+   rootlesskit - Linux-native fakeroot using user namespaces
 
 USAGE:
-   rootlesskit [global options] command [command options] [arguments...]
+   rootlesskit [global options] [arguments...]
 
 VERSION:
-   0.8.0+dev
+   0.9.0-beta.0+dev
+
+DESCRIPTION:
+   RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
+
+   Web site: https://github.com/rootless-containers/rootlesskit
+
+   Examples:
+     # spawn a shell with a new user namespace and a mount namespace
+     rootlesskit bash
+
+     # make /etc writable
+     rootlesskit --copy-up=/etc bash
+
+     # set mount propagation to rslave
+     rootlesskit --propagation=rslave bash
+
+     # create a network namespace with slirp4netns, and expose 80/tcp on the namespace as 8080/tcp on the host
+     rootlesskit --copy-up=/etc --net=slirp4netns --disable-host-loopback --port-driver=builtin -p 127.0.0.1:8080:80/tcp bash
+
+   Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.
 
 COMMANDS:
-     help, h  Shows a list of commands or help for one command
+   help, h  Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
    --debug                      debug mode
@@ -229,7 +272,6 @@ RootlessKit provides several drivers for providing network connectivity:
 |`rootlesskit --net=slirp4netns`  | 1.07 Gbps  |  2.78 Gbps  |  4.55 Gbps  |  9.21 Gbps
 |`rootlesskit --net=vpnKit`       |  514 Mbps  |   526 Mbps  |   540 Mbps  |(Unsupported)
 |`rootlesskit --net=vdeplug_slirp`|  763 Mbps  |(Unsupported)|(Unsupported)|(Unsupported)
-|
 
 `--net=lxc-user-nic` is as fast as rootful veth.
 
