@@ -12,7 +12,6 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
-	"golang.org/x/net/context/ctxhttp"
 
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 )
@@ -101,7 +100,13 @@ func (pm *portManager) AddPort(ctx context.Context, spec port.Spec) (*port.Statu
 		return nil, err
 	}
 	u := fmt.Sprintf("http://%s/%s/ports", pm.client.dummyHost, pm.client.version)
-	resp, err := ctxhttp.Post(ctx, pm.client.HTTPClient(), u, "application/json", bytes.NewReader(m))
+	req, err := http.NewRequest("POST", u, bytes.NewReader(m))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(ctx)
+	resp, err := pm.client.HTTPClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +123,12 @@ func (pm *portManager) AddPort(ctx context.Context, spec port.Spec) (*port.Statu
 }
 func (pm *portManager) ListPorts(ctx context.Context) ([]port.Status, error) {
 	u := fmt.Sprintf("http://%s/%s/ports", pm.client.dummyHost, pm.client.version)
-	resp, err := ctxhttp.Get(ctx, pm.client.HTTPClient(), u)
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	resp, err := pm.client.HTTPClient().Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +149,8 @@ func (pm *portManager) RemovePort(ctx context.Context, id int) error {
 	if err != nil {
 		return err
 	}
-	resp, err := ctxhttp.Do(ctx, pm.client.HTTPClient(), req)
+	req = req.WithContext(ctx)
+	resp, err := pm.client.HTTPClient().Do(req)
 	if err != nil {
 		return err
 	}

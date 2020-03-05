@@ -52,7 +52,6 @@ github.com/urfave/cli
 # golang.org/x/net v0.0.0-20200301022130-244492dfa37a
 ## explicit
 golang.org/x/net/bpf
-golang.org/x/net/context/ctxhttp
 golang.org/x/net/internal/iana
 golang.org/x/net/internal/socket
 golang.org/x/net/ipv4
