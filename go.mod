@@ -16,7 +16,7 @@ require (
 	github.com/stretchr/testify v1.5.1 // indirect
 	github.com/theckman/go-flock v0.7.1
 	github.com/u-root/u-root v6.0.0+incompatible // indirect
-	github.com/urfave/cli/v2 v2.1.1
+	github.com/urfave/cli/v2 v2.1.2-0.20200306124602-d648edd48d89
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a // indirect
 	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
