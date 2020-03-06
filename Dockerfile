@@ -2,8 +2,8 @@ ARG GO_VERSION=1.14
 ARG UBUNTU_VERSION=18.04
 ARG SHADOW_VERSION=4.8.1
 ARG SLIRP4NETNS_VERSION=v0.4.3
-# https://github.com/moby/vpnkit/commit/0b84b8673f8e298619513873c2d4ccfc8b7f5a8a (Nov 19, 2019)
-ARG VPNKIT_DIGEST=sha256:ba48fd811faae38318153cb98dac740561b39de8aae01cf1c1b1982e1da62651
+# https://github.com/moby/vpnkit/commit/6bc1679a048d5d6837a37043e097f7b7cb710fdb (Mar 4, 2020)
+ARG VPNKIT_DIGEST=sha256:e0e226d66cf3a7f2b4c3707aba207d4803be8a4f3a4e070a380de6d737a44669
 
 FROM golang:${GO_VERSION}-alpine AS rootlesskit
 RUN apk add --no-cache file
