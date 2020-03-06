@@ -40,6 +40,7 @@ func main() {
 	app := cli.NewApp()
 	app.Name = "rootlesskit"
 	app.Version = version.Version
+	app.HideHelpCommand = true
 	app.Usage = "Linux-native fakeroot using user namespaces"
 	app.UsageText = "rootlesskit [global options] [arguments...]"
 	app.Description = `RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).

@@ -167,7 +167,7 @@ USAGE:
    rootlesskit [global options] [arguments...]
 
 VERSION:
-   0.9.0-beta.0+dev
+   0.9.0-beta.1+dev
 
 DESCRIPTION:
    RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
@@ -189,11 +189,8 @@ DESCRIPTION:
 
    Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.
 
-COMMANDS:
-   help, h  Shows a list of commands or help for one command
-
 GLOBAL OPTIONS:
-   --debug                      debug mode
+   --debug                      debug mode (default: false)
    --state-dir value            state directory
    --net value                  network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental)] (default: "host")
    --slirp4netns-binary value   path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
@@ -204,15 +201,15 @@ GLOBAL OPTIONS:
    --lxc-user-nic-bridge value  lxc-user-nic bridge name (default: "lxcbr0")
    --mtu value                  MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
    --cidr value                 CIDR for slirp4netns network (default: 10.0.2.0/24, requires slirp4netns v0.3.0+ for custom CIDR)
-   --disable-host-loopback      prohibit connecting to 127.0.0.1:* on the host namespace
+   --disable-host-loopback      prohibit connecting to 127.0.0.1:* on the host namespace (default: false)
    --copy-up value              mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
    --copy-up-mode value         copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
    --port-driver value          port driver for non-host network. [none, builtin, socat(deprecated), slirp4netns(deprecated)] (default: "none")
    --publish value, -p value    publish ports. e.g. "127.0.0.1:8080:80/tcp"
-   --pidns                      create a PID namespace
+   --pidns                      create a PID namespace (default: false)
    --propagation value          mount propagation [rprivate, rslave] (default: "rprivate")
-   --help, -h                   show help
-   --version, -v                print the version
+   --help, -h                   show help (default: false)
+   --version, -v                print the version (default: false)
 ```
 
 ## State directory

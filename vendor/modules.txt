@@ -46,7 +46,7 @@ github.com/theckman/go-flock
 github.com/u-root/u-root/pkg/rand
 github.com/u-root/u-root/pkg/ubinary
 github.com/u-root/u-root/pkg/uio
-# github.com/urfave/cli/v2 v2.1.1
+# github.com/urfave/cli/v2 v2.1.2-0.20200306124602-d648edd48d89
 ## explicit
 github.com/urfave/cli/v2
 # golang.org/x/net v0.0.0-20200301022130-244492dfa37a
