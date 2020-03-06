@@ -21,7 +21,7 @@ github.com/jamescun/tuntap
 # github.com/konsorten/go-windows-terminal-sequences v1.0.2
 ## explicit
 github.com/konsorten/go-windows-terminal-sequences
-# github.com/moby/vpnkit v0.3.1-0.20191118170531-0b84b8673f8e
+# github.com/moby/vpnkit v0.3.1-0.20200304131818-6bc1679a048d
 ## explicit
 github.com/moby/vpnkit/go/pkg/vmnet
 # github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
