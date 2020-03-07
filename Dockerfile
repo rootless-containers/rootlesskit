@@ -38,18 +38,21 @@ FROM djs55/vpnkit@${VPNKIT_DIGEST} AS vpnkit
 
 FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # iproute2: for `ip` command that rootlesskit needs to exec
+# jq: used by some test scripts
+# liblxc-common: for `lxc-user-nic` binary required for --net=lxc-user-nic
 # socat: for `socat` command required for --port-driver=socat
 # iperf3: only for benchmark purpose
 # busybox: only for debugging purpose
 # sudo: only for rootful veth benchmark (for comparison)
 # libcap2-bin and curl: used by the RUN instructions in this Dockerfile.
-RUN apt-get update && apt-get install -y iproute2 socat iperf3 busybox sudo libcap2-bin curl
+RUN apt-get update && apt-get install -y iproute2 jq liblxc-common lxc-utils socat iperf3 busybox sudo libcap2-bin curl
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \
   /sbin/setcap cap_setgid+eip /usr/bin/newgidmap && \
   useradd --create-home --home-dir /home/user --uid 1000 user && \
-  mkdir -p /run/user/1000 && \
+  mkdir -p /run/user/1000 /etc/lxc && \
+  echo "user veth lxcbr0 32" > /etc/lxc/lxc-usernet && \
   echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user
 COPY --from=rootlesskit /out/rootlesskit /home/user/bin/
 COPY --from=rootlesskit /out/rootlessctl /home/user/bin/
