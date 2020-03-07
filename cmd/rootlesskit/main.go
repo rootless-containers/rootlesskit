@@ -213,6 +213,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		CreatePIDNS:      clicontext.Bool("pidns"),
 		ParentEUIDEnvKey: parentEUIDEnvKey,
 		ParentEGIDEnvKey: parentEGIDEnvKey,
+		Propagation:      clicontext.String("propagation"),
 	}
 	opt.StateDir = clicontext.String("state-dir")
 	if opt.StateDir == "" {
