@@ -36,6 +36,7 @@ type Opt struct {
 	CreatePIDNS      bool
 	ParentEUIDEnvKey string // optional env key to propagate geteuid() value
 	ParentEGIDEnvKey string // optional env key to propagate getegid() value
+	Propagation      string
 }
 
 // Documented state files. Undocumented ones are subject to change.
@@ -45,7 +46,7 @@ const (
 	StateFileAPISock  = "api.sock"  // REST API Socket
 )
 
-func Parent(opt Opt) error {
+func checkPreflight(opt Opt) error {
 	if opt.PipeFDEnvKey == "" {
 		return errors.New("pipe FD env key is not set")
 	}
@@ -57,6 +58,22 @@ func Parent(opt Opt) error {
 	}
 	if stat, err := os.Stat(opt.StateDir); err != nil || !stat.IsDir() {
 		return errors.Wrap(err, "state dir is inaccessible")
+	}
+
+	if os.Geteuid() == 0 {
+		logrus.Warn("Running RootlessKit as the root user is unsupported.")
+	}
+
+	warnSysctl()
+
+	// invalid propagation doesn't result in an error
+	warnPropagation(opt.Propagation)
+	return nil
+}
+
+func Parent(opt Opt) error {
+	if err := checkPreflight(opt); err != nil {
+		return err
 	}
 	lockPath := filepath.Join(opt.StateDir, StateFileLock)
 	lock := flock.NewFlock(lockPath)
