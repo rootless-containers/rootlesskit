@@ -38,6 +38,10 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-net.sh vpnkit 1500
+    - name: "Benchmark: Network (MTU=1500, network driver=lxc-user-nic)"
+      run: |
+          docker run --rm --privileged \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh lxc-user-nic 1500
     - name: "Benchmark: Network (MTU=1500, rootful veth for comparison)"
       run: |
           docker run --rm --privileged \
@@ -51,6 +55,10 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-net.sh slirp4netns 65520 --slirp4netns-sandbox=auto --slirp4netns-seccomp=auto
+    - name: "Benchmark: Network (MTU=65520, network driver=lxc-user-nic)"
+      run: |
+          docker run --rm --privileged \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh lxc-user-nic 65520
     - name: "Benchmark: Network (MTU=65520, rootful veth for comparison)"
       run: |
           docker run --rm --privileged \

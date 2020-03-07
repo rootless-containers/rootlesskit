@@ -14,6 +14,17 @@ function benchmark::iperf3::vpnkit() {
 	set +x
 }
 
+function benchmark::iperf3::lxc-user-nic() {
+	INFO "[benchmark:iperf3] lxc-user-nic ($@)"
+	dev=lxcbr0
+	set -x
+	# ignore "lxc-net is already running" error
+	sudo /usr/lib/$(uname -m)-linux-gnu/lxc/lxc-net start || true
+	ip=$(ip -4 -o addr show $dev | awk '{print $4}' | cut -d "/" -f 1)
+	$ROOTLESSKIT --net=lxc-user-nic $@ -- $IPERF3C $ip
+	set +x
+}
+
 function benchmark::iperf3::rootful_veth() {
 	INFO "[benchmark:iperf3] rootful_veth ($@) for reference"
 	# only --mtu=MTU is supposed as $@
