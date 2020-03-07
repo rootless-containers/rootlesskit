@@ -260,16 +260,15 @@ RootlessKit provides several drivers for providing network connectivity:
 * `--net=vpnkit`: use [VPNKit](https://github.com/moby/vpnkit)
 * `--net=lxc-user-nic`: use `lxc-user-nic` (experimental)
 
-[Benchmark (Aug 28, 2018)](https://github.com/rootless-containers/rootlesskit/pull/16):
+[Benchmark: iperf3 from the child to the parent (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728):
 
-|          Implementation         |  MTU=1500  |  MTU=4000   |  MTU=16384  |  MTU=65520
-|---------------------------------|------------|-------------|-------------|------------
-|(rootful veth)                   |(52.1 Gbps) | (45.4 Gbps) | (43.6 Gbps )| (51.5 Gbps)
-|`rootlesskit --net=slirp4netns`  | 1.07 Gbps  |  2.78 Gbps  |  4.55 Gbps  |  9.21 Gbps
-|`rootlesskit --net=vpnKit`       |  514 Mbps  |   526 Mbps  |   540 Mbps  |(Unsupported)
-|`rootlesskit --net=vdeplug_slirp`|  763 Mbps  |(Unsupported)|(Unsupported)|(Unsupported)
-
-`--net=lxc-user-nic` is as fast as rootful veth.
+|                 Driver                |  MTU=1500  |  MTU=65520
+|---------------------------------------|------------|-------------
+|`slirp4netns`                          |  1.06 Gbps |  7.55 Gbps
+|`slirp4netns` (with sandbox + seccomp) |  1.05 Gbps |  7.21 Gbps
+|`vpnkit`                               |  0.60 Gbps |(Unsupported)
+|`lxc-user-nic`                         |  31.4 Gbps |  30.9 Gbps
+|(rootful veth)                         | (38.7 Gbps)| (40.8 Gbps)
 
 ### `--net=host` (default)
 
@@ -396,7 +395,7 @@ If `--disable-host-loopback` is not specified, ports listening on 127.0.0.1 in t
 `--net=lxc-user-nic` isolates the network namespace from the host and launch [`lxc-user-nic(1)`](https://linuxcontainers.org/lxc/manpages/man1/lxc-user-nic.1.html) SUID binary for providing kernel-mode NAT.
 
 Pros:
-* No performance overhead
+* The least performance overhead
 * Possible to perform network-namespaced operations, e.g. creating iptables rules, running `tcpdump`
 * Supports ICMP Echo (`ping`) without `/proc/sys/net/ipv4/ping_group_range` configuration
 
@@ -430,18 +429,17 @@ Currently, the MAC address is always set to a random address.
 To the ports in the network namespace to the host network namespace, `--port-driver` needs to be specified.
 
 * `--port-driver=none`: do not expose ports (default)
-* `--port-driver=builtin`: use built-in port driver (recommended)
 * `--port-driver=socat`: use `socat` binary (deprecated)
 * `--port-driver=slirp4netns`: use slirp4netns API (deprecated)
+* `--port-driver=builtin`: use built-in port driver (recommended)
 
-[Benchmark (October 13, 2019)](https://travis-ci.org/rootless-containers/rootlesskit/builds/597056377):
+[Benchmark: iperf3 from the parent to the child (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728):
 
 | `--port-driver` |  Throughput
 |-----------------|------------
-| `builtin`       | 27.3 Gbps
-| `slirp4netns`   |  8.3 Gbps
-| `socat`         |  5.2 Gbps
-
+| `socat`         | 7.80 Gbps
+| `slirp4netns`   | 6.89 Gbps
+| `builtin`       | 30.0 Gbps
 
 For example, to expose 80 in the child as 8080 in the parent:
 
