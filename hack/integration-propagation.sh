@@ -3,7 +3,6 @@ source $(realpath $(dirname $0))/common.inc.sh
 function test_propagation() {
 	propagation=$1
 	INFO "Testing --propagation=$propagation"
-	set -x
 	d=$(mktemp -d)
 	state=$d/state
 	$ROOTLESSKIT --state-dir=$state --propagation=$propagation -- sleep infinity &
