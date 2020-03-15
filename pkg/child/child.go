@@ -1,6 +1,7 @@
 package child
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -18,6 +19,8 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/rootless-containers/rootlesskit/pkg/sigproxy"
+	sigproxysignal "github.com/rootless-containers/rootlesskit/pkg/sigproxy/signal"
 )
 
 var propagationStates = map[string]uintptr{
@@ -256,7 +259,12 @@ func Child(opt Opt) error {
 			return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
 		}
 	} else {
-		if err := cmd.Run(); err != nil {
+		if err := cmd.Start(); err != nil {
+			return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
+		}
+		sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)
+		defer sigproxysignal.StopCatch(sigc)
+		if err := cmd.Wait(); err != nil {
 			return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
 		}
 	}
@@ -283,6 +291,9 @@ func runAndReap(cmd *exec.Cmd) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)
+	defer sigproxysignal.StopCatch(sigc)
+
 	result := make(chan error)
 	go func() {
 		defer close(result)

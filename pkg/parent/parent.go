@@ -24,6 +24,8 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 	"github.com/rootless-containers/rootlesskit/pkg/parent/idtools"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/rootless-containers/rootlesskit/pkg/sigproxy"
+	"github.com/rootless-containers/rootlesskit/pkg/sigproxy/signal"
 )
 
 type Opt struct {
@@ -131,6 +133,9 @@ func Parent(opt Opt) error {
 	if err := setupUIDGIDMap(cmd.Process.Pid); err != nil {
 		return errors.Wrap(err, "failed to setup UID/GID map")
 	}
+	sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)
+	defer signal.StopCatch(sigc)
+
 	// send message 0
 	msg := common.Message{
 		Stage:    0,
