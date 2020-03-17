@@ -9,6 +9,7 @@ require (
 	github.com/insomniacslk/dhcp v0.0.0-20200221232812-81b9770086ea
 	github.com/jamescun/tuntap v0.0.0-20190712092105-cb1fb277045c
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
+	github.com/moby/sys/mountinfo v0.1.0
 	github.com/moby/vpnkit v0.3.1-0.20200304131818-6bc1679a048d
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pkg/errors v0.9.1

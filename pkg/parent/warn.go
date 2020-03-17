@@ -5,27 +5,17 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/moby/sys/mountinfo"
 	"github.com/sirupsen/logrus"
-
-	"github.com/rootless-containers/rootlesskit/pkg/parent/mount"
 )
 
 func warnPropagation(propagation string) {
-	mounts, err := mount.GetMounts()
-	if err != nil {
+	mounts, err := mountinfo.GetMounts(mountinfo.SingleEntryFilter("/"))
+	if err != nil || len(mounts) < 1 {
 		logrus.WithError(err).Warn("Failed to parse mountinfo")
 		return
 	}
-	var root *mount.Info
-	for _, m := range mounts {
-		if m.Root == "/" && m.Mountpoint == "/" {
-			root = m
-		}
-	}
-	if root == nil {
-		logrus.Warn("Failed to parse mountinfo of the root filesystem")
-		return
-	}
+	root := mounts[0]
 	// 1. When running on a "sane" host,   root.Optional is like "shared:1".   ("shared" in findmnt(8) output)
 	// 2. When running inside a container, root.Optional is like "master:363". ("private, slave" in findmnt(8) output)
 	//
