@@ -21,6 +21,9 @@ github.com/jamescun/tuntap
 # github.com/konsorten/go-windows-terminal-sequences v1.0.2
 ## explicit
 github.com/konsorten/go-windows-terminal-sequences
+# github.com/moby/sys/mountinfo v0.1.0
+## explicit
+github.com/moby/sys/mountinfo
 # github.com/moby/vpnkit v0.3.1-0.20200304131818-6bc1679a048d
 ## explicit
 github.com/moby/vpnkit/go/pkg/vmnet
