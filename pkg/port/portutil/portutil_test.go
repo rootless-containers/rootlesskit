@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParsePortSpec(t *testing.T) {
@@ -50,4 +51,110 @@ func TestParsePortSpec(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestValidatePortSpec(t *testing.T) {
+	existingPorts := make(map[int]*port.Status)
+
+	// bind to all host IPs
+	existingPorts[1] = &port.Status{
+		ID: 1,
+		Spec: port.Spec{
+			Proto:      "tcp",
+			ParentIP:   "",
+			ParentPort: 80,
+			ChildPort:  80,
+		},
+	}
+	// bind to only host IP 10.10.10.10
+	existingPorts[2] = &port.Status{
+		ID: 2,
+		Spec: port.Spec{
+			Proto:      "tcp",
+			ParentIP:   "10.10.10.10",
+			ParentPort: 8080,
+			ChildPort:  8080,
+		},
+	}
+	// avoid typing the spec over and over for small changes
+	spec := port.Spec{
+		Proto:      "tcp",
+		ParentIP:   "127.0.0.1",
+		ParentPort: 1001,
+		ChildPort:  1001,
+	}
+
+	// proto must be supplied and must equal "udp" or "tcp"
+	invalidProtos := []string{"", "NaN", "TCP"}
+	validProtos := []string{"udp", "tcp"}
+	for _, p := range invalidProtos {
+		s := spec
+		s.Proto = p
+		err := ValidatePortSpec(s, existingPorts)
+		assert.Error(t, err)
+	}
+	for _, p := range validProtos {
+		s := spec
+		s.Proto = p
+		err := ValidatePortSpec(s, existingPorts)
+		assert.NoError(t, err)
+
+	}
+
+	invalidPorts := []int{-200, 0, 1000000}
+	validPorts := []int{20, 500, 1337, 65000}
+
+	// 0 < parentPort <= 65535
+	for _, p := range invalidPorts {
+		s := spec
+		s.ParentPort = p
+		err := ValidatePortSpec(s, existingPorts)
+		assert.Error(t, err)
+	}
+	for _, p := range validPorts {
+		s := spec
+		s.ParentPort = p
+		err := ValidatePortSpec(s, existingPorts)
+		assert.NoError(t, err)
+	}
+
+	// 0 < childPort <= 65535
+	for _, p := range invalidPorts {
+		s := spec
+		s.ChildPort = p
+		err := ValidatePortSpec(s, existingPorts)
+		assert.Error(t, err, "invalid ChildPort")
+	}
+	for _, p := range validPorts {
+		s := spec
+		s.ChildPort = p
+		err := ValidatePortSpec(s, existingPorts)
+		assert.NoError(t, err)
+	}
+
+	// ChildPorts can overlap so long as parent port/IPs don't
+	// existing ports include tcp 10.10.10.10:8080, tcp *:80, no udp
+
+	// udp doesn't conflict with tcp
+	s := port.Spec{Proto: "udp", ParentPort: 80, ChildPort: 80}
+	assert.NoError(t, ValidatePortSpec(s, existingPorts))
+
+	// same parent, same child, different IP has no conflict
+	s = port.Spec{Proto: "tcp", ParentIP: "10.10.10.11", ParentPort: 8080, ChildPort: 8080}
+	assert.NoError(t, ValidatePortSpec(s, existingPorts))
+
+	// same IP different parentPort, same child port has no conflict
+	s = port.Spec{Proto: "tcp", ParentIP: "10.10.10.10", ParentPort: 8081, ChildPort: 8080}
+	assert.NoError(t, ValidatePortSpec(s, existingPorts))
+
+	// Same parent IP and Port should conflict, even if child port different
+	// conflict with ID 1:
+	s = port.Spec{Proto: "tcp", ParentPort: 80, ChildPort: 90}
+	err := ValidatePortSpec(s, existingPorts)
+	assert.EqualError(t, err, "conflict with ID 1")
+
+	// conflict with ID 2
+	s = port.Spec{Proto: "tcp", ParentIP: "10.10.10.10", ParentPort: 8080, ChildPort: 8080}
+	err = ValidatePortSpec(s, existingPorts)
+	assert.EqualError(t, err, "conflict with ID 2")
 }

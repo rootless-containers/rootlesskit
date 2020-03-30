@@ -14,7 +14,7 @@ require (
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.4.2
-	github.com/stretchr/testify v1.5.1 // indirect
+	github.com/stretchr/testify v1.5.1
 	github.com/theckman/go-flock v0.7.1
 	github.com/u-root/u-root v6.0.0+incompatible // indirect
 	github.com/urfave/cli/v2 v2.1.2-0.20200306124602-d648edd48d89

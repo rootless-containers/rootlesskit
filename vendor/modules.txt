@@ -1,5 +1,7 @@
 # github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d
 github.com/cpuguy83/go-md2man/v2/md2man
+# github.com/davecgh/go-spew v1.1.1
+github.com/davecgh/go-spew/spew
 # github.com/gofrs/flock v0.7.1
 ## explicit
 # github.com/google/uuid v1.1.1
@@ -32,6 +34,8 @@ github.com/moby/vpnkit/go/pkg/vmnet
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
 # github.com/russross/blackfriday/v2 v2.0.1
 github.com/russross/blackfriday/v2
 # github.com/shurcooL/sanitized_anchor_name v1.0.0
@@ -41,6 +45,7 @@ github.com/shurcooL/sanitized_anchor_name
 github.com/sirupsen/logrus
 # github.com/stretchr/testify v1.5.1
 ## explicit
+github.com/stretchr/testify/assert
 # github.com/theckman/go-flock v0.7.1
 ## explicit
 github.com/theckman/go-flock
@@ -64,3 +69,5 @@ golang.org/x/sys/unix
 golang.org/x/sys/windows
 # gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f
 ## explicit
+# gopkg.in/yaml.v2 v2.2.2
+gopkg.in/yaml.v2
