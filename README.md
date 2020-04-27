@@ -25,6 +25,7 @@ The purpose of RootlessKit is to run [Docker and Kubernetes as an unprivileged u
   - [`--net=vpnkit`](#--netvpnkit)
   - [`--net=lxc-user-nic` (experimental)](#--netlxc-user-nic-experimental)
 - [Port Drivers](#port-drivers)
+  - [Exposing privileged ports](#exposing-privileged-ports)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -460,3 +461,11 @@ $ pid=$(cat /run/user/1001/rootlesskit/foo/child_pid)
 $ socat -t -- TCP-LISTEN:8080,reuseaddr,fork EXEC:"nsenter -U -n -t $pid socat -t -- STDIN TCP4\:127.0.0.1\:80"
 ```
 
+### Exposing privileged ports
+To expose privileged ports (< 1024), add `net.ipv4.ip_unprivileged_port_start=0` to `/etc/sysctl.conf` (or `/etc/sysctl.d`) and run `sudo sysctl --system`.
+
+If you are using `builtin` driver, you can expose the privileged ports without changing the sysctl value, but you need to set `CAP_NET_BIND_SERVICE` on `rootlesskit` binary.
+
+```console
+$ sudo setcap cap_net_bind_service=ep $(pwd rootlesskit)
+```
