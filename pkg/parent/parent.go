@@ -13,10 +13,10 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/gofrs/flock"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/theckman/go-flock"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api/router"
 	"github.com/rootless-containers/rootlesskit/pkg/common"

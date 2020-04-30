@@ -3,7 +3,7 @@ module github.com/rootless-containers/rootlesskit
 go 1.14
 
 require (
-	github.com/gofrs/flock v0.7.1 // indirect
+	github.com/gofrs/flock v0.7.1
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/insomniacslk/dhcp v0.0.0-20200221232812-81b9770086ea
@@ -15,7 +15,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.4.2
 	github.com/stretchr/testify v1.5.1
-	github.com/theckman/go-flock v0.7.1
 	github.com/u-root/u-root v6.0.0+incompatible // indirect
 	github.com/urfave/cli/v2 v2.1.2-0.20200306124602-d648edd48d89
 	golang.org/x/net v0.0.0-20200301022130-244492dfa37a // indirect
