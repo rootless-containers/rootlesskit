@@ -4,6 +4,7 @@ github.com/cpuguy83/go-md2man/v2/md2man
 github.com/davecgh/go-spew/spew
 # github.com/gofrs/flock v0.7.1
 ## explicit
+github.com/gofrs/flock
 # github.com/google/uuid v1.1.1
 ## explicit
 github.com/google/uuid
@@ -46,9 +47,6 @@ github.com/sirupsen/logrus
 # github.com/stretchr/testify v1.5.1
 ## explicit
 github.com/stretchr/testify/assert
-# github.com/theckman/go-flock v0.7.1
-## explicit
-github.com/theckman/go-flock
 # github.com/u-root/u-root v6.0.0+incompatible
 ## explicit
 github.com/u-root/u-root/pkg/rand
