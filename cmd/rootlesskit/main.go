@@ -113,7 +113,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:  "cidr",
-			Usage: "CIDR for slirp4netns network (default: 10.0.2.0/24, requires slirp4netns v0.3.0+ for custom CIDR)",
+			Usage: "CIDR for slirp4netns network (default: 10.0.2.0/24)",
 		},
 		&cli.BoolFlag{
 			Name:  "disable-host-loopback",
@@ -242,7 +242,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 	}
 	disableHostLoopback := clicontext.Bool("disable-host-loopback")
 	if !disableHostLoopback && clicontext.String("net") != "host" {
-		logrus.Warn("specifying --disable-host-loopback is highly recommended to prohibit connecting to 127.0.0.1:* on the host namespace (requires slirp4netns v0.3.0+ or VPNKit)")
+		logrus.Warn("specifying --disable-host-loopback is highly recommended to prohibit connecting to 127.0.0.1:* on the host namespace (requires slirp4netns or VPNKit)")
 	}
 
 	slirp4netnsAPISocketPath := ""
@@ -256,7 +256,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 			logrus.Warnf("unsupported mtu for --net=host: %d", mtu)
 		}
 		if ipnet != nil {
-			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
+			return opt, errors.New("custom cidr is supported only for --net=slirp4netns")
 		}
 	case "slirp4netns":
 		binary := clicontext.String("slirp4netns-binary")
@@ -269,10 +269,12 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		}
 		logrus.Debugf("slirp4netns features %+v", features)
 		if disableHostLoopback && !features.SupportsDisableHostLoopback {
-			return opt, errors.New("unsupported slirp4netns version: lacks SupportsDisableHostLoopback, please install v0.3.0+")
+			// NOTREACHED
+			return opt, errors.New("unsupported slirp4netns version: lacks SupportsDisableHostLoopback")
 		}
 		if slirp4netnsAPISocketPath != "" && !features.SupportsAPISocket {
-			return opt, errors.New("unsupported slirp4netns version: lacks SupportsAPISocket, please install v0.3.0+")
+			// NOTREACHED
+			return opt, errors.New("unsupported slirp4netns version: lacks SupportsAPISocket")
 		}
 		enableSandbox := false
 		switch s := clicontext.String("slirp4netns-sandbox"); s {
@@ -283,7 +285,8 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		case "true":
 			enableSandbox = true
 			if !features.SupportsEnableSandbox {
-				return opt, errors.New("unsupported slirp4netns version: lacks SupportsEnableSandbox, please install v0.4.0+")
+				// NOTREACHED
+				return opt, errors.New("unsupported slirp4netns version: lacks SupportsEnableSandbox")
 			}
 		case "false", "": // default
 			// NOP
@@ -297,7 +300,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		case "true":
 			enableSeccomp = true
 			if !features.SupportsEnableSeccomp {
-				return opt, errors.New("unsupported slirp4netns version: lacks SupportsEnableSeccomp, please install v0.4.0+")
+				return opt, errors.New("unsupported slirp4netns version: lacks SupportsEnableSeccomp")
 			}
 			if !features.KernelSupportsEnableSeccomp {
 				return opt, errors.New("kernel doesn't support seccomp")
@@ -307,10 +310,13 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		default:
 			return opt, errors.Errorf("unsupported slirp4netns-seccomp mode: %q", s)
 		}
-		opt.NetworkDriver = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback, slirp4netnsAPISocketPath, enableSandbox, enableSeccomp)
+		opt.NetworkDriver, err = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback, slirp4netnsAPISocketPath, enableSandbox, enableSeccomp)
+		if err != nil {
+			return opt, err
+		}
 	case "vpnkit":
 		if ipnet != nil {
-			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
+			return opt, errors.New("custom cidr is supported only for --net=slirp4netns")
 		}
 		binary := clicontext.String("vpnkit-binary")
 		if _, err := exec.LookPath(binary); err != nil {
@@ -320,7 +326,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 	case "lxc-user-nic":
 		logrus.Warn("\"lxc-user-nic\" network driver is experimental")
 		if ipnet != nil {
-			return opt, errors.New("custom cidr is supported only for --net=slirp4netns (with slirp4netns v0.3.0+)")
+			return opt, errors.New("custom cidr is supported only for --net=slirp4netns")
 		}
 		if !disableHostLoopback {
 			logrus.Warn("--disable-host-loopback is implicitly set for lxc-user-nic")
