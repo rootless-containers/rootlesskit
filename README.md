@@ -302,8 +302,7 @@ Cons:
 * Supports only TCP, UDP, and ICMP Echo packets
 
 
-To use `--net=slirp4netns`, you need to install slirp4netns.
-v0.3.0 or later is recommended.
+To use `--net=slirp4netns`, you need to install slirp4netns v0.4.0 or later.
 
 ```console
 $ sudo dnf install slirp4netns
