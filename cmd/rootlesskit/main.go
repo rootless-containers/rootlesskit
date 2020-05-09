@@ -310,7 +310,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		default:
 			return opt, errors.Errorf("unsupported slirp4netns-seccomp mode: %q", s)
 		}
-		opt.NetworkDriver, err = slirp4netns.NewParentDriver(binary, mtu, ipnet, disableHostLoopback, slirp4netnsAPISocketPath, enableSandbox, enableSeccomp)
+		opt.NetworkDriver, err = slirp4netns.NewParentDriver(&logrusDebugWriter{label: "network/slirp4netns"}, binary, mtu, ipnet, disableHostLoopback, slirp4netnsAPISocketPath, enableSandbox, enableSeccomp)
 		if err != nil {
 			return opt, err
 		}
@@ -350,7 +350,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		if opt.NetworkDriver == nil {
 			return opt, errors.New("port driver requires non-host network")
 		}
-		opt.PortDriver, err = socat.NewParentDriver(&logrusDebugWriter{})
+		opt.PortDriver, err = socat.NewParentDriver(&logrusDebugWriter{label: "port/socat"})
 		if err != nil {
 			return opt, err
 		}
@@ -359,7 +359,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		if clicontext.String("net") != "slirp4netns" {
 			return opt, errors.New("port driver requires slirp4netns network")
 		}
-		opt.PortDriver, err = slirp4netns_port.NewParentDriver(&logrusDebugWriter{}, slirp4netnsAPISocketPath)
+		opt.PortDriver, err = slirp4netns_port.NewParentDriver(&logrusDebugWriter{label: "port/slirp4netns"}, slirp4netnsAPISocketPath)
 		if err != nil {
 			return opt, err
 		}
@@ -367,7 +367,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		if opt.NetworkDriver == nil {
 			return opt, errors.New("port driver requires non-host network")
 		}
-		opt.PortDriver, err = builtin.NewParentDriver(&logrusDebugWriter{}, opt.StateDir)
+		opt.PortDriver, err = builtin.NewParentDriver(&logrusDebugWriter{label: "port/builtin"}, opt.StateDir)
 		if err != nil {
 			return opt, err
 		}
@@ -388,10 +388,14 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 }
 
 type logrusDebugWriter struct {
+	label string
 }
 
 func (w *logrusDebugWriter) Write(p []byte) (int, error) {
 	s := strings.TrimSuffix(string(p), "\n")
+	if w.label != "" {
+		s = w.label + ": " + s
+	}
 	logrus.Debug(s)
 	return len(p), nil
 }
@@ -434,7 +438,7 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 	case "slirp4netns":
 		opt.PortDriver = slirp4netns_port.NewChildDriver()
 	case "builtin":
-		opt.PortDriver = builtin.NewChildDriver(&logrusDebugWriter{})
+		opt.PortDriver = builtin.NewChildDriver(&logrusDebugWriter{label: "port/builtin"})
 	default:
 		return opt, errors.Errorf("unknown port driver: %s", s)
 	}

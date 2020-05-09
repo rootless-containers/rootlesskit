@@ -2,6 +2,7 @@ package slirp4netns
 
 import (
 	"context"
+	"io"
 	"net"
 	"os"
 	"os/exec"
@@ -74,7 +75,7 @@ func DetectFeatures(binary string) (*Features, error) {
 
 // NewParentDriver instantiates new parent driver.
 // Requires slirp4netns v0.4.0 or later.
-func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool, apiSocketPath string, enableSandbox, enableSeccomp bool) (network.ParentDriver, error) {
+func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool, apiSocketPath string, enableSandbox, enableSeccomp bool) (network.ParentDriver, error) {
 	if binary == "" {
 		return nil, errors.New("got empty slirp4netns binary")
 	}
@@ -108,6 +109,7 @@ func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopba
 	}
 
 	return &parentDriver{
+		logWriter:           logWriter,
 		binary:              binary,
 		mtu:                 mtu,
 		ipnet:               ipnet,
@@ -119,6 +121,7 @@ func NewParentDriver(binary string, mtu int, ipnet *net.IPNet, disableHostLoopba
 }
 
 type parentDriver struct {
+	logWriter           io.Writer
 	binary              string
 	mtu                 int
 	ipnet               *net.IPNet
@@ -163,6 +166,9 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 		opts = append(opts, "--enable-seccomp")
 	}
 	cmd := exec.CommandContext(ctx, d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
+	// FIXME: Stdout doen't seem captured
+	cmd.Stdout = d.logWriter
+	cmd.Stderr = d.logWriter
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
