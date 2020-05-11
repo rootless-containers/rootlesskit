@@ -247,10 +247,9 @@ func newugidmapArgs() ([]string, []string, error) {
 	}
 
 	// get both subid maps
-	// uses username for groupname in case primary groupname is not the same
 	// idtools will fall back to getent if /etc/passwd does not contain username
 	// works with external auth, ie sssd, ldap, nis
-	ims, err := idtools.NewIdentityMapping(u.Username, u.Username)
+	ims, err := idtools.NewIdentityMapping(u.Username)
 	if err != nil {
 		return nil, nil, err
 	}

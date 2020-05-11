@@ -96,12 +96,12 @@ type IdentityMapping struct {
 // NewIdentityMapping takes a requested user and group name and
 // using the data from /etc/sub{uid,gid} ranges, creates the
 // proper uid and gid remapping ranges for that user/group pair
-func NewIdentityMapping(username, groupname string) (*IdentityMapping, error) {
+func NewIdentityMapping(username string) (*IdentityMapping, error) {
 	subuidRanges, err := parseSubuid(username)
 	if err != nil {
 		return nil, err
 	}
-	subgidRanges, err := parseSubgid(groupname)
+	subgidRanges, err := parseSubgid(username)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +109,7 @@ func NewIdentityMapping(username, groupname string) (*IdentityMapping, error) {
 		return nil, fmt.Errorf("No subuid ranges found for user %q", username)
 	}
 	if len(subgidRanges) == 0 {
-		return nil, fmt.Errorf("No subgid ranges found for group %q", groupname)
+		return nil, fmt.Errorf("No subgid ranges found for user %q", username)
 	}
 
 	return &IdentityMapping{
