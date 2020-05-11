@@ -96,20 +96,20 @@ type IdentityMapping struct {
 // NewIdentityMapping takes a requested user and group name and
 // using the data from /etc/sub{uid,gid} ranges, creates the
 // proper uid and gid remapping ranges for that user/group pair
-func NewIdentityMapping(username string) (*IdentityMapping, error) {
-	subuidRanges, err := parseSubuid(username)
+func NewIdentityMapping(uid int, username string) (*IdentityMapping, error) {
+	subuidRanges, err := parseSubuid(uid, username)
 	if err != nil {
 		return nil, err
 	}
-	subgidRanges, err := parseSubgid(username)
+	subgidRanges, err := parseSubgid(uid, username)
 	if err != nil {
 		return nil, err
 	}
 	if len(subuidRanges) == 0 {
-		return nil, fmt.Errorf("No subuid ranges found for user %q", username)
+		return nil, fmt.Errorf("No subuid ranges found for user %d (%q)", uid, username)
 	}
 	if len(subgidRanges) == 0 {
-		return nil, fmt.Errorf("No subgid ranges found for user %q", username)
+		return nil, fmt.Errorf("No subgid ranges found for user %d (%q)", uid, username)
 	}
 
 	return &IdentityMapping{
@@ -193,18 +193,18 @@ func createIDMap(subidRanges ranges) []IDMap {
 	return idMap
 }
 
-func parseSubuid(username string) (ranges, error) {
-	return parseSubidFile(subuidFileName, username)
+func parseSubuid(uid int, username string) (ranges, error) {
+	return parseSubidFile(subuidFileName, uid, username)
 }
 
-func parseSubgid(username string) (ranges, error) {
-	return parseSubidFile(subgidFileName, username)
+func parseSubgid(uid int, username string) (ranges, error) {
+	return parseSubidFile(subgidFileName, uid, username)
 }
 
 // parseSubidFile will read the appropriate file (/etc/subuid or /etc/subgid)
-// and return all found ranges for a specified username. If the special value
-// "ALL" is supplied for username, then all ranges in the file will be returned
-func parseSubidFile(path, username string) (ranges, error) {
+// and return all found ranges for a specified user. username is optional.
+func parseSubidFile(path string, uid int, username string) (ranges, error) {
+	uidS := strconv.Itoa(uid)
 	var rangeList ranges
 
 	subidFile, err := os.Open(path)
@@ -223,7 +223,7 @@ func parseSubidFile(path, username string) (ranges, error) {
 		if len(parts) != 3 {
 			return rangeList, fmt.Errorf("Cannot parse subuid/gid information: Format not correct for %s file", path)
 		}
-		if parts[0] == username || username == "ALL" {
+		if parts[0] == uidS || (username != "" && parts[0] == username) {
 			startid, err := strconv.Atoi(parts[1])
 			if err != nil {
 				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
