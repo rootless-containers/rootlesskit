@@ -1,11 +1,10 @@
-// Package idtools is forked from https://github.com/moby/moby/tree/c12f09bf99b54f274a5ae241dd154fa74020cbab/pkg/idtools
+// Package idtools is forked from https://github.com/moby/moby/tree/298ba5b13150bfffe8414922a951a7a793276d31/pkg/idtools
 package idtools
 
 import (
 	"bufio"
 	"fmt"
 	"os"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -182,8 +181,6 @@ func (i *IdentityMapping) GIDs() []IDMap {
 func createIDMap(subidRanges ranges) []IDMap {
 	idMap := []IDMap{}
 
-	// sort the ranges by lowest ID first
-	sort.Sort(subidRanges)
 	containerID := 0
 	for _, idrange := range subidRanges {
 		idMap = append(idMap, IDMap{
@@ -218,10 +215,6 @@ func parseSubidFile(path, username string) (ranges, error) {
 
 	s := bufio.NewScanner(subidFile)
 	for s.Scan() {
-		if err := s.Err(); err != nil {
-			return rangeList, err
-		}
-
 		text := strings.TrimSpace(s.Text())
 		if text == "" || strings.HasPrefix(text, "#") {
 			continue
@@ -242,5 +235,5 @@ func parseSubidFile(path, username string) (ranges, error) {
 			rangeList = append(rangeList, subIDRange{startid, length})
 		}
 	}
-	return rangeList, nil
+	return rangeList, s.Err()
 }
