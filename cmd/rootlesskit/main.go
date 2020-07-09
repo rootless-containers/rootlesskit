@@ -142,6 +142,10 @@ func main() {
 			Name:  "pidns",
 			Usage: "create a PID namespace",
 		},
+		&cli.BoolFlag{
+			Name:  "cgroupns",
+			Usage: "create a cgroup namespace",
+		},
 		&cli.StringFlag{
 			Name:  "propagation",
 			Usage: "mount propagation [rprivate, rslave]",
@@ -211,6 +215,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		PipeFDEnvKey:     pipeFDEnvKey,
 		StateDirEnvKey:   stateDirEnvKey,
 		CreatePIDNS:      clicontext.Bool("pidns"),
+		CreateCgroupNS:   clicontext.Bool("cgroupns"),
 		ParentEUIDEnvKey: parentEUIDEnvKey,
 		ParentEGIDEnvKey: parentEGIDEnvKey,
 		Propagation:      clicontext.String("propagation"),

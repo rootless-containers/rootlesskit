@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api/router"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
@@ -36,6 +37,7 @@ type Opt struct {
 	PortDriver       port.ParentDriver    // nil for --port-driver=none
 	PublishPorts     []port.Spec
 	CreatePIDNS      bool
+	CreateCgroupNS   bool
 	ParentEUIDEnvKey string // optional env key to propagate geteuid() value
 	ParentEGIDEnvKey string // optional env key to propagate getegid() value
 	Propagation      string
@@ -112,6 +114,9 @@ func Parent(opt Opt) error {
 	if opt.CreatePIDNS {
 		// cannot be Unshareflags (panics)
 		cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWPID
+	}
+	if opt.CreateCgroupNS {
+		cmd.SysProcAttr.Unshareflags |= unix.CLONE_NEWCGROUP
 	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
