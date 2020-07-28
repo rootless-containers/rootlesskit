@@ -130,7 +130,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:  "port-driver",
-			Usage: "port driver for non-host network. [none, builtin, socat(deprecated), slirp4netns(deprecated)]",
+			Usage: "port driver for non-host network. [none, builtin, slirp4netns, socat(deprecated)]",
 			Value: "none",
 		},
 		&cli.StringSliceFlag{
@@ -360,7 +360,6 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 			return opt, err
 		}
 	case "slirp4netns":
-		logrus.Warn("\"slirp4netns\" port driver is deprecated")
 		if clicontext.String("net") != "slirp4netns" {
 			return opt, errors.New("port driver requires slirp4netns network")
 		}

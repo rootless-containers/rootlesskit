@@ -25,6 +25,7 @@ The purpose of RootlessKit is to run [Docker and Kubernetes as an unprivileged u
   - [`--net=vpnkit`](#--netvpnkit)
   - [`--net=lxc-user-nic` (experimental)](#--netlxc-user-nic-experimental)
 - [Port Drivers](#port-drivers)
+  - [Exposing ports](#exposing-ports)
   - [Exposing privileged ports](#exposing-privileged-ports)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -168,7 +169,7 @@ USAGE:
    rootlesskit [global options] [arguments...]
 
 VERSION:
-   0.9.0-beta.1+dev
+   0.9.5+dev
 
 DESCRIPTION:
    RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
@@ -201,13 +202,14 @@ GLOBAL OPTIONS:
    --lxc-user-nic-binary value  path of lxc-user-nic binary for --net=lxc-user-nic (default: "/usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic")
    --lxc-user-nic-bridge value  lxc-user-nic bridge name (default: "lxcbr0")
    --mtu value                  MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
-   --cidr value                 CIDR for slirp4netns network (default: 10.0.2.0/24, requires slirp4netns v0.3.0+ for custom CIDR)
+   --cidr value                 CIDR for slirp4netns network (default: 10.0.2.0/24)
    --disable-host-loopback      prohibit connecting to 127.0.0.1:* on the host namespace (default: false)
    --copy-up value              mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
    --copy-up-mode value         copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
-   --port-driver value          port driver for non-host network. [none, builtin, socat(deprecated), slirp4netns(deprecated)] (default: "none")
+   --port-driver value          port driver for non-host network. [none, builtin, slirp4netns, socat(deprecated)] (default: "none")
    --publish value, -p value    publish ports. e.g. "127.0.0.1:8080:80/tcp"
    --pidns                      create a PID namespace (default: false)
+   --cgroupns                   create a cgroup namespace (default: false)
    --propagation value          mount propagation [rprivate, rslave] (default: "rprivate")
    --help, -h                   show help (default: false)
    --version, -v                print the version (default: false)
@@ -428,19 +430,19 @@ Currently, the MAC address is always set to a random address.
 
 To the ports in the network namespace to the host network namespace, `--port-driver` needs to be specified.
 
-* `--port-driver=none`: do not expose ports (default)
-* `--port-driver=socat`: use `socat` binary (deprecated)
-* `--port-driver=slirp4netns`: use slirp4netns API (deprecated)
-* `--port-driver=builtin`: use built-in port driver (recommended)
+The default value is `none` (do not expose ports).
 
-[Benchmark: iperf3 from the parent to the child (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728):
+| `--port-driver`      |  Throughput | Source IP
+|----------------------|-------------|----------
+| `slirp4netns`        | 6.89 Gbps   | Propagated
+| `socat` (Deprecated) | 7.80 Gbps   | Always 127.0.0.1
+| `builtin`            | 30.0 Gbps   | Always 127.0.0.1
 
-| `--port-driver` |  Throughput
-|-----------------|------------
-| `socat`         | 7.80 Gbps
-| `slirp4netns`   | 6.89 Gbps
-| `builtin`       | 30.0 Gbps
+([Benchmark: iperf3 from the parent to the child (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728))
 
+The `builtin` driver is fastest, but be aware that the source IP is not propagated and always set to 127.0.0.1.
+
+### Exposing ports
 For example, to expose 80 in the child as 8080 in the parent:
 
 ```console
