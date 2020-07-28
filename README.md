@@ -169,7 +169,7 @@ USAGE:
    rootlesskit [global options] [arguments...]
 
 VERSION:
-   0.9.5+dev
+   0.10.0
 
 DESCRIPTION:
    RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
