@@ -350,6 +350,9 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 	switch s := clicontext.String("port-driver"); s {
 	case "none":
 		// NOP
+		if len(clicontext.StringSlice("publish")) != 0 {
+			return opt, errors.Errorf("port driver %q does not support publishing ports", s)
+		}
 	case "socat":
 		logrus.Warn("\"socat\" port driver is deprecated")
 		if opt.NetworkDriver == nil {
