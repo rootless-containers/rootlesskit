@@ -38,6 +38,8 @@ type Opt struct {
 	PublishPorts     []port.Spec
 	CreatePIDNS      bool
 	CreateCgroupNS   bool
+	CreateUTSNS      bool
+	CreateIPCNS      bool
 	ParentEUIDEnvKey string // optional env key to propagate geteuid() value
 	ParentEGIDEnvKey string // optional env key to propagate getegid() value
 	Propagation      string
@@ -117,6 +119,12 @@ func Parent(opt Opt) error {
 	}
 	if opt.CreateCgroupNS {
 		cmd.SysProcAttr.Unshareflags |= unix.CLONE_NEWCGROUP
+	}
+	if opt.CreateUTSNS {
+		cmd.SysProcAttr.Unshareflags |= unix.CLONE_NEWUTS
+	}
+	if opt.CreateIPCNS {
+		cmd.SysProcAttr.Unshareflags |= unix.CLONE_NEWIPC
 	}
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

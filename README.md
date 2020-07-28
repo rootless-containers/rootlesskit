@@ -210,6 +210,8 @@ GLOBAL OPTIONS:
    --publish value, -p value    publish ports. e.g. "127.0.0.1:8080:80/tcp"
    --pidns                      create a PID namespace (default: false)
    --cgroupns                   create a cgroup namespace (default: false)
+   --utsns                      create a UTS namespace (default: false)
+   --ipcns                      create an IPC namespace (default: false)
    --propagation value          mount propagation [rprivate, rslave] (default: "rprivate")
    --help, -h                   show help (default: false)
    --version, -v                print the version (default: false)
