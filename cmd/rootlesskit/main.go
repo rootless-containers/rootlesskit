@@ -99,7 +99,7 @@ func main() {
 		&cli.StringFlag{
 			Name:  "lxc-user-nic-binary",
 			Usage: "path of lxc-user-nic binary for --net=lxc-user-nic",
-			Value: "/usr/lib/" + unameM() + "-linux-gnu/lxc/lxc-user-nic",
+			Value: lxcUserNicBin(),
 		},
 		&cli.StringFlag{
 			Name:  "lxc-user-nic-bridge",
@@ -462,6 +462,18 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 	return opt, nil
 }
 
+func lxcUserNicBin() string {
+	for _, path := range []string{
+		"/usr/libexec/lxc/lxc-user-nic",                        // Debian, Fedora
+		"/usr/lib/" + unameM() + "-linux-gnu/lxc/lxc-user-nic", // Ubuntu
+		"/usr/lib/lxc/lxc-user-nic",                            // Arch Linux
+	} {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return ""
+}
 func unameM() string {
 	utsname := syscall.Utsname{}
 	if err := syscall.Uname(&utsname); err != nil {
