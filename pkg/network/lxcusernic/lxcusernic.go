@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
@@ -73,9 +74,22 @@ type childDriver struct {
 
 func exchangeDHCP(c *client4.Client, dev string) (*dhcpv4.DHCPv4, error) {
 	logrus.Debugf("exchanging DHCP messages using %s, may take a few seconds", dev)
-	ps, err := c.Exchange(dev)
-	if err != nil {
-		return nil, errors.Wrapf(err, "could not exchange DHCP with %s", dev)
+	var (
+		ps  []*dhcpv4.DHCPv4
+		err error
+	)
+	for {
+		ps, err = c.Exchange(dev)
+		if err != nil {
+			// `github.com/insomniacslk/dhcp` does not use errors.Wrap,
+			// so we need to compare the string.
+			if strings.Contains(err.Error(), "interrupted system call") {
+				// Retry on EINTR
+				continue
+			}
+			return nil, errors.Wrapf(err, "could not exchange DHCP with %s", dev)
+		}
+		break
 	}
 	if len(ps) < 1 {
 		return nil, errors.New("got empty DHCP message")
