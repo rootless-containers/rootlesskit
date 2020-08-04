@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "Check out"
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
     - name: "Build unit test image"
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-unit --target test-unit .
     - name: "Unit test"
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: "Check out"
-      uses: actions/checkout@v1
+      uses: actions/checkout@v2
     - name: "Build integration test image"
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration --target test-integration .
     - name: "Integration test: propagation"
