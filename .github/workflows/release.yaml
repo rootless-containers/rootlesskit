@@ -18,7 +18,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v2
     - run: DOCKER_BUILDKIT=1 docker build -o type=tar,dest=/tmp/rootlesskit-x86_64.tar --target artifact .
     - run: gzip -9 /tmp/rootlesskit-x86_64.tar
     - run: (cd /tmp; sha256sum rootlesskit-x86_64.tar.gz | tee /tmp/SHA256SUMS)
