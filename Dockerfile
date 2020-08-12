@@ -1,9 +1,8 @@
 ARG GO_VERSION=1.15
-ARG UBUNTU_VERSION=18.04
+ARG UBUNTU_VERSION=20.04
 ARG SHADOW_VERSION=4.8.1
-ARG SLIRP4NETNS_VERSION=v0.4.3
-# https://github.com/moby/vpnkit/commit/6bc1679a048d5d6837a37043e097f7b7cb710fdb (Mar 4, 2020)
-ARG VPNKIT_DIGEST=sha256:e0e226d66cf3a7f2b4c3707aba207d4803be8a4f3a4e070a380de6d737a44669
+ARG SLIRP4NETNS_VERSION=v1.1.4
+ARG VPNKIT_VERSION=0.4.0
 
 FROM golang:${GO_VERSION}-alpine AS rootlesskit
 RUN apk add --no-cache file
@@ -27,6 +26,7 @@ CMD ["go","test","-v","-race","github.com/rootless-containers/rootlesskit/..."]
 
 # idmap runnable without --privileged (but still requires seccomp=unconfined apparmor=unconfined)
 FROM ubuntu:${UBUNTU_VERSION} AS idmap
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y automake autopoint bison gettext git gcc libcap-dev libtool make
 RUN git clone https://github.com/shadow-maint/shadow.git /shadow
 WORKDIR /shadow
@@ -36,7 +36,7 @@ RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux -
   make && \
   cp src/newuidmap src/newgidmap /usr/bin
 
-FROM djs55/vpnkit@${VPNKIT_DIGEST} AS vpnkit
+FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit
 
 FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # iproute2: for `ip` command that rootlesskit needs to exec
