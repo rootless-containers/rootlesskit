@@ -9,7 +9,7 @@ github.com/gofrs/flock
 # github.com/google/uuid v1.1.1
 ## explicit
 github.com/google/uuid
-# github.com/gorilla/mux v1.7.4
+# github.com/gorilla/mux v1.8.0
 ## explicit
 github.com/gorilla/mux
 # github.com/insomniacslk/dhcp v0.0.0-20200806210722-3f14f7f8bd9c
