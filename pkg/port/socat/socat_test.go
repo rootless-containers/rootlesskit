@@ -15,6 +15,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSocat(t *testing.T) {
+	t.Skip("FIXME: flaky test")
 	pf := func() port.ParentDriver {
 		d, err := NewParentDriver(testsuite.TLogWriter(t, "socat.Driver"))
 		if err != nil {
