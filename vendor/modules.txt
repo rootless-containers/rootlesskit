@@ -22,8 +22,6 @@ github.com/insomniacslk/dhcp/rfc1035label
 # github.com/jamescun/tuntap v0.0.0-20190712092105-cb1fb277045c
 ## explicit
 github.com/jamescun/tuntap
-# github.com/konsorten/go-windows-terminal-sequences v1.0.3
-github.com/konsorten/go-windows-terminal-sequences
 # github.com/moby/sys/mountinfo v0.2.0
 ## explicit
 github.com/moby/sys/mountinfo
@@ -41,7 +39,7 @@ github.com/pmezard/go-difflib/difflib
 github.com/russross/blackfriday/v2
 # github.com/shurcooL/sanitized_anchor_name v1.0.0
 github.com/shurcooL/sanitized_anchor_name
-# github.com/sirupsen/logrus v1.6.0
+# github.com/sirupsen/logrus v1.7.0
 ## explicit
 github.com/sirupsen/logrus
 # github.com/stretchr/testify v1.6.1

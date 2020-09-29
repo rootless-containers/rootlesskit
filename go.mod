@@ -13,7 +13,7 @@ require (
 	github.com/moby/vpnkit v0.4.0
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.6.0
+	github.com/sirupsen/logrus v1.7.0
 	github.com/stretchr/testify v1.6.1
 	github.com/u-root/u-root v6.0.0+incompatible // indirect
 	github.com/urfave/cli/v2 v2.2.0
