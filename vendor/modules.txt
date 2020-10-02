@@ -22,7 +22,7 @@ github.com/insomniacslk/dhcp/rfc1035label
 # github.com/jamescun/tuntap v0.0.0-20190712092105-cb1fb277045c
 ## explicit
 github.com/jamescun/tuntap
-# github.com/moby/sys/mountinfo v0.2.0
+# github.com/moby/sys/mountinfo v0.3.1
 ## explicit
 github.com/moby/sys/mountinfo
 # github.com/moby/vpnkit v0.4.0
