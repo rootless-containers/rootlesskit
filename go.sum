@@ -25,6 +25,8 @@ github.com/moby/sys/mountinfo v0.2.0 h1:HgYSHMWCj8D7w7TE/cQJfWrY6W3TUxs3pwGFyC5q
 github.com/moby/sys/mountinfo v0.2.0/go.mod h1:rEr8tzG/lsIZHBtN/JjGG+LMYx9eXgW2JI+6q0qou+A=
 github.com/moby/sys/mountinfo v0.3.1 h1:R+C9GycEzoR3GdwQ7mANRhJORnVDJiRkf0JMY82MeI0=
 github.com/moby/sys/mountinfo v0.3.1/go.mod h1:rEr8tzG/lsIZHBtN/JjGG+LMYx9eXgW2JI+6q0qou+A=
+github.com/moby/sys/mountinfo v0.4.0 h1:1KInV3Huv18akCu58V7lzNlt+jFmqlu1EaErnEHE/VM=
+github.com/moby/sys/mountinfo v0.4.0/go.mod h1:rEr8tzG/lsIZHBtN/JjGG+LMYx9eXgW2JI+6q0qou+A=
 github.com/moby/vpnkit v0.4.0 h1:8M8aJGD+IiVapJ3h9UNXa8NiEX8X8zFBslk/JDYRiTo=
 github.com/moby/vpnkit v0.4.0/go.mod h1:KyjUrL9cb6ZSNNAUwZfqRjhwwgJ3BJN+kXh0t43WTUQ=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
