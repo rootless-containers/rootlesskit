@@ -9,7 +9,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/insomniacslk/dhcp v0.0.0-20200806210722-3f14f7f8bd9c
 	github.com/jamescun/tuntap v0.0.0-20190712092105-cb1fb277045c
-	github.com/moby/sys/mountinfo v0.3.1
+	github.com/moby/sys/mountinfo v0.4.0
 	github.com/moby/vpnkit v0.4.0
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pkg/errors v0.9.1
