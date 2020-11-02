@@ -50,7 +50,7 @@ github.com/stretchr/testify/assert
 github.com/u-root/u-root/pkg/rand
 github.com/u-root/u-root/pkg/ubinary
 github.com/u-root/u-root/pkg/uio
-# github.com/urfave/cli/v2 v2.2.0
+# github.com/urfave/cli/v2 v2.3.0
 ## explicit
 github.com/urfave/cli/v2
 # golang.org/x/net v0.0.0-20200707034311-ab3426394381
