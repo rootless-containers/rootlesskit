@@ -45,22 +45,22 @@ func main() {
 	app.UsageText = "rootlesskit [global options] [arguments...]"
 	app.Description = `RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
 
-   Web site: https://github.com/rootless-containers/rootlesskit
+Web site: https://github.com/rootless-containers/rootlesskit
 
-   Examples:
-     # spawn a shell with a new user namespace and a mount namespace
-     rootlesskit bash
+Examples:
+  # spawn a shell with a new user namespace and a mount namespace
+  rootlesskit bash
 
-     # make /etc writable
-     rootlesskit --copy-up=/etc bash
+  # make /etc writable
+  rootlesskit --copy-up=/etc bash
 
-     # set mount propagation to rslave
-     rootlesskit --propagation=rslave bash
+  # set mount propagation to rslave
+  rootlesskit --propagation=rslave bash
 
-     # create a network namespace with slirp4netns, and expose 80/tcp on the namespace as 8080/tcp on the host
-     rootlesskit --copy-up=/etc --net=slirp4netns --disable-host-loopback --port-driver=builtin -p 127.0.0.1:8080:80/tcp bash
+  # create a network namespace with slirp4netns, and expose 80/tcp on the namespace as 8080/tcp on the host
+  rootlesskit --copy-up=/etc --net=slirp4netns --disable-host-loopback --port-driver=builtin -p 127.0.0.1:8080:80/tcp bash
 
-   Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.`
+Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.`
 	app.Flags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:        "debug",
