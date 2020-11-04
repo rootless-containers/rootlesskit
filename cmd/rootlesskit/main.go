@@ -45,22 +45,22 @@ func main() {
 	app.UsageText = "rootlesskit [global options] [arguments...]"
 	app.Description = `RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
 
-   Web site: https://github.com/rootless-containers/rootlesskit
+Web site: https://github.com/rootless-containers/rootlesskit
 
-   Examples:
-     # spawn a shell with a new user namespace and a mount namespace
-     rootlesskit bash
+Examples:
+  # spawn a shell with a new user namespace and a mount namespace
+  rootlesskit bash
 
-     # make /etc writable
-     rootlesskit --copy-up=/etc bash
+  # make /etc writable
+  rootlesskit --copy-up=/etc bash
 
-     # set mount propagation to rslave
-     rootlesskit --propagation=rslave bash
+  # set mount propagation to rslave
+  rootlesskit --propagation=rslave bash
 
-     # create a network namespace with slirp4netns, and expose 80/tcp on the namespace as 8080/tcp on the host
-     rootlesskit --copy-up=/etc --net=slirp4netns --disable-host-loopback --port-driver=builtin -p 127.0.0.1:8080:80/tcp bash
+  # create a network namespace with slirp4netns, and expose 80/tcp on the namespace as 8080/tcp on the host
+  rootlesskit --copy-up=/etc --net=slirp4netns --disable-host-loopback --port-driver=builtin -p 127.0.0.1:8080:80/tcp bash
 
-   Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.`
+Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.`
 	app.Flags = []cli.Flag{
 		&cli.BoolFlag{
 			Name:        "debug",
@@ -117,7 +117,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:  "ifname",
-			Usage: "Tap interface name for slirp4netns network (default: tap0)",
+			Usage: "Network interface name (default: tap0 for slirp4netns and vpnkit, eth0 for lxc-user-nic)",
 		},
 		&cli.BoolFlag{
 			Name:  "disable-host-loopback",
@@ -261,6 +261,9 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 	}
 
 	ifname := clicontext.String("ifname")
+	if strings.Contains(ifname, "/") {
+		return opt, errors.New("ifname must not contain \"/\"")
+	}
 
 	disableHostLoopback := clicontext.Bool("disable-host-loopback")
 	if !disableHostLoopback && clicontext.String("net") != "host" {
@@ -279,6 +282,9 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		}
 		if ipnet != nil {
 			return opt, errors.New("custom cidr is supported only for --net=slirp4netns")
+		}
+		if ifname != "" {
+			return opt, errors.New("ifname cannot be specified for --net=host")
 		}
 	case "slirp4netns":
 		binary := clicontext.String("slirp4netns-binary")
@@ -344,7 +350,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		if _, err := exec.LookPath(binary); err != nil {
 			return opt, err
 		}
-		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu, disableHostLoopback)
+		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu, ifname, disableHostLoopback)
 	case "lxc-user-nic":
 		logrus.Warn("\"lxc-user-nic\" network driver is experimental")
 		if ipnet != nil {
@@ -357,7 +363,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		if _, err := exec.LookPath(binary); err != nil {
 			return opt, err
 		}
-		opt.NetworkDriver, err = lxcusernic.NewParentDriver(binary, mtu, clicontext.String("lxc-user-nic-bridge"))
+		opt.NetworkDriver, err = lxcusernic.NewParentDriver(binary, mtu, clicontext.String("lxc-user-nic-bridge"), ifname)
 		if err != nil {
 			return opt, err
 		}
