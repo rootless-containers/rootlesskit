@@ -4,17 +4,22 @@ ARG SHADOW_VERSION=4.8.1
 ARG SLIRP4NETNS_VERSION=v1.1.4
 ARG VPNKIT_VERSION=0.4.0
 
-FROM golang:${GO_VERSION}-alpine AS rootlesskit
-RUN apk add --no-cache file
+FROM golang:${GO_VERSION}-alpine AS build
+RUN apk add --no-cache file make
 ADD . /go/src/github.com/rootless-containers/rootlesskit
-ENV CGO_ENABLED=0
-RUN mkdir -p /out && \
-  go build -o /out github.com/rootless-containers/rootlesskit/cmd/... && \
-  file /out/* | grep -v dynamic
+WORKDIR /go/src/github.com/rootless-containers/rootlesskit
+
+FROM build AS rootlesskit
+RUN CGO_ENABLED=0 make && file /bin/* | grep -v dynamic
 
 FROM scratch AS artifact
-COPY --from=rootlesskit /out/rootlesskit /rootlesskit
-COPY --from=rootlesskit /out/rootlessctl /rootlessctl
+COPY --from=rootlesskit /go/src/github.com/rootless-containers/rootlesskit/bin/* /
+
+FROM build AS cross
+RUN make cross
+
+FROM scratch AS cross-artifact
+COPY --from=cross /go/src/github.com/rootless-containers/rootlesskit/_artifact/* /
 
 # `go test -race` requires non-Alpine
 FROM golang:${GO_VERSION} AS test-unit
@@ -55,8 +60,8 @@ RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \
   mkdir -p /run/user/1000 /etc/lxc && \
   echo "user veth lxcbr0 32" > /etc/lxc/lxc-usernet && \
   echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user
-COPY --from=rootlesskit /out/rootlesskit /home/user/bin/
-COPY --from=rootlesskit /out/rootlessctl /home/user/bin/
+COPY --from=artifact /rootlesskit /home/user/bin/
+COPY --from=artifact /rootlessctl /home/user/bin/
 ARG SLIRP4NETNS_VERSION
 RUN curl -sSL -o /home/user/bin/slirp4netns https://github.com/rootless-containers/slirp4netns/releases/download/${SLIRP4NETNS_VERSION}/slirp4netns-x86_64 && \
   chmod +x /home/user/bin/slirp4netns
