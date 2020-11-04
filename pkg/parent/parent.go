@@ -32,7 +32,6 @@ import (
 type Opt struct {
 	PipeFDEnvKey     string               // needs to be set
 	StateDir         string               // directory needs to be precreated
-	StateDirTemp     bool                 // set flag if StateDir was created in /tmp/
 	StateDirEnvKey   string               // optional env key to propagate StateDir value
 	NetworkDriver    network.ParentDriver // nil for HostNetwork
 	PortDriver       port.ParentDriver    // nil for --port-driver=none
@@ -78,17 +77,15 @@ func checkPreflight(opt Opt) error {
 	return nil
 }
 
-func createCleanupLock(sDir string, tempDir bool) error {
+func createCleanupLock(sDir string) error {
 	//lock state dir when using /tmp/ path
-	if tempDir {
-		stateDir, err := os.Open(sDir)
-		if err != nil {
-			return err
-		}
-		err = unix.Flock(int(stateDir.Fd()), unix.LOCK_SH)
-		if err != nil {
-			return errors.Errorf("failed to lock directory %s", sDir)
-		}
+	stateDir, err := os.Open(sDir)
+	if err != nil {
+		return err
+	}
+	err = unix.Flock(int(stateDir.Fd()), unix.LOCK_SH)
+	if err != nil {
+		logrus.Warnf("Failed to lock the state dir %s", sDir)
 	}
 	return nil
 }
@@ -98,7 +95,7 @@ func Parent(opt Opt) error {
 		return err
 	}
 
-	err := createCleanupLock(opt.StateDir, opt.StateDirTemp)
+	err := createCleanupLock(opt.StateDir)
 	if err != nil {
 		return err
 	}
