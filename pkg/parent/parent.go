@@ -77,12 +77,31 @@ func checkPreflight(opt Opt) error {
 	return nil
 }
 
+func createCleanupLock(sDir string) error {
+	//lock state dir when using /tmp/ path
+	stateDir, err := os.Open(sDir)
+	if err != nil {
+		return err
+	}
+	err = unix.Flock(int(stateDir.Fd()), unix.LOCK_SH)
+	if err != nil {
+		logrus.Warnf("Failed to lock the state dir %s", sDir)
+	}
+	return nil
+}
+
 func Parent(opt Opt) error {
 	if err := checkPreflight(opt); err != nil {
 		return err
 	}
+
+	err := createCleanupLock(opt.StateDir)
+	if err != nil {
+		return err
+	}
+
 	lockPath := filepath.Join(opt.StateDir, StateFileLock)
-	lock := flock.NewFlock(lockPath)
+	lock := flock.New(lockPath)
 	locked, err := lock.TryLock()
 	if err != nil {
 		return errors.Wrapf(err, "failed to lock %s", lockPath)
