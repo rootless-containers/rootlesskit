@@ -17,7 +17,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 )
 
-func NewParentDriver(binary string, mtu int, bridge string) (network.ParentDriver, error) {
+func NewParentDriver(binary string, mtu int, bridge, ifname string) (network.ParentDriver, error) {
 	if binary == "" {
 		return nil, errors.New("got empty binary")
 	}
@@ -30,10 +30,14 @@ func NewParentDriver(binary string, mtu int, bridge string) (network.ParentDrive
 	if bridge == "" {
 		return nil, errors.New("got empty bridge")
 	}
+	if ifname == "" {
+		ifname = "eth0"
+	}
 	return &parentDriver{
 		binary: binary,
 		mtu:    mtu,
 		bridge: bridge,
+		ifname: ifname,
 	}, nil
 }
 
@@ -41,6 +45,7 @@ type parentDriver struct {
 	binary string
 	mtu    int
 	bridge string
+	ifname string
 }
 
 func (d *parentDriver) MTU() int {
@@ -51,14 +56,13 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	var cleanups []func() error
 	dummyLXCPath := "/dev/null"
 	dummyLXCName := "dummy"
-	dev := "eth0"
-	cmd := exec.Command(d.binary, "create", dummyLXCPath, dummyLXCName, strconv.Itoa(childPID), "veth", d.bridge, dev)
+	cmd := exec.Command(d.binary, "create", dummyLXCPath, dummyLXCName, strconv.Itoa(childPID), "veth", d.bridge, d.ifname)
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, common.Seq(cleanups), errors.Wrapf(err, "%s failed: %s", d.binary, string(b))
 	}
 	netmsg := common.NetworkMessage{
-		Dev: dev,
+		Dev: d.ifname,
 		// IP, Netmask, Gateway, and DNS are configured in Child (via DHCP)
 		MTU: d.mtu,
 	}

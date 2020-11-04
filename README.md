@@ -169,27 +169,27 @@ USAGE:
    rootlesskit [global options] [arguments...]
 
 VERSION:
-   0.10.0
+   0.10.1+dev
 
 DESCRIPTION:
    RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
-
-   Web site: https://github.com/rootless-containers/rootlesskit
-
-   Examples:
-     # spawn a shell with a new user namespace and a mount namespace
-     rootlesskit bash
-
-     # make /etc writable
-     rootlesskit --copy-up=/etc bash
-
-     # set mount propagation to rslave
-     rootlesskit --propagation=rslave bash
-
-     # create a network namespace with slirp4netns, and expose 80/tcp on the namespace as 8080/tcp on the host
-     rootlesskit --copy-up=/etc --net=slirp4netns --disable-host-loopback --port-driver=builtin -p 127.0.0.1:8080:80/tcp bash
-
-   Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.
+   
+      Web site: https://github.com/rootless-containers/rootlesskit
+   
+      Examples:
+        # spawn a shell with a new user namespace and a mount namespace
+        rootlesskit bash
+   
+        # make /etc writable
+        rootlesskit --copy-up=/etc bash
+   
+        # set mount propagation to rslave
+        rootlesskit --propagation=rslave bash
+   
+        # create a network namespace with slirp4netns, and expose 80/tcp on the namespace as 8080/tcp on the host
+        rootlesskit --copy-up=/etc --net=slirp4netns --disable-host-loopback --port-driver=builtin -p 127.0.0.1:8080:80/tcp bash
+   
+      Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.
 
 GLOBAL OPTIONS:
    --debug                      debug mode (default: false)
@@ -203,6 +203,7 @@ GLOBAL OPTIONS:
    --lxc-user-nic-bridge value  lxc-user-nic bridge name (default: "lxcbr0")
    --mtu value                  MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
    --cidr value                 CIDR for slirp4netns network (default: 10.0.2.0/24)
+   --ifname value               Network interface name (default: tap0 for slirp4netns and vpnkit, eth0 for lxc-user-nic)
    --disable-host-loopback      prohibit connecting to 127.0.0.1:* on the host namespace (default: false)
    --copy-up value              mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
    --copy-up-mode value         copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")

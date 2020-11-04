@@ -20,7 +20,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 )
 
-func NewParentDriver(binary string, mtu int, disableHostLoopback bool) network.ParentDriver {
+func NewParentDriver(binary string, mtu int, ifname string, disableHostLoopback bool) network.ParentDriver {
 	if binary == "" {
 		panic("got empty vpnkit binary")
 	}
@@ -34,9 +34,13 @@ func NewParentDriver(binary string, mtu int, disableHostLoopback bool) network.P
 		logrus.Warnf("vpnkit is known to have issues with non-1500 MTU (current: %d), see https://github.com/rootless-containers/rootlesskit/issues/6#issuecomment-403531453", mtu)
 		// NOTE: iperf3 stops working with MTU >= 16425
 	}
+	if ifname == "" {
+		ifname = "tap0"
+	}
 	return &parentDriver{
 		binary:              binary,
 		mtu:                 mtu,
+		ifname:              ifname,
 		disableHostLoopback: disableHostLoopback,
 	}
 }
@@ -50,6 +54,7 @@ const (
 type parentDriver struct {
 	binary              string
 	mtu                 int
+	ifname              string
 	disableHostLoopback bool
 }
 
@@ -95,7 +100,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	logrus.Debugf("connected to VPNKit vmnet")
 	// TODO: support configuration
 	netmsg := common.NetworkMessage{
-		Dev:     "tap0",
+		Dev:     d.ifname,
 		IP:      vif.IP.String(),
 		Netmask: 24,
 		Gateway: "192.168.65.1",

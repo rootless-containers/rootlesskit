@@ -117,7 +117,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:  "ifname",
-			Usage: "Tap interface name for slirp4netns network (default: tap0)",
+			Usage: "Network interface name (default: tap0 for slirp4netns and vpnkit, eth0 for lxc-user-nic)",
 		},
 		&cli.BoolFlag{
 			Name:  "disable-host-loopback",
@@ -261,6 +261,9 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 	}
 
 	ifname := clicontext.String("ifname")
+	if strings.Contains(ifname, "/") {
+		return opt, errors.New("ifname must not contain \"/\"")
+	}
 
 	disableHostLoopback := clicontext.Bool("disable-host-loopback")
 	if !disableHostLoopback && clicontext.String("net") != "host" {
@@ -279,6 +282,9 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		}
 		if ipnet != nil {
 			return opt, errors.New("custom cidr is supported only for --net=slirp4netns")
+		}
+		if ifname != "" {
+			return opt, errors.New("ifname cannot be specified for --net=host")
 		}
 	case "slirp4netns":
 		binary := clicontext.String("slirp4netns-binary")
@@ -344,7 +350,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		if _, err := exec.LookPath(binary); err != nil {
 			return opt, err
 		}
-		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu, disableHostLoopback)
+		opt.NetworkDriver = vpnkit.NewParentDriver(binary, mtu, ifname, disableHostLoopback)
 	case "lxc-user-nic":
 		logrus.Warn("\"lxc-user-nic\" network driver is experimental")
 		if ipnet != nil {
@@ -357,7 +363,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		if _, err := exec.LookPath(binary); err != nil {
 			return opt, err
 		}
-		opt.NetworkDriver, err = lxcusernic.NewParentDriver(binary, mtu, clicontext.String("lxc-user-nic-bridge"))
+		opt.NetworkDriver, err = lxcusernic.NewParentDriver(binary, mtu, clicontext.String("lxc-user-nic-bridge"), ifname)
 		if err != nil {
 			return opt, err
 		}
