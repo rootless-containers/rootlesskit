@@ -75,7 +75,7 @@ func DetectFeatures(binary string) (*Features, error) {
 
 // NewParentDriver instantiates new parent driver.
 // Requires slirp4netns v0.4.0 or later.
-func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPNet, disableHostLoopback bool, apiSocketPath string, enableSandbox, enableSeccomp bool) (network.ParentDriver, error) {
+func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPNet, ifname string, disableHostLoopback bool, apiSocketPath string, enableSandbox, enableSeccomp bool) (network.ParentDriver, error) {
 	if binary == "" {
 		return nil, errors.New("got empty slirp4netns binary")
 	}
@@ -85,6 +85,11 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 	if mtu == 0 {
 		mtu = 65520
 	}
+
+	if ifname == "" {
+		ifname = "tap0"
+	}
+
 	features, err := DetectFeatures(binary)
 	if err != nil {
 		return nil, err
@@ -117,6 +122,7 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 		apiSocketPath:       apiSocketPath,
 		enableSandbox:       enableSandbox,
 		enableSeccomp:       enableSeccomp,
+		ifname:              ifname,
 	}, nil
 }
 
@@ -129,6 +135,7 @@ type parentDriver struct {
 	apiSocketPath       string
 	enableSandbox       bool
 	enableSeccomp       bool
+	ifname              string
 }
 
 func (d *parentDriver) MTU() int {
@@ -136,7 +143,7 @@ func (d *parentDriver) MTU() int {
 }
 
 func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.NetworkMessage, func() error, error) {
-	tap := "tap0"
+	tap := d.ifname
 	var cleanups []func() error
 	if err := parentutils.PrepareTap(childPID, tap); err != nil {
 		return nil, common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)

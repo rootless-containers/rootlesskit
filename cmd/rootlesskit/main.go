@@ -115,6 +115,10 @@ func main() {
 			Name:  "cidr",
 			Usage: "CIDR for slirp4netns network (default: 10.0.2.0/24)",
 		},
+		&cli.StringFlag{
+			Name:  "ifname",
+			Usage: "Tap interface name for slirp4netns network (default: tap0)",
+		},
 		&cli.BoolFlag{
 			Name:  "disable-host-loopback",
 			Usage: "prohibit connecting to 127.0.0.1:* on the host namespace",
@@ -255,6 +259,9 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 	if err != nil {
 		return opt, err
 	}
+
+	ifname := clicontext.String("ifname")
+
 	disableHostLoopback := clicontext.Bool("disable-host-loopback")
 	if !disableHostLoopback && clicontext.String("net") != "host" {
 		logrus.Warn("specifying --disable-host-loopback is highly recommended to prohibit connecting to 127.0.0.1:* on the host namespace (requires slirp4netns or VPNKit)")
@@ -325,7 +332,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		default:
 			return opt, errors.Errorf("unsupported slirp4netns-seccomp mode: %q", s)
 		}
-		opt.NetworkDriver, err = slirp4netns.NewParentDriver(&logrusDebugWriter{label: "network/slirp4netns"}, binary, mtu, ipnet, disableHostLoopback, slirp4netnsAPISocketPath, enableSandbox, enableSeccomp)
+		opt.NetworkDriver, err = slirp4netns.NewParentDriver(&logrusDebugWriter{label: "network/slirp4netns"}, binary, mtu, ipnet, ifname, disableHostLoopback, slirp4netnsAPISocketPath, enableSandbox, enableSeccomp)
 		if err != nil {
 			return opt, err
 		}
