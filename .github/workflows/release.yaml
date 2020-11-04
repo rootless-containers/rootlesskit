@@ -16,40 +16,42 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
-    - run: DOCKER_BUILDKIT=1 docker build -o type=tar,dest=/tmp/rootlesskit-x86_64.tar --target artifact .
-    - run: gzip -9 /tmp/rootlesskit-x86_64.tar
-    - run: (cd /tmp; sha256sum rootlesskit-x86_64.tar.gz | tee /tmp/SHA256SUMS)
-    - uses: actions/create-release@v1
-      id: create_release
+    - name: "Build binaries"
+      run: DOCKER_BUILDKIT=1 docker build -o /tmp/artifact --target cross-artifact .
+    - name: "SHA256SUMS"
+      run: (cd /tmp/artifact; sha256sum *) | tee /tmp/SHA256SUMS
+    - name: "The sha256sum of the SHA256SUMS file"
+      run: sha256sum /tmp/SHA256SUMS
+    - name: "Prepare the release note"
+      run: |
+        tag="${GITHUB_REF##*/}"
+        shasha=$(sha256sum /tmp/SHA256SUMS | awk '{print $1}')
+        cat << EOF | tee /tmp/release-note.txt
+        ${tag}
+
+        #### Changes
+        (To be documented)
+
+        #### Install
+        \`\`\`
+        mkdir -p ~/bin
+        curl -sSL https://github.com/${{ github.repository }}/releases/download/${tag}/rootlesskit-\$(uname -m).tar.gz | tar Cxzv ~/bin
+        \`\`\`
+
+        #### About the binaries
+        The binaries were built automatically on GitHub Actions.
+        See the log to verify SHA256SUMS.
+        https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        The sha256sum of the SHA256SUMS file itself is ${shasha} .
+        EOF
+    - name: "Create release"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: ${{ github.ref }}
-        draft: true
-    - name: "Upload rootlesskit-x86_64.tar.gz"
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: /tmp/rootlesskit-x86_64.tar.gz
-        asset_name: rootlesskit-x86_64.tar.gz
-        asset_content_type: application/octet-stream
-    - name: "Upload SHA256SUMS"
-      uses: actions/upload-release-asset@v1.0.2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: /tmp/SHA256SUMS
-        asset_name: SHA256SUMS
-        asset_content_type: application/octet-stream
-    - name: "Upload SHA256SUMS (artifact)"
-      uses: actions/upload-artifact@v1
-      with:
-        name: SHA256SUMS
-        path: /tmp/SHA256SUMS
+      run: |
+        tag="${GITHUB_REF##*/}"
+        asset_flags=()
+        for f in /tmp/artifact/* /tmp/SHA256SUMS; do asset_flags+=("-a" "$f"); done
+        hub release create "${asset_flags[@]}" -F /tmp/release-note.txt --draft "${tag}"
