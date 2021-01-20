@@ -10,6 +10,7 @@ type Spec struct {
 	ParentIP   string `json:"parentIP,omitempty"` // IPv4 address. can be empty (0.0.0.0).
 	ParentPort int    `json:"parentPort,omitempty"`
 	ChildPort  int    `json:"childPort,omitempty"`
+	ChildIP    string `json:"childIP,omitempty"`  // IPv4 address. If not specified, "127.0.0.1" is used.
 }
 
 type Status struct {
