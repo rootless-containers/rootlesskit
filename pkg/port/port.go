@@ -9,6 +9,8 @@ type Spec struct {
 	Proto      string `json:"proto,omitempty"`    // either "tcp" or "udp". in future "sctp" will be supported as well.
 	ParentIP   string `json:"parentIP,omitempty"` // IPv4 address. can be empty (0.0.0.0).
 	ParentPort int    `json:"parentPort,omitempty"`
+
+	ChildIP   string `json:"childIP,omitempty"`
 	ChildPort  int    `json:"childPort,omitempty"`
 }
 
@@ -44,6 +46,10 @@ type ParentDriver interface {
 	//
 	// ChildContext is optional.
 	RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, cctx *ChildContext) error
+
+	// SetChildIP sets the IP to use for the connection inside the network namespace
+	// If not specified "127.0.0.1" is used.
+	SetChildIP(ip string) error
 }
 
 type ChildDriver interface {

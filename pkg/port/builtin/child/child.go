@@ -23,6 +23,7 @@ func NewDriver(logWriter io.Writer) port.ChildDriver {
 
 type childDriver struct {
 	logWriter io.Writer
+	childIP   string
 }
 
 func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struct{}) error {
@@ -38,6 +39,7 @@ func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struc
 	if err != nil {
 		return err
 	}
+	d.childIP = opaque[opaquepkg.ChildIP]
 	ln, err := net.ListenUnix("unix", &net.UnixAddr{
 		Name: socketPath,
 		Net:  "unix",
@@ -106,7 +108,7 @@ func (d *childDriver) handleConnectRequest(c *net.UnixConn, req *msg.Request) er
 		return errors.Errorf("unknown proto: %q", req.Proto)
 	}
 	var dialer net.Dialer
-	targetConn, err := dialer.Dial(req.Proto, fmt.Sprintf("127.0.0.1:%d", req.Port))
+	targetConn, err := dialer.Dial(req.Proto, fmt.Sprintf("%s:%d", d.childIP, req.Port))
 	if err != nil {
 		return err
 	}

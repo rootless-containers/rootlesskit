@@ -42,6 +42,7 @@ func NewDriver(logWriter io.Writer, stateDir string) (port.ParentDriver, error) 
 		ports:              make(map[int]*port.Status, 0),
 		stoppers:           make(map[int]func() error, 0),
 		nextID:             1,
+		childIP:            "127.0.0.1",
 	}
 	return &d, nil
 }
@@ -54,12 +55,19 @@ type driver struct {
 	ports              map[int]*port.Status
 	stoppers           map[int]func() error
 	nextID             int
+	childIP            string
+}
+
+func (d *driver) SetChildIP(ip string) error {
+	d.childIP = ip
+	return nil
 }
 
 func (d *driver) OpaqueForChild() map[string]string {
 	return map[string]string{
 		opaque.SocketPath:         d.socketPath,
 		opaque.ChildReadyPipePath: d.childReadyPipePath,
+		opaque.ChildIP:            d.childIP,
 	}
 }
 
