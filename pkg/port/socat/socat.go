@@ -135,6 +135,20 @@ func createSocatCmd(ctx context.Context, spec port.Spec, logWriter io.Writer, ch
 	if spec.ChildPort < 1 || spec.ChildPort > 65535 {
 		return nil, errors.Errorf("unsupported childPort: %d", spec.ChildPort)
 	}
+	ip := spec.ChildIP
+	if ip == "" {
+		ip = "127.0.0.1"
+	} else {
+		p := net.ParseIP(ip)
+		if p == nil {
+			return nil, errors.Errorf("invalid IP: %q", ip)
+		}
+		p = p.To4()
+		if p == nil {
+			return nil, errors.Errorf("unsupported IP (v6?): %s", ip)
+		}
+		ip = p.String()
+	}
 	var cmd *exec.Cmd
 	switch spec.Proto {
 	case "tcp":
@@ -142,13 +156,13 @@ func createSocatCmd(ctx context.Context, spec port.Spec, logWriter io.Writer, ch
 			"socat",
 			fmt.Sprintf("TCP-LISTEN:%d,bind=%s,reuseaddr,fork,rcvbuf=65536,sndbuf=65536", spec.ParentPort, ipStr),
 			fmt.Sprintf("EXEC:\"%s\",nofork",
-				fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN TCP4:127.0.0.1:%d", childPID, spec.ChildPort)))
+				fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN TCP4:%s:%d", childPID, ip, spec.ChildPort)))
 	case "udp":
 		cmd = exec.CommandContext(ctx,
 			"socat",
 			fmt.Sprintf("UDP-LISTEN:%d,bind=%s,reuseaddr,fork,rcvbuf=65536,sndbuf=65536", spec.ParentPort, ipStr),
 			fmt.Sprintf("EXEC:\"%s\",nofork",
-				fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN UDP4:127.0.0.1:%d", childPID, spec.ChildPort)))
+				fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN UDP4:%s:%d", childPID, ip, spec.ChildPort)))
 	}
 	cmd.Env = os.Environ()
 	cmd.Stdout = logWriter

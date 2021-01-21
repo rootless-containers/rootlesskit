@@ -55,13 +55,27 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 	if err != nil {
 		return nil, err
 	}
+	ip := spec.ChildIP
+	if ip == "" {
+		ip = d.childIP
+	} else {
+		p := net.ParseIP(ip)
+		if p == nil {
+			return nil, errors.Errorf("invalid IP: %q", ip)
+		}
+		p = p.To4()
+		if p == nil {
+			return nil, errors.Errorf("unsupported IP (v6?): %s", ip)
+		}
+		ip = p.String()
+	}
 	req := request{
 		Execute: "add_hostfwd",
 		Arguments: addHostFwdArguments{
 			Proto:     spec.Proto,
 			HostAddr:  spec.ParentIP,
 			HostPort:  spec.ParentPort,
-			GuestAddr: d.childIP,
+			GuestAddr: ip,
 			GuestPort: spec.ChildPort,
 		},
 	}
