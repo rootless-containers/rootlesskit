@@ -25,6 +25,16 @@ func TestParsePortSpec(t *testing.T) {
 			},
 		},
 		{
+			s: "127.0.0.1:8080:10.0.2.100:80/tcp",
+			expected: &port.Spec{
+				Proto:      "tcp",
+				ParentIP:   "127.0.0.1",
+				ParentPort: 8080,
+				ChildIP:    "10.0.2.100",
+				ChildPort:  80,
+			},
+		},
+		{
 			s: "bad",
 		},
 		{
