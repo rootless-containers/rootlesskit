@@ -2,6 +2,7 @@ package child
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -288,6 +289,7 @@ func setMountPropagation(propagation string) error {
 func runAndReap(cmd *exec.Cmd) error {
 	c := make(chan os.Signal, 32)
 	signal.Notify(c, syscall.SIGCHLD)
+	cmd.SysProcAttr.Setsid = true
 	if err := cmd.Start(); err != nil {
 		return err
 	}
@@ -297,17 +299,54 @@ func runAndReap(cmd *exec.Cmd) error {
 	result := make(chan error)
 	go func() {
 		defer close(result)
-		for range c {
-			for {
-				if pid, err := syscall.Wait4(-1, nil, syscall.WNOHANG, nil); err != nil || pid <= 0 {
-					break
-				} else {
-					if pid == cmd.Process.Pid {
-						result <- cmd.Wait()
-					}
+		for cEntry := range c {
+			logrus.Debugf("reaper: got signal %q", cEntry)
+			if wsPtr := reap(cmd.Process.Pid); wsPtr != nil {
+				ws := *wsPtr
+				if ws.Exited() && ws.ExitStatus() == 0 {
+					result <- nil
+					continue
 				}
+				var resultErr common.ErrorWithSys = &reaperErr{
+					ws: ws,
+				}
+				result <- resultErr
 			}
 		}
 	}()
 	return <-result
+}
+
+func reap(myPid int) *syscall.WaitStatus {
+	var res *syscall.WaitStatus
+	for {
+		var ws syscall.WaitStatus
+		pid, err := syscall.Wait4(-1, &ws, syscall.WNOHANG, nil)
+		logrus.Debugf("reaper: got ws=%+v, pid=%d, err=%+v", ws, pid, err)
+		if err != nil || pid <= 0 {
+			break
+		}
+		if pid == myPid {
+			res = &ws
+		}
+	}
+	return res
+}
+
+type reaperErr struct {
+	ws syscall.WaitStatus
+}
+
+func (e *reaperErr) Sys() interface{} {
+	return e.ws
+}
+
+func (e *reaperErr) Error() string {
+	if e.ws.Exited() {
+		return fmt.Sprintf("exit status %d", e.ws.ExitStatus())
+	}
+	if e.ws.Signaled() {
+		return fmt.Sprintf("signal: %s", e.ws.Signal())
+	}
+	return fmt.Sprintf("exited with WAITSTATUS=0x%08x", e.ws)
 }
