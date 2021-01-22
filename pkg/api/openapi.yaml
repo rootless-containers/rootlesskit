@@ -1,7 +1,7 @@
 # When you made a change to this YAML, please validate with https://editor.swagger.io
 openapi: 3.0.2
 info:
-  version: 1.0.0
+  version: 1.0.1
   title: RootlessKit API
 servers:
   - url: 'http://rootlesskit/v1'
@@ -61,6 +61,8 @@ components:
           format: int32
           minimum: 1
           maximum: 65535
+        childIP:
+          type: string
 # future version may support requests with parentPort<=0 for automatic port assignment
         childPort:
           type: integer
