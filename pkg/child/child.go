@@ -255,6 +255,8 @@ func Child(opt Opt) error {
 		return err
 	}
 	if opt.Reaper {
+		logrus.Warn("reaper is experimental")
+		logrus.Warn("reaper is known to have an issue about propagating process exit code (https://github.com/rootless-containers/rootlesskit/issues/129)")
 		if err := runAndReap(cmd); err != nil {
 			return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
 		}

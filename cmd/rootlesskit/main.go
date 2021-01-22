@@ -163,6 +163,10 @@ Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the r
 			Usage: "mount propagation [rprivate, rslave]",
 			Value: "rprivate",
 		},
+		&cli.BoolFlag{
+			Name:  "reaper",
+			Usage: "enable process reaper (experimental). Requires --pidns.",
+		},
 	}
 	app.Before = func(context *cli.Context) error {
 		if debug {
@@ -431,12 +435,18 @@ func (w *logrusDebugWriter) Write(p []byte) (int, error) {
 }
 
 func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []string) (child.Opt, error) {
+	pidns := clicontext.Bool("pidns")
 	opt := child.Opt{
 		PipeFDEnvKey: pipeFDEnvKey,
 		TargetCmd:    targetCmd,
-		MountProcfs:  clicontext.Bool("pidns"),
+		MountProcfs:  pidns,
 		Propagation:  clicontext.String("propagation"),
-		Reaper:       clicontext.Bool("pidns"),
+		Reaper:       clicontext.Bool("reaper"),
+	}
+	if opt.Reaper {
+		if !pidns {
+			return opt, errors.New("reaper requires --pidns")
+		}
 	}
 	switch s := clicontext.String("net"); s {
 	case "host":
