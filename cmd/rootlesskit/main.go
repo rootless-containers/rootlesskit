@@ -168,6 +168,10 @@ Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the r
 			Usage: "enable process reaper. Requires --pidns. [auto,true,false]",
 			Value: "auto",
 		},
+		&cli.StringFlag{
+			Name:  "evacuate-cgroup2",
+			Usage: "evacuate processes into the specified subgroup. Requires --pidns and --cgroupns",
+		},
 	}
 	app.Before = func(context *cli.Context) error {
 		if debug {
@@ -238,6 +242,15 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		ParentEUIDEnvKey: parentEUIDEnvKey,
 		ParentEGIDEnvKey: parentEGIDEnvKey,
 		Propagation:      clicontext.String("propagation"),
+		EvacuateCgroup2:  clicontext.String("evacuate-cgroup2"),
+	}
+	if opt.EvacuateCgroup2 != "" {
+		if !opt.CreateCgroupNS {
+			return opt, errors.New("evacuate-cgroup2 requires --cgroupns")
+		}
+		if !opt.CreatePIDNS {
+			return opt, errors.New("evacuate-cgroup2 requires --pidns")
+		}
 	}
 	opt.StateDir = clicontext.String("state-dir")
 	if opt.StateDir == "" {
@@ -438,10 +451,11 @@ func (w *logrusDebugWriter) Write(p []byte) (int, error) {
 func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []string) (child.Opt, error) {
 	pidns := clicontext.Bool("pidns")
 	opt := child.Opt{
-		PipeFDEnvKey: pipeFDEnvKey,
-		TargetCmd:    targetCmd,
-		MountProcfs:  pidns,
-		Propagation:  clicontext.String("propagation"),
+		PipeFDEnvKey:    pipeFDEnvKey,
+		TargetCmd:       targetCmd,
+		MountProcfs:     pidns,
+		Propagation:     clicontext.String("propagation"),
+		EvacuateCgroup2: clicontext.String("evacuate-cgroup2") != "",
 	}
 	switch reaperStr := clicontext.String("reaper"); reaperStr {
 	case "auto":
