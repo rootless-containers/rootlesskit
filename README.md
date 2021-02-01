@@ -171,7 +171,7 @@ USAGE:
    rootlesskit [global options] [arguments...]
 
 VERSION:
-   0.11.0
+   0.13.0
 
 DESCRIPTION:
    RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
@@ -216,6 +216,8 @@ GLOBAL OPTIONS:
    --utsns                      create a UTS namespace (default: false)
    --ipcns                      create an IPC namespace (default: false)
    --propagation value          mount propagation [rprivate, rslave] (default: "rprivate")
+   --reaper value               enable process reaper. Requires --pidns. [auto,true,false] (default: "auto")
+   --evacuate-cgroup2 value     evacuate processes into the specified subgroup. Requires --pidns and --cgroupns
    --help, -h                   show help (default: false)
    --version, -v                print the version (default: false)
 ```
