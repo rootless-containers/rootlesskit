@@ -23,6 +23,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
+	"github.com/rootless-containers/rootlesskit/pkg/parent/cgrouputil"
 	"github.com/rootless-containers/rootlesskit/pkg/parent/idtools"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/sigproxy"
@@ -43,6 +44,7 @@ type Opt struct {
 	ParentEUIDEnvKey string // optional env key to propagate geteuid() value
 	ParentEGIDEnvKey string // optional env key to propagate getegid() value
 	Propagation      string
+	EvacuateCgroup2  string // e.g. "rootlesskit_evacuation"
 }
 
 // Documented state files. Undocumented ones are subject to change.
@@ -167,6 +169,12 @@ func Parent(opt Opt) error {
 	}
 	sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)
 	defer signal.StopCatch(sigc)
+
+	if opt.EvacuateCgroup2 != "" {
+		if err := cgrouputil.EvacuateCgroup2(opt.EvacuateCgroup2); err != nil {
+			return err
+		}
+	}
 
 	// send message 0
 	msg := common.Message{

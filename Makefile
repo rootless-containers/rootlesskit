@@ -21,3 +21,10 @@ bin/rootlesskit-docker-proxy: $(GO_FILES)
 .PHONY: cross
 cross:
 	./hack/make-cross.sh
+
+BINDIR ?= /usr/local/bin
+.PHONY: install
+install:
+	install -D -m 755 $(CURDIR)/bin/rootlesskit $(DESTDIR)$(BINDIR)/rootlesskit
+	install -D -m 755 $(CURDIR)/bin/rootlessctl $(DESTDIR)$(BINDIR)/rootlessctl
+	install -D -m 755 $(CURDIR)/bin/rootlesskit-docker-proxy $(DESTDIR)$(BINDIR)/rootlesskit-docker-proxy
