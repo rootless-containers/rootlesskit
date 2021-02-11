@@ -120,8 +120,8 @@ func ParsePortSpec(portSpec string) (*port.Spec, error) {
 // ValidatePortSpec validates *port.Spec.
 // existingPorts can be optionally passed for detecting conflicts.
 func ValidatePortSpec(spec port.Spec, existingPorts map[int]*port.Status) error {
-	if spec.Proto != "tcp" && spec.Proto != "udp" {
-		return errors.Errorf("unknown proto: %q", spec.Proto)
+	if err := validateProto(spec.Proto); err != nil {
+		return err
 	}
 	if spec.ParentIP != "" {
 		if net.ParseIP(spec.ParentIP) == nil {

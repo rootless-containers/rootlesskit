@@ -118,7 +118,7 @@ func TestValidatePortSpec(t *testing.T) {
 
 	// proto must be supplied and must equal "udp" or "tcp"
 	invalidProtos := []string{"", "NaN", "TCP"}
-	validProtos := []string{"udp", "tcp"}
+	validProtos := []string{"udp", "tcp", "sctp"}
 	for _, p := range invalidProtos {
 		s := spec
 		s.Proto = p
