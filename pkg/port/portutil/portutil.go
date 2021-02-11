@@ -128,6 +128,11 @@ func ValidatePortSpec(spec port.Spec, existingPorts map[int]*port.Status) error 
 			return errors.Errorf("invalid ParentIP: %q", spec.ParentIP)
 		}
 	}
+	if spec.ChildIP != "" {
+		if net.ParseIP(spec.ChildIP) == nil {
+			return errors.Errorf("invalid ChildIP: %q", spec.ChildIP)
+		}
+	}
 	if spec.ParentPort <= 0 || spec.ParentPort > 65535 {
 		return errors.Errorf("invalid ParentPort: %q", spec.ParentPort)
 	}

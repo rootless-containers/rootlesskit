@@ -133,6 +133,12 @@ func TestValidatePortSpec(t *testing.T) {
 
 	}
 
+	s := port.Spec{Proto: "tcp", ParentIP: "invalid", ParentPort: 80, ChildPort: 80}
+	assert.Error(t, ValidatePortSpec(s, existingPorts))
+
+	s = port.Spec{Proto: "tcp", ParentPort: 80, ChildIP: "invalid", ChildPort: 80}
+	assert.Error(t, ValidatePortSpec(s, existingPorts))
+
 	invalidPorts := []int{-200, 0, 1000000}
 	validPorts := []int{20, 500, 1337, 65000}
 
@@ -168,7 +174,7 @@ func TestValidatePortSpec(t *testing.T) {
 	// existing ports include tcp 10.10.10.10:8080, tcp *:80, no udp
 
 	// udp doesn't conflict with tcp
-	s := port.Spec{Proto: "udp", ParentPort: 80, ChildPort: 80}
+	s = port.Spec{Proto: "udp", ParentPort: 80, ChildPort: 80}
 	assert.NoError(t, ValidatePortSpec(s, existingPorts))
 
 	// same parent, same child, different IP has no conflict
