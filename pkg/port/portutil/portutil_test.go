@@ -45,21 +45,43 @@ func TestParsePortSpec(t *testing.T) {
 			s: "8080",
 			// future version may support short formats like this
 		},
+		{
+			s: "[::1]:8080:80/tcp",
+			expected: &port.Spec{
+				Proto:      "tcp",
+				ParentIP:   "::1",
+				ParentPort: 8080,
+				ChildPort:  80,
+			},
+		},
+		{
+			s: "[::1]:8080:[::2]:80/udp",
+			expected: &port.Spec{
+				Proto:      "udp",
+				ParentIP:   "::1",
+				ParentPort: 8080,
+				ChildIP:    "::2",
+				ChildPort:  80,
+			},
+		},
 	}
 	for _, tc := range testCases {
-		got, err := ParsePortSpec(tc.s)
-		if tc.expected == nil {
-			if err == nil {
-				t.Fatalf("error is expected for %q", tc.s)
+		tc := tc
+		t.Run(tc.s, func(t *testing.T) {
+			got, err := ParsePortSpec(tc.s)
+			if tc.expected == nil {
+				if err == nil {
+					t.Fatalf("error is expected for %q", tc.s)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("got error for %q: %v", tc.s, err)
+				}
+				if !reflect.DeepEqual(got, tc.expected) {
+					t.Fatalf("expected %+v, got %+v", tc.expected, got)
+				}
 			}
-		} else {
-			if err != nil {
-				t.Fatalf("got error for %q: %v", tc.s, err)
-			}
-			if !reflect.DeepEqual(got, tc.expected) {
-				t.Fatalf("expected %+v, got %+v", tc.expected, got)
-			}
-		}
+		})
 	}
 }
 
