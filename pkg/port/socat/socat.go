@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -149,21 +150,23 @@ func createSocatCmd(ctx context.Context, spec port.Spec, logWriter io.Writer, ch
 		}
 		ip = p.String()
 	}
-	var cmd *exec.Cmd
+	var (
+		cmd   *exec.Cmd
+		proto string
+		hp    = net.JoinHostPort(ip, strconv.Itoa(spec.ChildPort))
+	)
 	switch spec.Proto {
 	case "tcp":
-		cmd = exec.CommandContext(ctx,
-			"socat",
-			fmt.Sprintf("TCP-LISTEN:%d,bind=%s,reuseaddr,fork,rcvbuf=65536,sndbuf=65536", spec.ParentPort, ipStr),
-			fmt.Sprintf("EXEC:\"%s\",nofork",
-				fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN TCP4:%s:%d", childPID, ip, spec.ChildPort)))
+		proto = "TCP"
 	case "udp":
-		cmd = exec.CommandContext(ctx,
-			"socat",
-			fmt.Sprintf("UDP-LISTEN:%d,bind=%s,reuseaddr,fork,rcvbuf=65536,sndbuf=65536", spec.ParentPort, ipStr),
-			fmt.Sprintf("EXEC:\"%s\",nofork",
-				fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN UDP4:%s:%d", childPID, ip, spec.ChildPort)))
+		proto = "UDP"
 	}
+	cmd = exec.CommandContext(ctx,
+		"socat",
+		fmt.Sprintf("%s-LISTEN:%d,bind=%s,reuseaddr,fork,rcvbuf=65536,sndbuf=65536", proto, spec.ParentPort, ipStr),
+		fmt.Sprintf(`EXEC:"%s",nofork`,
+			fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN %s4:%s", childPID, proto, hp)))
+
 	cmd.Env = os.Environ()
 	cmd.Stdout = logWriter
 	cmd.Stderr = logWriter
