@@ -164,8 +164,8 @@ func createSocatCmd(ctx context.Context, spec port.Spec, logWriter io.Writer, ch
 	cmd = exec.CommandContext(ctx,
 		"socat",
 		fmt.Sprintf("%s-LISTEN:%d,bind=%s,reuseaddr,fork,rcvbuf=65536,sndbuf=65536", proto, spec.ParentPort, ipStr),
-		fmt.Sprintf(`EXEC:"%s",nofork`,
-			fmt.Sprintf("nsenter -U -n --preserve-credentials -t %d socat STDIN %s4:%s", childPID, proto, hp)))
+		fmt.Sprintf(`EXEC:"nsenter -U -n --preserve-credentials -t %d socat STDIN %s4:%s",nofork`, childPID, proto, hp),
+	)
 
 	cmd.Env = os.Environ()
 	cmd.Stdout = logWriter
