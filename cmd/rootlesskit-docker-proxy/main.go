@@ -35,7 +35,7 @@ func main() {
 	}
 }
 
-func xmain(f *os.File) error {
+func xmain(f *os.File) (retErr error) {
 	containerIP := flag.String("container-ip", "", "container ip")
 	containerPort := flag.Int("container-port", -1, "container port")
 	hostIP := flag.String("host-ip", "", "host ip")
@@ -63,7 +63,17 @@ func xmain(f *os.File) error {
 	if err != nil {
 		return errors.Wrap(err, "error while calling PortManager.AddPort()")
 	}
-	defer pm.RemovePort(context.Background(), st.ID)
+	defer func() {
+		err := pm.RemovePort(context.Background(), st.ID)
+		if err != nil {
+			err = errors.Wrap(err, "error while calling PortMapper.RemovePort()")
+		}
+		if retErr != nil {
+			retErr = errors.Wrap(err, retErr.Error())
+		} else {
+			retErr = err
+		}
+	}()
 
 	cmd := exec.Command(realProxy,
 		"-container-ip", *containerIP,
