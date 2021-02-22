@@ -25,6 +25,8 @@ jobs:
       run: docker run --rm --privileged rootlesskit:test-integration ./integration-propagation.sh
     - name: "Integration test: propagation (with `mount --make-rshared /`)"
       run: docker run --rm --privileged rootlesskit:test-integration sh -exc "sudo mount --make-rshared / && ./integration-propagation.sh"
+    - name: "Integration test: restart"
+      run: docker run --rm --privileged rootlesskit:test-integration ./integration-restart.sh
 # ===== Benchmark: Network (MTU=1500) =====
     - name: "Benchmark: Network (MTU=1500, network driver=slirp4netns)"
       run: |
