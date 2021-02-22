@@ -263,8 +263,8 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		if err != nil {
 			return opt, err
 		}
-		if err = os.MkdirAll(opt.StateDir, 0755); err != nil {
-			return opt, errors.Wrapf(err, "creating a state directory %s", opt.StateDir)
+		if err := parent.InitStateDir(opt.StateDir); err != nil {
+			return opt, err
 		}
 	}
 
