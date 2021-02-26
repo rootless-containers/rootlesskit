@@ -62,117 +62,131 @@ Examples:
 
 Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.`
 	app.Flags = []cli.Flag{
-		&cli.BoolFlag{
+		Categorize(&cli.BoolFlag{
 			Name:        "debug",
 			Usage:       "debug mode",
 			Destination: &debug,
-		},
-		&cli.StringFlag{
+		}, CategoryDebug),
+		Categorize(&cli.StringFlag{
 			Name:  "state-dir",
 			Usage: "state directory",
-		},
-		&cli.StringFlag{
+		}, CategoryState),
+		Categorize(&cli.StringFlag{
 			Name:  "net",
 			Usage: "network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental)]",
 			Value: "host",
-		},
-		&cli.StringFlag{
+		}, CategoryNetwork),
+		Categorize(&cli.StringFlag{
 			Name:  "slirp4netns-binary",
 			Usage: "path of slirp4netns binary for --net=slirp4netns",
 			Value: "slirp4netns",
-		},
-		&cli.StringFlag{
+		}, CategorySlirp4netns),
+		Categorize(&cli.StringFlag{
 			Name:  "slirp4netns-sandbox",
 			Usage: "enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be \"auto\" in future)",
 			Value: "false",
-		},
-		&cli.StringFlag{
+		}, CategorySlirp4netns),
+		Categorize(&cli.StringFlag{
 			Name:  "slirp4netns-seccomp",
 			Usage: "enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be \"auto\" in future)",
 			Value: "false",
-		},
-		&cli.StringFlag{
+		}, CategorySlirp4netns),
+		Categorize(&cli.StringFlag{
 			Name:  "vpnkit-binary",
 			Usage: "path of VPNKit binary for --net=vpnkit",
 			Value: "vpnkit",
-		},
-		&cli.StringFlag{
+		}, CategoryVPNKit),
+		Categorize(&cli.StringFlag{
 			Name:  "lxc-user-nic-binary",
 			Usage: "path of lxc-user-nic binary for --net=lxc-user-nic",
 			Value: lxcUserNicBin(),
-		},
-		&cli.StringFlag{
+		}, CategoryLXCUserNic),
+		Categorize(&cli.StringFlag{
 			Name:  "lxc-user-nic-bridge",
 			Usage: "lxc-user-nic bridge name",
 			Value: "lxcbr0",
-		},
-		&cli.IntFlag{
+		}, CategoryLXCUserNic),
+		Categorize(&cli.IntFlag{
 			Name:  "mtu",
 			Usage: "MTU for non-host network (default: 65520 for slirp4netns, 1500 for others)",
 			Value: 0, // resolved into 65520 for slirp4netns, 1500 for others
-		},
-		&cli.StringFlag{
+		}, CategoryNetwork),
+		Categorize(&cli.StringFlag{
 			Name:  "cidr",
 			Usage: "CIDR for slirp4netns network (default: 10.0.2.0/24)",
-		},
-		&cli.StringFlag{
+		}, CategoryNetwork),
+		Categorize(&cli.StringFlag{
 			Name:  "ifname",
 			Usage: "Network interface name (default: tap0 for slirp4netns and vpnkit, eth0 for lxc-user-nic)",
-		},
-		&cli.BoolFlag{
+		}, CategoryNetwork),
+		Categorize(&cli.BoolFlag{
 			Name:  "disable-host-loopback",
 			Usage: "prohibit connecting to 127.0.0.1:* on the host namespace",
-		},
-		&cli.StringSliceFlag{
+		}, CategoryNetwork),
+		Categorize(&cli.StringSliceFlag{
 			Name:  "copy-up",
 			Usage: "mount a filesystem and copy-up the contents. e.g. \"--copy-up=/etc\" (typically required for non-host network)",
-		},
-		&cli.StringFlag{
+		}, CategoryMount),
+		Categorize(&cli.StringFlag{
 			Name:  "copy-up-mode",
 			Usage: "copy-up mode [tmpfs+symlink]",
 			Value: "tmpfs+symlink",
-		},
-		&cli.StringFlag{
+		}, CategoryMount),
+		Categorize(&cli.StringFlag{
 			Name:  "port-driver",
 			Usage: "port driver for non-host network. [none, builtin, slirp4netns, socat(deprecated)]",
 			Value: "none",
-		},
-		&cli.StringSliceFlag{
+		}, CategoryPort),
+		Categorize(&cli.StringSliceFlag{
 			Name:    "publish",
 			Aliases: []string{"p"},
 			Usage:   "publish ports. e.g. \"127.0.0.1:8080:80/tcp\"",
-		},
-		&cli.BoolFlag{
+		}, CategoryPort),
+		Categorize(&cli.BoolFlag{
 			Name:  "pidns",
 			Usage: "create a PID namespace",
-		},
-		&cli.BoolFlag{
+		}, CategoryProcess),
+		Categorize(&cli.BoolFlag{
 			Name:  "cgroupns",
 			Usage: "create a cgroup namespace",
-		},
-		&cli.BoolFlag{
+		}, CategoryProcess),
+		Categorize(&cli.BoolFlag{
 			Name:  "utsns",
 			Usage: "create a UTS namespace",
-		},
-		&cli.BoolFlag{
+		}, CategoryProcess),
+		Categorize(&cli.BoolFlag{
 			Name:  "ipcns",
 			Usage: "create an IPC namespace",
-		},
-		&cli.StringFlag{
+		}, CategoryProcess),
+		Categorize(&cli.StringFlag{
 			Name:  "propagation",
 			Usage: "mount propagation [rprivate, rslave]",
 			Value: "rprivate",
-		},
-		&cli.StringFlag{
+		}, CategoryMount),
+		Categorize(&cli.StringFlag{
 			Name:  "reaper",
 			Usage: "enable process reaper. Requires --pidns. [auto,true,false]",
 			Value: "auto",
-		},
-		&cli.StringFlag{
+		}, CategoryProcess),
+		Categorize(&cli.StringFlag{
 			Name:  "evacuate-cgroup2",
 			Usage: "evacuate processes into the specified subgroup. Requires --pidns and --cgroupns",
-		},
+		}, CategoryProcess),
 	}
+	app.CustomAppHelpTemplate = `NAME:
+   {{.Name}}{{if .Usage}} - {{.Usage}}{{end}}
+
+USAGE:
+   {{if .UsageText}}{{.UsageText}}{{else}}{{.HelpName}} {{if .VisibleFlags}}[global options]{{end}}{{if .Commands}} command [command options]{{end}} {{if .ArgsUsage}}{{.ArgsUsage}}{{else}}[arguments...]{{end}}{{end}}{{if .Version}}{{if not .HideVersion}}
+
+VERSION:
+   {{.Version}}{{end}}{{end}}{{if .Description}}
+
+DESCRIPTION:
+   {{.Description | nindent 3 | trim}}{{end}}
+
+OPTIONS:
+` + formatFlags(app.Flags)
 	app.Before = func(context *cli.Context) error {
 		if debug {
 			logrus.SetLevel(logrus.DebugLevel)
