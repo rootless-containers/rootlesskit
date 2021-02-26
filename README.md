@@ -164,6 +164,7 @@ allow
 ### Full CLI options
 
 ```console
+$ rootlesskit --help
 NAME:
    rootlesskit - Linux-native fakeroot using user namespaces
 
@@ -171,7 +172,7 @@ USAGE:
    rootlesskit [global options] [arguments...]
 
 VERSION:
-   0.13.0
+   0.13.2+dev
 
 DESCRIPTION:
    RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
@@ -193,33 +194,49 @@ DESCRIPTION:
    
    Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.
 
-GLOBAL OPTIONS:
-   --debug                      debug mode (default: false)
-   --state-dir value            state directory
-   --net value                  network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental)] (default: "host")
-   --slirp4netns-binary value   path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
-   --slirp4netns-sandbox value  enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
-   --slirp4netns-seccomp value  enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
-   --vpnkit-binary value        path of VPNKit binary for --net=vpnkit (default: "vpnkit")
-   --lxc-user-nic-binary value  path of lxc-user-nic binary for --net=lxc-user-nic (default: "/usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic")
-   --lxc-user-nic-bridge value  lxc-user-nic bridge name (default: "lxcbr0")
-   --mtu value                  MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
-   --cidr value                 CIDR for slirp4netns network (default: 10.0.2.0/24)
-   --ifname value               Network interface name (default: tap0 for slirp4netns and vpnkit, eth0 for lxc-user-nic)
-   --disable-host-loopback      prohibit connecting to 127.0.0.1:* on the host namespace (default: false)
-   --copy-up value              mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
-   --copy-up-mode value         copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
-   --port-driver value          port driver for non-host network. [none, builtin, slirp4netns, socat(deprecated)] (default: "none")
-   --publish value, -p value    publish ports. e.g. "127.0.0.1:8080:80/tcp"
-   --pidns                      create a PID namespace (default: false)
-   --cgroupns                   create a cgroup namespace (default: false)
-   --utsns                      create a UTS namespace (default: false)
-   --ipcns                      create an IPC namespace (default: false)
-   --propagation value          mount propagation [rprivate, rslave] (default: "rprivate")
-   --reaper value               enable process reaper. Requires --pidns. [auto,true,false] (default: "auto")
-   --evacuate-cgroup2 value     evacuate processes into the specified subgroup. Requires --pidns and --cgroupns
-   --help, -h                   show help (default: false)
-   --version, -v                print the version (default: false)
+OPTIONS:
+  Debug:                         
+    --debug                      debug mode (default: false)
+                                 
+  Mount:                         
+    --copy-up value              mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
+    --copy-up-mode value         copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
+    --propagation value          mount propagation [rprivate, rslave] (default: "rprivate")
+                                 
+  Network:                       
+    --net value                  network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental)] (default: "host")
+    --mtu value                  MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
+    --cidr value                 CIDR for slirp4netns network (default: 10.0.2.0/24)
+    --ifname value               Network interface name (default: tap0 for slirp4netns and vpnkit, eth0 for lxc-user-nic)
+    --disable-host-loopback      prohibit connecting to 127.0.0.1:* on the host namespace (default: false)
+                                 
+  Network [lxc-user-nic]:        
+    --lxc-user-nic-binary value  path of lxc-user-nic binary for --net=lxc-user-nic (default: "/usr/lib/x86_64-linux-gnu/lxc/lxc-user-nic")
+    --lxc-user-nic-bridge value  lxc-user-nic bridge name (default: "lxcbr0")
+                                 
+  Network [slirp4netns]:         
+    --slirp4netns-binary value   path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
+    --slirp4netns-sandbox value  enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
+    --slirp4netns-seccomp value  enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
+                                 
+  Network [vpnkit]:              
+    --vpnkit-binary value        path of VPNKit binary for --net=vpnkit (default: "vpnkit")
+                                 
+  Port:                          
+    --port-driver value          port driver for non-host network. [none, builtin, slirp4netns, socat(deprecated)] (default: "none")
+    --publish value, -p value    publish ports. e.g. "127.0.0.1:8080:80/tcp"
+                                 
+  Process:                       
+    --pidns                      create a PID namespace (default: false)
+    --cgroupns                   create a cgroup namespace (default: false)
+    --utsns                      create a UTS namespace (default: false)
+    --ipcns                      create an IPC namespace (default: false)
+    --reaper value               enable process reaper. Requires --pidns. [auto,true,false] (default: "auto")
+    --evacuate-cgroup2 value     evacuate processes into the specified subgroup. Requires --pidns and --cgroupns
+                                 
+  State:                         
+    --state-dir value            state directory
+                                 
 ```
 
 ## State directory
