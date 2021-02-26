@@ -16,6 +16,7 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/child"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/copyup/fuseoverlayfs"
 	"github.com/rootless-containers/rootlesskit/pkg/copyup/tmpfssymlink"
 	"github.com/rootless-containers/rootlesskit/pkg/network/lxcusernic"
 	"github.com/rootless-containers/rootlesskit/pkg/network/slirp4netns"
@@ -129,7 +130,7 @@ Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the r
 		},
 		&cli.StringFlag{
 			Name:  "copy-up-mode",
-			Usage: "copy-up mode [tmpfs+symlink]",
+			Usage: "copy-up mode [tmpfs+symlink, fuse-overlayfs]",
 			Value: "tmpfs+symlink",
 		},
 		&cli.StringFlag{
@@ -488,6 +489,16 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		opt.CopyUpDriver = tmpfssymlink.NewChildDriver()
 		if len(opt.CopyUpDirs) != 0 && (opt.Propagation == "rshared" || opt.Propagation == "shared") {
 			return opt, errors.Errorf("propagation %s does not support copy-up driver %s", opt.Propagation, s)
+		}
+	case "fuse-overlayfs":
+		// WIP: how to clean up this
+		wip, err := ioutil.TempDir("/tmp", "")
+		if err != nil {
+			return opt, err
+		}
+		opt.CopyUpDriver, err = fuseoverlayfs.NewChildDriver(wip)
+		if err != nil {
+			return opt, err
 		}
 	default:
 		return opt, errors.Errorf("unknown copy-up mode: %s", s)
