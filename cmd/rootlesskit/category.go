@@ -8,7 +8,6 @@ import (
 )
 
 const (
-	CategoryDebug       = "Debug"
 	CategoryState       = "State"
 	CategoryNetwork     = "Network"
 	CategorySlirp4netns = "Network [slirp4netns]"
@@ -17,6 +16,7 @@ const (
 	CategoryPort        = "Port"
 	CategoryMount       = "Mount"
 	CategoryProcess     = "Process"
+	CategoryMisc        = "Misc"
 )
 
 type CategorizedFlag interface {

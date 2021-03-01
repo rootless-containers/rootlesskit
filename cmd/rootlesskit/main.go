@@ -60,13 +60,15 @@ Examples:
   # create a network namespace with slirp4netns, and expose 80/tcp on the namespace as 8080/tcp on the host
   rootlesskit --copy-up=/etc --net=slirp4netns --disable-host-loopback --port-driver=builtin -p 127.0.0.1:8080:80/tcp bash
 
-Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.`
+Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.
+See https://rootlesscontaine.rs/getting-started/common/ .
+`
 	app.Flags = []cli.Flag{
 		Categorize(&cli.BoolFlag{
 			Name:        "debug",
 			Usage:       "debug mode",
 			Destination: &debug,
-		}, CategoryDebug),
+		}, CategoryMisc),
 		Categorize(&cli.StringFlag{
 			Name:  "state-dir",
 			Usage: "state directory",
@@ -186,7 +188,10 @@ DESCRIPTION:
    {{.Description | nindent 3 | trim}}{{end}}
 
 OPTIONS:
-` + formatFlags(app.Flags)
+` + formatFlags(append(app.Flags,
+		Categorize(cli.HelpFlag, CategoryMisc),
+		Categorize(cli.VersionFlag, CategoryMisc)))
+
 	app.Before = func(context *cli.Context) error {
 		if debug {
 			logrus.SetLevel(logrus.DebugLevel)
