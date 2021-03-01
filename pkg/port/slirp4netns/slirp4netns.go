@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/port/portutil"
 )
@@ -32,6 +33,14 @@ type driver struct {
 	mu            sync.Mutex
 	childIP       string // can be empty
 	ports         map[int]*port.Status
+}
+
+func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
+	info := &api.PortDriverInfo{
+		Driver: "slirp4netns",
+		Protos: []string{"tcp", "udp"},
+	}
+	return info, nil
 }
 
 func (d *driver) OpaqueForChild() map[string]string {

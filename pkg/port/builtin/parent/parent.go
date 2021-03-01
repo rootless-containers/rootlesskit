@@ -15,6 +15,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/msg"
 	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/opaque"
@@ -54,6 +55,14 @@ type driver struct {
 	ports              map[int]*port.Status
 	stoppers           map[int]func() error
 	nextID             int
+}
+
+func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
+	info := &api.PortDriverInfo{
+		Driver: "builtin",
+		Protos: []string{"tcp", "udp"},
+	}
+	return info, nil
 }
 
 func (d *driver) OpaqueForChild() map[string]string {

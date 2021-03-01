@@ -3,10 +3,12 @@ package vpnkit
 import (
 	"context"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 )
@@ -46,6 +49,7 @@ func NewParentDriver(binary string, mtu int, ifname string, disableHostLoopback 
 }
 
 const (
+	DriverName   = "vpnkit"
 	opaqueMAC    = "vpnkit.mac"
 	opaqueSocket = "vpnkit.socket"
 	opaqueUUID   = "vpnkit.uuid"
@@ -56,6 +60,21 @@ type parentDriver struct {
 	mtu                 int
 	ifname              string
 	disableHostLoopback bool
+	infoMu              sync.RWMutex
+	info                func() *api.NetworkDriverInfo
+}
+
+func (d *parentDriver) Info(ctx context.Context) (*api.NetworkDriverInfo, error) {
+	d.infoMu.RLock()
+	infoFn := d.info
+	d.infoMu.RUnlock()
+	if infoFn == nil {
+		return &api.NetworkDriverInfo{
+			Driver: DriverName,
+		}, nil
+	}
+
+	return infoFn(), nil
 }
 
 func (d *parentDriver) MTU() int {
@@ -112,6 +131,14 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 			opaqueUUID:   vifUUID.String(),
 		},
 	}
+	d.infoMu.Lock()
+	d.info = func() *api.NetworkDriverInfo {
+		return &api.NetworkDriverInfo{
+			Driver: DriverName,
+			DNS:    []net.IP{net.ParseIP(netmsg.DNS)},
+		}
+	}
+	d.infoMu.Unlock()
 	return &netmsg, common.Seq(cleanups), nil
 }
 

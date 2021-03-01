@@ -228,7 +228,7 @@ OPTIONS:
 The following files will be created in the state directory, which can be specified with `--state-dir`:
 * `lock`: lock file
 * `child_pid`: decimal PID text that can be used for `nsenter(1)`.
-* `api.sock`: REST API socket for `rootlessctl`. See [Port Drivers](./docs/port.md) section.
+* `api.sock`: REST API socket. See [`./docs/api.md`](./docs/api.md) and [`./docs/port.md`](./docs/port.md).
 
 If `--state-dir` is not specified, RootlessKit creates a temporary state directory on `/tmp` and removes it on exit.
 
@@ -248,3 +248,4 @@ Undocumented environment variables are subject to change.
 - [`./docs/port.md`](./docs/port.md): Port forwarding (`--port-driver`, `-p`, ...)
 - [`./docs/mount.md`](./docs/mount.md): Mount (`--propagation`, ...)
 - [`./docs/process.md`](./docs/process.md): Process (`--pidns`, `--reaper`, `--cgroupns`, `--evacuate-cgroup2`, ...)
+- [`./docs/api.md`](./docs/api.md): REST API

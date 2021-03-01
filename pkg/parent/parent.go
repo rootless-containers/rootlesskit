@@ -261,7 +261,12 @@ func Parent(opt Opt) error {
 	}
 	// listens the API
 	apiSockPath := filepath.Join(opt.StateDir, StateFileAPISock)
-	apiCloser, err := listenServeAPI(apiSockPath, &router.Backend{PortDriver: opt.PortDriver})
+	apiCloser, err := listenServeAPI(apiSockPath, &router.Backend{
+		StateDir:      opt.StateDir,
+		ChildPID:      cmd.Process.Pid,
+		NetworkDriver: opt.NetworkDriver,
+		PortDriver:    opt.PortDriver,
+	})
 	if err != nil {
 		return err
 	}

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
+	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 	"github.com/rootless-containers/rootlesskit/pkg/network/iputils"
@@ -136,6 +138,23 @@ type parentDriver struct {
 	enableSandbox       bool
 	enableSeccomp       bool
 	ifname              string
+	infoMu              sync.RWMutex
+	info                func() *api.NetworkDriverInfo
+}
+
+const DriverName = "slirp4netns"
+
+func (d *parentDriver) Info(ctx context.Context) (*api.NetworkDriverInfo, error) {
+	d.infoMu.RLock()
+	infoFn := d.info
+	d.infoMu.RUnlock()
+	if infoFn == nil {
+		return &api.NetworkDriverInfo{
+			Driver: DriverName,
+		}, nil
+	}
+
+	return infoFn(), nil
 }
 
 func (d *parentDriver) MTU() int {
@@ -222,6 +241,15 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 		netmsg.Gateway = "10.0.2.2"
 		netmsg.DNS = "10.0.2.3"
 	}
+
+	d.infoMu.Lock()
+	d.info = func() *api.NetworkDriverInfo {
+		return &api.NetworkDriverInfo{
+			Driver: DriverName,
+			DNS:    []net.IP{net.ParseIP(netmsg.DNS)},
+		}
+	}
+	d.infoMu.Unlock()
 	return &netmsg, common.Seq(cleanups), nil
 }
 

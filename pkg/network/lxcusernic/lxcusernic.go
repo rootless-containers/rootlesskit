@@ -1,6 +1,7 @@
 package lxcusernic
 
 import (
+	"context"
 	"net"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
+	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 )
@@ -46,6 +48,15 @@ type parentDriver struct {
 	mtu    int
 	bridge string
 	ifname string
+}
+
+const DriverName = "lxc-user-nic"
+
+func (d *parentDriver) Info(ctx context.Context) (*api.NetworkDriverInfo, error) {
+	return &api.NetworkDriverInfo{
+		Driver: DriverName,
+		// TODO: fill DNS
+	}, nil
 }
 
 func (d *parentDriver) MTU() int {

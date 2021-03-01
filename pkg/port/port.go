@@ -3,6 +3,8 @@ package port
 import (
 	"context"
 	"net"
+
+	"github.com/rootless-containers/rootlesskit/pkg/api"
 )
 
 type Spec struct {
@@ -41,6 +43,7 @@ type ChildContext struct {
 // ParentDriver is a driver for the parent process.
 type ParentDriver interface {
 	Manager
+	Info(ctx context.Context) (*api.PortDriverInfo, error)
 	// OpaqueForChild typically consists of socket path
 	// for controlling child from parent
 	OpaqueForChild() map[string]string
