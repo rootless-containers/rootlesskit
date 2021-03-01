@@ -174,10 +174,13 @@ DESCRIPTION:
      rootlesskit --copy-up=/etc --net=slirp4netns --disable-host-loopback --port-driver=builtin -p 127.0.0.1:8080:80/tcp bash
    
    Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.
+   See https://rootlesscontaine.rs/getting-started/common/ .
 
 OPTIONS:
-  Debug:                         
+  Misc:                          
     --debug                      debug mode (default: false)
+    --help, -h                   show help (default: false)
+    --version, -v                print the version (default: false)
                                  
   Mount:                         
     --copy-up value              mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
