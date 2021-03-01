@@ -56,11 +56,17 @@ components:
   schemas:
     Proto:
       type: string
-      description: "protocol for listening"
+      description: "protocol for listening. Corresponds to Go's net.Listen. The strings with \"4\" and \"6\" suffixes were introduced in API 1.1.0."
       enum:
         - tcp
+        - tcp4
+        - tcp6
         - udp
+        - udp4
+        - udp6
         - sctp
+        - sctp4
+        - sctp6
     PortSpec:
       required:
         - proto

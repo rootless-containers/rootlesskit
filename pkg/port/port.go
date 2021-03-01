@@ -8,8 +8,10 @@ import (
 )
 
 type Spec struct {
-	Proto      string `json:"proto,omitempty"`    // either "tcp" or "udp". in future "sctp" will be supported as well.
-	ParentIP   string `json:"parentIP,omitempty"` // IPv4 address. can be empty (0.0.0.0).
+	// Proto is one of ["tcp", "tcp4", "tcp6", "udp", "udp4", "udp6"].
+	// "tcp" may cause listening on both IPv4 and IPv6. (Corresponds to Go's net.Listen .)
+	Proto      string `json:"proto,omitempty"`
+	ParentIP   string `json:"parentIP,omitempty"` // IPv4 or IPv6 address. can be empty (0.0.0.0).
 	ParentPort int    `json:"parentPort,omitempty"`
 	ChildPort  int    `json:"childPort,omitempty"`
 	// ChildIP is an IPv4 address.

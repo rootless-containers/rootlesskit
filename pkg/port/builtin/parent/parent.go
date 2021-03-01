@@ -60,7 +60,7 @@ type driver struct {
 func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
 	info := &api.PortDriverInfo{
 		Driver: "builtin",
-		Protos: []string{"tcp", "udp"},
+		Protos: []string{"tcp", "tcp4", "tcp6", "udp", "udp4", "udp6"},
 	}
 	return info, nil
 }
@@ -143,9 +143,9 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 		return nil // FIXME
 	}
 	switch spec.Proto {
-	case "tcp":
+	case "tcp", "tcp4", "tcp6":
 		err = tcp.Run(d.socketPath, spec, routineStopCh, d.logWriter)
-	case "udp":
+	case "udp", "udp4", "udp6":
 		err = udp.Run(d.socketPath, spec, routineStopCh, d.logWriter)
 	default:
 		// NOTREACHED

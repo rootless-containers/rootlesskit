@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -38,7 +39,8 @@ type driver struct {
 func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
 	info := &api.PortDriverInfo{
 		Driver: "slirp4netns",
-		Protos: []string{"tcp", "udp"},
+		// No IPv6 support yet
+		Protos: []string{"tcp", "tcp4", "udp", "udp4"},
 	}
 	return info, nil
 }
@@ -64,6 +66,10 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 	if err != nil {
 		return nil, err
 	}
+	if strings.HasSuffix(spec.Proto, "6") {
+		return nil, errors.Errorf("unsupported protocol %q", spec.Proto)
+	}
+	proto := strings.TrimSuffix(spec.Proto, "4")
 	ip := spec.ChildIP
 	if ip == "" {
 		ip = d.childIP
@@ -81,7 +87,7 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 	req := request{
 		Execute: "add_hostfwd",
 		Arguments: addHostFwdArguments{
-			Proto:     spec.Proto,
+			Proto:     proto,
 			HostAddr:  spec.ParentIP,
 			HostPort:  spec.ParentPort,
 			GuestAddr: ip,

@@ -47,7 +47,7 @@ type driver struct {
 func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
 	info := &api.PortDriverInfo{
 		Driver: "socat",
-		Protos: []string{"tcp", "udp"},
+		Protos: []string{"tcp", "tcp4", "udp", "udp4"},
 	}
 	return info, nil
 }
@@ -76,6 +76,11 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 	d.mu.Unlock()
 	if err != nil {
 		return nil, err
+	}
+	switch spec.Proto {
+	case "tcp", "tcp4", "udp", "udp4":
+	default:
+		return nil, errors.Errorf("unsupported proto: %s", spec.Proto)
 	}
 	cf := func() (*exec.Cmd, error) {
 		return createSocatCmd(ctx, spec, d.logWriter, d.childPID)
@@ -124,9 +129,6 @@ func (d *driver) RemovePort(ctx context.Context, id int) error {
 }
 
 func createSocatCmd(ctx context.Context, spec port.Spec, logWriter io.Writer, childPID int) (*exec.Cmd, error) {
-	if spec.Proto != "tcp" && spec.Proto != "udp" {
-		return nil, errors.Errorf("unsupported proto: %s", spec.Proto)
-	}
 	ipStr := "0.0.0.0"
 	if spec.ParentIP != "" {
 		ip := net.ParseIP(spec.ParentIP)
@@ -165,10 +167,12 @@ func createSocatCmd(ctx context.Context, spec port.Spec, logWriter io.Writer, ch
 		hp    = net.JoinHostPort(ip, strconv.Itoa(spec.ChildPort))
 	)
 	switch spec.Proto {
-	case "tcp":
+	case "tcp", "tcp4":
 		proto = "TCP"
-	case "udp":
+	case "udp", "udp4":
 		proto = "UDP"
+	default:
+		panic("should not reach here")
 	}
 	cmd = exec.CommandContext(ctx,
 		"socat",
