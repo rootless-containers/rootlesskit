@@ -79,7 +79,7 @@ func EvacuateCgroup2(evac string) error {
 }
 
 func findCgroup2Mountpoint() string {
-	f := mountinfo.FSTypeFilter("cgroup2")
+	f := mountinfoFSTypeFilter("cgroup2")
 	mounts, err := mountinfo.GetMounts(f)
 	if err != nil {
 		logrus.WithError(err).Warn("failed to find mountpoint for cgroup2")
