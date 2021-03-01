@@ -14,7 +14,7 @@ type Spec struct {
 	ParentIP   string `json:"parentIP,omitempty"` // IPv4 or IPv6 address. can be empty (0.0.0.0).
 	ParentPort int    `json:"parentPort,omitempty"`
 	ChildPort  int    `json:"childPort,omitempty"`
-	// ChildIP is an IPv4 address.
+	// ChildIP is an IPv4 or IPv6 address.
 	// Default values:
 	// - builtin     driver: 127.0.0.1
 	// - socat       driver: 127.0.0.1

@@ -63,7 +63,7 @@ func getPortDriverProtos(c client.Client) (string, map[string]struct{}, error) {
 
 func callRootlessKitAPI(c client.Client,
 	hostIP string, hostPort int,
-	dockerProxyProto string) (func() error, error) {
+	dockerProxyProto, childIP string) (func() error, error) {
 	// dockerProxyProto is like "tcp", but we need to convert it to "tcp4" or "tcp6" explicitly
 	// for libnetwork >= 20201216
 	//
@@ -101,6 +101,7 @@ func callRootlessKitAPI(c client.Client,
 		Proto:      apiProto,
 		ParentIP:   hostIP,
 		ParentPort: hostPort,
+		ChildIP:    childIP,
 		ChildPort:  hostPort,
 	}
 	st, err := pm.AddPort(context.Background(), p)
@@ -134,7 +135,12 @@ func xmain(f *os.File) error {
 		return errors.Wrap(err, "error while connecting to RootlessKit API socket")
 	}
 
-	deferFunc, err := callRootlessKitAPI(c, *hostIP, *hostPort, *proto)
+	childIP := "127.0.0.1"
+	if isIPv6(*hostIP) {
+		childIP = "::1"
+	}
+
+	deferFunc, err := callRootlessKitAPI(c, *hostIP, *hostPort, *proto, childIP)
 	if deferFunc != nil {
 		defer func() {
 			if dErr := deferFunc(); dErr != nil {
@@ -146,15 +152,10 @@ func xmain(f *os.File) error {
 		return err
 	}
 
-	realProxyHostIP := "127.0.0.1"
-	if isIPv6(*hostIP) {
-		realProxyHostIP = "::1"
-	}
-
 	cmd := exec.Command(realProxy,
 		"-container-ip", *containerIP,
 		"-container-port", strconv.Itoa(*containerPort),
-		"-host-ip", realProxyHostIP,
+		"-host-ip", childIP,
 		"-host-port", strconv.Itoa(*hostPort),
 		"-proto", *proto)
 	cmd.Stdout = os.Stdout

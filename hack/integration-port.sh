@@ -63,9 +63,21 @@ INFO "=== protocol \"tcp4\" is strictly v4-only ==="
 test_port builtin http://127.0.0.1:8080 "should success" -p 0.0.0.0:8080:80/tcp4
 test_port builtin http://[::1]:8080 "should fail" -p 0.0.0.0:8080:80/tcp4
 
-INFO "=== protocol \"tcp6\" is strictly v4-only ==="
+INFO "=== protocol \"tcp6\" is strictly v6-only ==="
 test_port builtin http://127.0.0.1:8080 "should fail" -p [::]:8080:80/tcp6
 test_port builtin http://[::1]:8080 "should success" -p [::]:8080:80/tcp6
+
+INFO "=== v6-to-v6 ==="
+test_port builtin http://[::1]:8080 "should success" -p [::]:8080:[::1]:80/tcp6
+test_port builtin http://[::1]:8080 "should success" -p [::]:8080:[::1]:80/tcp
+
+INFO "=== v6-to-v4 ==="
+test_port builtin http://[::1]:8080 "should success" -p [::]:8080:[127.0.0.1]:80/tcp6
+test_port builtin http://[::1]:8080 "should success" -p [::]:8080:[127.0.0.1]:80/tcp
+
+INFO "=== v4-to-v6 ==="
+test_port builtin http://127.0.0.1:8080 "should success" -p 0.0.0.0:8080:[::1]:80/tcp4
+test_port builtin http://127.0.0.1:8080 "should success" -p 0.0.0.0:8080:[::1]:80/tcp
 
 INFO "=== \"tcp4\" and \"tcp6\" do not conflict ==="
 test_port builtin http://127.0.0.1:8080 "should success" -p 0.0.0.0:8080:80/tcp4 -p [::]:8080:80/tcp6
