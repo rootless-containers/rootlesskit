@@ -124,6 +124,10 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 			Name:  "disable-host-loopback",
 			Usage: "prohibit connecting to 127.0.0.1:* on the host namespace",
 		}, CategoryNetwork),
+		Categorize(&cli.BoolFlag{
+			Name:  "ipv6",
+			Usage: "enable IPv6 routing. Unrelated to port forwarding. Only supported for slirp4netns. (experimental)",
+		}, CategoryNetwork),
 		Categorize(&cli.StringSliceFlag{
 			Name:  "copy-up",
 			Usage: "mount a filesystem and copy-up the contents. e.g. \"--copy-up=/etc\" (typically required for non-host network)",
@@ -301,6 +305,14 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		return opt, errors.New("ifname must not contain \"/\"")
 	}
 
+	ipv6 := clicontext.Bool("ipv6")
+	if ipv6 {
+		logrus.Warn("ipv6 is experimental")
+		if s := clicontext.String("net"); s != "slirp4netns" {
+			logrus.Warnf("--ipv6 is discarded for --net=%s", s)
+		}
+	}
+
 	disableHostLoopback := clicontext.Bool("disable-host-loopback")
 	if !disableHostLoopback && clicontext.String("net") != "host" {
 		logrus.Warn("specifying --disable-host-loopback is highly recommended to prohibit connecting to 127.0.0.1:* on the host namespace (requires slirp4netns or VPNKit)")
@@ -374,7 +386,8 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		default:
 			return opt, errors.Errorf("unsupported slirp4netns-seccomp mode: %q", s)
 		}
-		opt.NetworkDriver, err = slirp4netns.NewParentDriver(&logrusDebugWriter{label: "network/slirp4netns"}, binary, mtu, ipnet, ifname, disableHostLoopback, slirp4netnsAPISocketPath, enableSandbox, enableSeccomp)
+		opt.NetworkDriver, err = slirp4netns.NewParentDriver(&logrusDebugWriter{label: "network/slirp4netns"}, binary, mtu, ipnet, ifname, disableHostLoopback, slirp4netnsAPISocketPath,
+			enableSandbox, enableSeccomp, ipv6)
 		if err != nil {
 			return opt, err
 		}

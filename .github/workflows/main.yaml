@@ -30,6 +30,8 @@ jobs:
     - name: "Integration test: port"
       # NOTE: "--net=host" is a bad hack to enable IPv6
       run: docker run --rm --net=host --privileged rootlesskit:test-integration ./integration-port.sh
+    - name: "Integration test: IPv6 routing"
+      run: docker run  --rm --privileged --sysctl net.ipv6.conf.all.disable_ipv6=0 rootlesskit:test-integration ./integration-ipv6.sh
 # ===== Benchmark: Network (MTU=1500) =====
     - name: "Benchmark: Network (MTU=1500, network driver=slirp4netns)"
       run: |
