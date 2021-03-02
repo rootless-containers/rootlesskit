@@ -207,7 +207,7 @@ OPTIONS:
     --vpnkit-binary value        path of VPNKit binary for --net=vpnkit (default: "vpnkit")
                                  
   Port:                          
-    --port-driver value          port driver for non-host network. [none, builtin, slirp4netns, socat(deprecated)] (default: "none")
+    --port-driver value          port driver for non-host network. [none, builtin, slirp4netns] (default: "none")
     --publish value, -p value    publish ports. e.g. "127.0.0.1:8080:80/tcp"
                                  
   Process:                       

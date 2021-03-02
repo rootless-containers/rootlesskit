@@ -71,10 +71,6 @@ jobs:
           docker run --rm --privileged \
           rootlesskit:test-integration ./benchmark-iperf3-net.sh rootful_veth 65520
 # ===== Benchmark: TCP Ports =====
-    - name: "Benchmark: TCP Ports (port driver=socat)"
-      run: |
-          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
-          rootlesskit:test-integration ./benchmark-iperf3-port.sh socat
     - name: "Benchmark: TCP Ports (port driver=slirp4netns)"
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \

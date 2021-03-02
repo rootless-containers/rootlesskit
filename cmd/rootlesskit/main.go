@@ -24,7 +24,6 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/port/builtin"
 	"github.com/rootless-containers/rootlesskit/pkg/port/portutil"
 	slirp4netns_port "github.com/rootless-containers/rootlesskit/pkg/port/slirp4netns"
-	"github.com/rootless-containers/rootlesskit/pkg/port/socat"
 	"github.com/rootless-containers/rootlesskit/pkg/version"
 )
 
@@ -136,7 +135,7 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 		}, CategoryMount),
 		Categorize(&cli.StringFlag{
 			Name:  "port-driver",
-			Usage: "port driver for non-host network. [none, builtin, slirp4netns, socat(deprecated)]",
+			Usage: "port driver for non-host network. [none, builtin, slirp4netns]",
 			Value: "none",
 		}, CategoryPort),
 		Categorize(&cli.StringSliceFlag{
@@ -413,15 +412,6 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		if len(clicontext.StringSlice("publish")) != 0 {
 			return opt, errors.Errorf("port driver %q does not support publishing ports", s)
 		}
-	case "socat":
-		logrus.Warn("\"socat\" port driver is deprecated")
-		if opt.NetworkDriver == nil {
-			return opt, errors.New("port driver requires non-host network")
-		}
-		opt.PortDriver, err = socat.NewParentDriver(&logrusDebugWriter{label: "port/socat"})
-		if err != nil {
-			return opt, err
-		}
 	case "slirp4netns":
 		if clicontext.String("net") != "slirp4netns" {
 			return opt, errors.New("port driver requires slirp4netns network")
@@ -514,8 +504,6 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 	switch s := clicontext.String("port-driver"); s {
 	case "none":
 		// NOP
-	case "socat":
-		opt.PortDriver = socat.NewChildDriver()
 	case "slirp4netns":
 		opt.PortDriver = slirp4netns_port.NewChildDriver()
 	case "builtin":

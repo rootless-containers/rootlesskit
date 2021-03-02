@@ -17,7 +17,6 @@ type Spec struct {
 	// ChildIP is an IPv4 or IPv6 address.
 	// Default values:
 	// - builtin     driver: 127.0.0.1
-	// - socat       driver: 127.0.0.1
 	// - slirp4netns driver: slirp4netns's child IP, e.g., 10.0.2.100
 	ChildIP string `json:"childIP,omitempty"`
 }
