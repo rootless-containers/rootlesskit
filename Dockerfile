@@ -23,7 +23,7 @@ COPY --from=cross /go/src/github.com/rootless-containers/rootlesskit/_artifact/*
 
 # `go test -race` requires non-Alpine
 FROM golang:${GO_VERSION} AS test-unit
-RUN apt-get update && apt-get install -y iproute2 socat netcat-openbsd
+RUN apt-get update && apt-get install -y iproute2 netcat-openbsd
 ADD . /go/src/github.com/rootless-containers/rootlesskit
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
 RUN go mod verify
@@ -46,12 +46,11 @@ FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit
 FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # iproute2: for `ip` command that rootlesskit needs to exec
 # liblxc-common and lxc-utils: for `lxc-user-nic` binary required for --net=lxc-user-nic
-# socat: for `socat` command required for --port-driver=socat
 # iperf3: only for benchmark purpose
 # busybox: only for debugging purpose
 # sudo: only for lxc-user-nic benchmark and rootful veth benchmark (for comparison)
 # libcap2-bin and curl: used by the RUN instructions in this Dockerfile.
-RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils socat iperf3 busybox sudo libcap2-bin curl
+RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \
