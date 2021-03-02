@@ -7,7 +7,7 @@ RootlessKit listens REST API on `${ROOTLESSKIT_STATE_DIR}/api.sock`.
 (rootlesskit)# curl -s --unix-socket "${ROOTLESSKIT_STATE_DIR}/api.sock" http://rootlesskit/v1/info | jq .
 {
   "apiVersion": "1.1.0",
-  "version": "0.13.2+dev",
+  "version": "0.14.0-beta.0",
   "stateDir": "/tmp/rootlesskit957151185",
   "childPID": 157684,
   "networkDriver": {
@@ -43,7 +43,7 @@ USAGE:
    rootlessctl [global options] command [command options] [arguments...]
 
 VERSION:
-   0.13.2+dev
+   0.14.0-beta.0
 
 COMMANDS:
    list-ports    List ports
