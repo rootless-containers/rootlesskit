@@ -24,6 +24,8 @@ import (
 )
 
 type Features struct {
+	// SupportsEnableIPv6 --enable-ipv6 (v0.2.0)
+	SupportsEnableIPv6 bool
 	// SupportsCIDR --cidr (v0.3.0)
 	SupportsCIDR bool
 	// SupportsDisableHostLoopback --disable-host-loopback (v0.3.0)
@@ -65,6 +67,7 @@ func DetectFeatures(binary string) (*Features, error) {
 		kernelSupportsEnableSeccomp = unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, 0, 0, 0) != unix.EINVAL
 	}
 	f := Features{
+		SupportsEnableIPv6:          strings.Contains(s, "--enable-ipv6"),
 		SupportsCIDR:                strings.Contains(s, "--cidr"),
 		SupportsDisableHostLoopback: strings.Contains(s, "--disable-host-loopback"),
 		SupportsAPISocket:           strings.Contains(s, "--api-socket"),
@@ -77,7 +80,8 @@ func DetectFeatures(binary string) (*Features, error) {
 
 // NewParentDriver instantiates new parent driver.
 // Requires slirp4netns v0.4.0 or later.
-func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPNet, ifname string, disableHostLoopback bool, apiSocketPath string, enableSandbox, enableSeccomp bool) (network.ParentDriver, error) {
+func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPNet, ifname string, disableHostLoopback bool, apiSocketPath string,
+	enableSandbox, enableSeccomp, enableIPv6 bool) (network.ParentDriver, error) {
 	if binary == "" {
 		return nil, errors.New("got empty slirp4netns binary")
 	}
@@ -95,6 +99,9 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 	features, err := DetectFeatures(binary)
 	if err != nil {
 		return nil, err
+	}
+	if enableIPv6 && !features.SupportsEnableIPv6 {
+		return nil, errors.New("this version of slirp4netns does not support --enable-sandbox")
 	}
 	if ipnet != nil && !features.SupportsCIDR {
 		return nil, errors.New("this version of slirp4netns does not support --cidr")
@@ -124,6 +131,7 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 		apiSocketPath:       apiSocketPath,
 		enableSandbox:       enableSandbox,
 		enableSeccomp:       enableSeccomp,
+		enableIPv6:          enableIPv6,
 		ifname:              ifname,
 	}, nil
 }
@@ -137,6 +145,7 @@ type parentDriver struct {
 	apiSocketPath       string
 	enableSandbox       bool
 	enableSeccomp       bool
+	enableIPv6          bool
 	ifname              string
 	infoMu              sync.RWMutex
 	info                func() *api.NetworkDriverInfo
@@ -190,6 +199,9 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	}
 	if d.enableSeccomp {
 		opts = append(opts, "--enable-seccomp")
+	}
+	if d.enableIPv6 {
+		opts = append(opts, "--enable-ipv6")
 	}
 	cmd := exec.CommandContext(ctx, d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
 	// FIXME: Stdout doen't seem captured

@@ -42,6 +42,7 @@ Pros:
 * Possible to perform network-namespaced operations, e.g. creating iptables rules, running `tcpdump`
 * Supports ICMP Echo (`ping`) when `/proc/sys/net/ipv4/ping_group_range` is configured
 * Supports hardening using mount namespace and seccomp (`--slirp4netns-sandbox=auto`, `--slirp4netns-seccomp=auto`, since RootlessKit v0.7.0, slirp4netns v0.4.0)
+* Supports IPv6 routing (`--ipv6`)
 
 Cons:
 * Extra performance overhead (but still faster than `--net=vpnkit`)
@@ -118,6 +119,7 @@ Pros:
 Cons:
 * Extra performance overhead
 * Supports only TCP and UDP packets. No support for ICMP Echo (`ping`) unlike `--net=slirp4netns`, even if `/proc/sys/net/ipv4/ping_group_range` is configured.
+* No support for IPv6.
 
 To use `--net=vpnkit`, you need to install VPNkit.
 
@@ -148,6 +150,7 @@ Pros:
 Cons:
 * Less secure
 * Needs `/etc/lxc/lxc-usernet` configuration
+* No support for IPv6.
 
 To use `lxc-user-nic`, you need to install `liblxc-common` package:
 ```console
@@ -168,3 +171,8 @@ If you start and stop RootlessKit too frequently, you might use up all available
 You might need to reset `/var/lib/misc/dnsmasq.lxcbr0.leases` and restart the `lxc-net` service.
 
 Currently, the MAC address is always set to a random address.
+
+## IPv6
+
+The `--ipv6` flag (since v0.14.0, EXPERIMENTAL) enables IPv6 routing for slirp4netns network driver.
+This flag is unrelated to port forwarding.
