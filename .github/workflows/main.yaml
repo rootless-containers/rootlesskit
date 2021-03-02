@@ -27,6 +27,9 @@ jobs:
       run: docker run --rm --privileged rootlesskit:test-integration sh -exc "sudo mount --make-rshared / && ./integration-propagation.sh"
     - name: "Integration test: restart"
       run: docker run --rm --privileged rootlesskit:test-integration ./integration-restart.sh
+    - name: "Integration test: port"
+      # NOTE: "--net=host" is a bad hack to enable IPv6
+      run: docker run --rm --net=host --privileged rootlesskit:test-integration ./integration-port.sh
 # ===== Benchmark: Network (MTU=1500) =====
     - name: "Benchmark: Network (MTU=1500, network driver=slirp4netns)"
       run: |

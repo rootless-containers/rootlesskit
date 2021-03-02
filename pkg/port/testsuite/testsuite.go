@@ -64,15 +64,25 @@ func Main(m *testing.M, cf func() port.ChildDriver) {
 
 func Run(t *testing.T, pf func() port.ParentDriver) {
 	RunTCP(t, pf)
+	RunTCP4(t, pf)
 	RunUDP(t, pf)
+	RunUDP4(t, pf)
 }
 
 func RunTCP(t *testing.T, pf func() port.ParentDriver) {
 	t.Run("TestTCP", func(t *testing.T) { TestProto(t, "tcp", pf()) })
 }
 
+func RunTCP4(t *testing.T, pf func() port.ParentDriver) {
+	t.Run("TestTCP4", func(t *testing.T) { TestProto(t, "tcp4", pf()) })
+}
+
 func RunUDP(t *testing.T, pf func() port.ParentDriver) {
 	t.Run("TestUDP", func(t *testing.T) { TestProto(t, "udp", pf()) })
+}
+
+func RunUDP4(t *testing.T, pf func() port.ParentDriver) {
+	t.Run("TestUDP4", func(t *testing.T) { TestProto(t, "udp4", pf()) })
 }
 
 func TestProto(t *testing.T, proto string, d port.ParentDriver) {
@@ -189,13 +199,14 @@ func nsenterExec(pid int, cmdss ...string) ([]byte, error) {
 	return cmd.CombinedOutput()
 }
 
+// FIXME: support IPv6
 func testProtoRoutine(t *testing.T, proto string, d port.ParentDriver, childPID, childP, parentP int) {
 	stdoutR, stdoutW := io.Pipe()
 	var ncFlags []string
 	switch proto {
-	case "tcp":
+	case "tcp", "tcp4":
 		// NOP
-	case "udp":
+	case "udp", "udp4":
 		ncFlags = append(ncFlags, "-u")
 	default:
 		panic("invalid proto")
@@ -224,7 +235,7 @@ func testProtoRoutine(t *testing.T, proto string, d port.ParentDriver, childPID,
 		panic(err)
 	}
 	t.Logf("opened port: %+v", portStatus)
-	if proto == "udp" {
+	if proto == "udp" || proto == "udp4" {
 		// Dial does not return an error for UDP even if the port is not exposed yet
 		time.Sleep(1 * time.Second)
 	}
@@ -245,11 +256,11 @@ func testProtoRoutine(t *testing.T, proto string, d port.ParentDriver, childPID,
 		panic(err)
 	}
 	switch proto {
-	case "tcp":
+	case "tcp", "tcp4":
 		if err := conn.(*net.TCPConn).CloseWrite(); err != nil {
 			panic(err)
 		}
-	case "udp":
+	case "udp", "udp4":
 		if err := conn.(*net.UDPConn).Close(); err != nil {
 			panic(err)
 		}
@@ -261,7 +272,7 @@ func testProtoRoutine(t *testing.T, proto string, d port.ParentDriver, childPID,
 	if bytes.Compare(wBytes, rBytes) != 0 {
 		panic(fmt.Errorf("expected %q, got %q", string(wBytes), string(rBytes)))
 	}
-	if proto == "tcp" {
+	if proto == "tcp" || proto == "tcp4" {
 		if err := conn.Close(); err != nil {
 			panic(err)
 		}

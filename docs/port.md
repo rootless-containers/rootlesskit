@@ -42,3 +42,17 @@ If you are using `builtin` driver, you can expose the privileged ports without c
 ```console
 $ sudo setcap cap_net_bind_service=ep $(pwd rootlesskit)
 ```
+
+### Note about IPv6
+
+Specifying `0.0.0.0:8080:80/tcp` may cause listening on IPv6 as well as on IPv4.
+Same applies to `[::]:8080:80/tcp`.
+
+This behavior may sound weird but corresponds to [Go's behavior](https://github.com/golang/go/commit/071908f3d809245eda42bf6eab071c323c67b7d2),
+so this is not a bug.
+
+To specify IPv4 explicitly, use `tcp4` instead of `tcp`, e.g., `0.0.0.0:8080:80/tcp4`.
+To specify IPv6 explicitly, use `tcp6`, e.g., `[::]:8080:80/tcp6`.
+
+The `tcp4` and `tcp6` forms were introduced in RootlessKit v0.14.0.
+The `tcp6` is currently supported only for `builtin` port driver.

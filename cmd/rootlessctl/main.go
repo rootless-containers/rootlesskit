@@ -34,6 +34,7 @@ func main() {
 		&listPortsCommand,
 		&addPortsCommand,
 		&removePortsCommand,
+		&infoCommand,
 	}
 	app.Before = func(clicontext *cli.Context) error {
 		if debug {
