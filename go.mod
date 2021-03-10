@@ -13,7 +13,7 @@ require (
 	github.com/moby/vpnkit v0.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
-	github.com/sirupsen/logrus v1.8.0
+	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/net v0.0.0-20210119194325-5f4716e94777 // indirect
