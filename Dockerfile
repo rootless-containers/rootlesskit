@@ -1,6 +1,5 @@
 ARG GO_VERSION=1.16
 ARG UBUNTU_VERSION=20.04
-ARG SHADOW_VERSION=4.8.1
 ARG SLIRP4NETNS_VERSION=v1.1.9
 ARG VPNKIT_VERSION=0.5.0
 
@@ -29,18 +28,6 @@ WORKDIR /go/src/github.com/rootless-containers/rootlesskit
 RUN go mod verify
 CMD ["go","test","-v","-race","github.com/rootless-containers/rootlesskit/..."]
 
-# idmap runnable without --privileged (but still requires seccomp=unconfined apparmor=unconfined)
-FROM ubuntu:${UBUNTU_VERSION} AS idmap
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y automake autopoint bison gettext git gcc libcap-dev libtool make
-RUN git clone https://github.com/shadow-maint/shadow.git /shadow
-WORKDIR /shadow
-ARG SHADOW_VERSION
-RUN git pull && git checkout $SHADOW_VERSION
-RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux --without-acl --without-attr --without-tcb --without-nscd && \
-  make && \
-  cp src/newuidmap src/newgidmap /usr/bin
-
 FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit
 
 FROM ubuntu:${UBUNTU_VERSION} AS test-integration
@@ -50,9 +37,7 @@ FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # busybox: only for debugging purpose
 # sudo: only for lxc-user-nic benchmark and rootful veth benchmark (for comparison)
 # libcap2-bin and curl: used by the RUN instructions in this Dockerfile.
-RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl
-COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
-COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
+RUN apt-get update && apt-get install -y uidmap iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl
 RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \
   /sbin/setcap cap_setgid+eip /usr/bin/newgidmap && \
   useradd --create-home --home-dir /home/user --uid 1000 user && \
