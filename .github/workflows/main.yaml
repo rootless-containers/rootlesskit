@@ -86,3 +86,25 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh builtin
+  test-integration-docker:
+    name: "Integration test (Docker)"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Check out"
+      uses: actions/checkout@v2
+    - name: "Build integration test image"
+      run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker .
+    - name: "Docker Integration test: net=slirp4netns, port-driver=builtin"
+      run: |
+        docker run -d --name test --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=slirp4netns -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=builtin rootlesskit:test-integration-docker
+        sleep 2
+        docker exec test docker info
+        docker exec test ./integration-docker.sh
+        docker rm -f test
+    - name: "Docker Integration test: net=vpnkit, port-driver=builtin"
+      run: |
+        docker run -d --name test --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=vpnkit      -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=builtin rootlesskit:test-integration-docker
+        sleep 2
+        docker exec test docker info
+        docker exec test ./integration-docker.sh
+        docker rm -f test
