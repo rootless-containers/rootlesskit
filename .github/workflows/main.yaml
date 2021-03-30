@@ -94,16 +94,25 @@ jobs:
       uses: actions/checkout@v2
     - name: "Build integration test image"
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker .
+    - name: "Create a custom name to avoid IP confusion"
+      run: docker network create custom
     - name: "Docker Integration test: net=slirp4netns, port-driver=builtin"
       run: |
-        docker run -d --name test --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=slirp4netns -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=builtin rootlesskit:test-integration-docker
+        docker run -d --name test --network custom --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=slirp4netns -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=builtin rootlesskit:test-integration-docker
+        sleep 2
+        docker exec test docker info
+        docker exec test ./integration-docker.sh
+        docker rm -f test
+    - name: "Docker Integration test: net=slirp4netns, port-driver=slirp4netns"
+      run: |
+        docker run -d --name test --network custom --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=slirp4netns -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=slirp4netns rootlesskit:test-integration-docker
         sleep 2
         docker exec test docker info
         docker exec test ./integration-docker.sh
         docker rm -f test
     - name: "Docker Integration test: net=vpnkit, port-driver=builtin"
       run: |
-        docker run -d --name test --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=vpnkit      -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=builtin rootlesskit:test-integration-docker
+        docker run -d --name test --network custom --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=vpnkit      -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=builtin rootlesskit:test-integration-docker
         sleep 2
         docker exec test docker info
         docker exec test ./integration-docker.sh

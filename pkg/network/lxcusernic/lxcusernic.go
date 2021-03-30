@@ -56,6 +56,8 @@ func (d *parentDriver) Info(ctx context.Context) (*api.NetworkDriverInfo, error)
 	return &api.NetworkDriverInfo{
 		Driver: DriverName,
 		// TODO: fill DNS
+		// TODO: fill IP
+		DynamicChildIP: true,
 	}, nil
 }
 
