@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/api/client"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/sirupsen/logrus"
@@ -46,11 +47,7 @@ func isIPv6(ipStr string) bool {
 	return ip.To4() == nil
 }
 
-func getPortDriverProtos(c client.Client) (string, map[string]struct{}, error) {
-	info, err := c.Info(context.Background())
-	if err != nil {
-		return "", nil, errors.Wrap(err, "failed to call info API, probably RootlessKit binary is too old (needs to be v0.14.0 or later)")
-	}
+func getPortDriverProtos(info *api.Info) (string, map[string]struct{}, error) {
 	if info.PortDriver == nil {
 		return "", nil, errors.New("no port driver is available")
 	}
@@ -61,7 +58,7 @@ func getPortDriverProtos(c client.Client) (string, map[string]struct{}, error) {
 	return info.PortDriver.Driver, m, nil
 }
 
-func callRootlessKitAPI(c client.Client,
+func callRootlessKitAPI(c client.Client, info *api.Info,
 	hostIP string, hostPort int,
 	dockerProxyProto, childIP string) (func() error, error) {
 	// dockerProxyProto is like "tcp", but we need to convert it to "tcp4" or "tcp6" explicitly
@@ -77,7 +74,7 @@ func callRootlessKitAPI(c client.Client,
 			apiProto += "4"
 		}
 	}
-	portDriverName, apiProtos, err := getPortDriverProtos(c)
+	portDriverName, apiProtos, err := getPortDriverProtos(info)
 	if err != nil {
 		return nil, err
 	}
@@ -135,12 +132,27 @@ func xmain(f *os.File) error {
 		return errors.Wrap(err, "error while connecting to RootlessKit API socket")
 	}
 
+	info, err := c.Info(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "failed to call info API, probably RootlessKit binary is too old (needs to be v0.14.0 or later)")
+	}
+
+	// use loopback IP as the child IP, when port-driver="builtin"
 	childIP := "127.0.0.1"
 	if isIPv6(*hostIP) {
 		childIP = "::1"
 	}
 
-	deferFunc, err := callRootlessKitAPI(c, *hostIP, *hostPort, *proto, childIP)
+	if info.PortDriver.DisallowLoopbackChildIP {
+		// i.e., port-driver="slirp4netns"
+		if info.NetworkDriver.ChildIP == nil {
+			return errors.Errorf("port driver (%q) does not allow loopback child IP, but network driver (%q) has no non-loopback IP",
+				info.PortDriver.Driver, info.NetworkDriver.Driver)
+		}
+		childIP = info.NetworkDriver.ChildIP.String()
+	}
+
+	deferFunc, err := callRootlessKitAPI(c, info, *hostIP, *hostPort, *proto, childIP)
 	if deferFunc != nil {
 		defer func() {
 			if dErr := deferFunc(); dErr != nil {

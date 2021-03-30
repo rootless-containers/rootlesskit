@@ -52,12 +52,12 @@ func listPortsAction(clicontext *cli.Context) error {
 		return nil
 	}
 	w := tabwriter.NewWriter(os.Stdout, 4, 8, 4, ' ', 0)
-	if _, err := fmt.Fprintln(w, "ID\tPROTO\tPARENTIP\tPARENTPORT\tCHILDPORT\t"); err != nil {
+	if _, err := fmt.Fprintln(w, "ID\tPROTO\tPARENTIP\tPARENTPORT\tCHILDIP\tCHILDPORT\t"); err != nil {
 		return err
 	}
 	for _, p := range portStatuses {
-		if _, err := fmt.Fprintf(w, "%d\t%s\t%s\t%d\t%d\t\n",
-			p.ID, p.Spec.Proto, p.Spec.ParentIP, p.Spec.ParentPort, p.Spec.ChildPort); err != nil {
+		if _, err := fmt.Fprintf(w, "%d\t%s\t%s\t%d\t%s\t%d\t\n",
+			p.ID, p.Spec.Proto, p.Spec.ParentIP, p.Spec.ParentPort, p.Spec.ChildIP, p.Spec.ChildPort); err != nil {
 			return err
 		}
 	}

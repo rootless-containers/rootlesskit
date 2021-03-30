@@ -40,7 +40,8 @@ func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
 	info := &api.PortDriverInfo{
 		Driver: "slirp4netns",
 		// No IPv6 support yet
-		Protos: []string{"tcp", "tcp4", "udp", "udp4"},
+		Protos:                  []string{"tcp", "tcp4", "udp", "udp4"},
+		DisallowLoopbackChildIP: true,
 	}
 	return info, nil
 }

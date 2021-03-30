@@ -47,6 +47,9 @@ func infoAction(clicontext *cli.Context) error {
 	if info.NetworkDriver != nil {
 		fmt.Fprintf(w, "- Network Driver: %s\n", info.NetworkDriver.Driver)
 		fmt.Fprintf(w, "  - DNS: %v\n", info.NetworkDriver.DNS)
+		if info.NetworkDriver.ChildIP != nil {
+			fmt.Fprintf(w, "  - IP: %v\n", info.NetworkDriver.ChildIP)
+		}
 	}
 	if info.PortDriver != nil {
 		fmt.Fprintf(w, "- Port Driver: %s\n", info.PortDriver.Driver)
