@@ -50,7 +50,7 @@ Tools based on `user_namespaces(7)` (as in RootlessKit, but without support for 
 Container engines:
 * [Docker/Moby](https://get.docker.com/rootless)
 * [Podman](https://podman.io/) (since Podman v1.8.0)
-* [nerdctl](https://github.com/AkihiroSuda/nerdctl): Docker-compatible CLI for containerd
+* [nerdctl](https://github.com/containerd/nerdctl): Docker-compatible CLI for containerd
 
 Container image builders:
 * [BuildKit](https://github.com/moby/buildkit): Next-generation `docker build` backend
