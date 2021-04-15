@@ -94,7 +94,7 @@ jobs:
       uses: actions/checkout@v2
     - name: "Build integration test image"
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker .
-    - name: "Create a custom name to avoid IP confusion"
+    - name: "Create a custom network to avoid IP confusion"
       run: docker network create custom
     - name: "Docker Integration test: net=slirp4netns, port-driver=builtin"
       run: |

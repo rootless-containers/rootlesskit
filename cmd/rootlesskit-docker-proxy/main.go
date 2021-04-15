@@ -58,6 +58,20 @@ func getPortDriverProtos(info *api.Info) (string, map[string]struct{}, error) {
 	return info.PortDriver.Driver, m, nil
 }
 
+type protocolUnsupportedError struct {
+	apiProto       string
+	portDriverName string
+	hostIP         string
+	hostPort       int
+}
+
+func (e *protocolUnsupportedError) Error() string {
+	return fmt.Sprintf("protocol %q is not supported by the RootlessKit port driver %q, discarding request for %q",
+		e.apiProto,
+		e.portDriverName,
+		net.JoinHostPort(e.hostIP, strconv.Itoa(e.hostPort)))
+}
+
 func callRootlessKitAPI(c client.Client, info *api.Info,
 	hostIP string, hostPort int,
 	dockerProxyProto, childIP string) (func() error, error) {
@@ -86,11 +100,13 @@ func callRootlessKitAPI(c client.Client, info *api.Info,
 		// even when network driver is set to "slirp4netns".
 		//
 		// Most users are using "builtin" port driver and will not see this warning.
-		logrus.Warnf("protocol %q is not supported by the RootlessKit port driver %q, ignoring request for %q",
-			apiProto,
-			portDriverName,
-			net.JoinHostPort(hostIP, strconv.Itoa(hostPort)))
-		return nil, nil
+		err := &protocolUnsupportedError{
+			apiProto:       apiProto,
+			portDriverName: portDriverName,
+			hostIP:         hostIP,
+			hostPort:       hostPort,
+		}
+		return nil, err
 	}
 
 	pm := c.PortManager()
@@ -161,6 +177,12 @@ func xmain(f *os.File) error {
 		}()
 	}
 	if err != nil {
+		if _, ok := err.(*protocolUnsupportedError); ok {
+			logrus.Warn(err)
+			// exit without executing realProxy (https://github.com/rootless-containers/rootlesskit/issues/250)
+			fmt.Fprint(f, "0\n")
+			return nil
+		}
 		return err
 	}
 
