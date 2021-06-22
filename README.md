@@ -91,7 +91,7 @@ See also https://rootlesscontaine.rs/getting-started/common/subuid/
 
 ### sysctl
 
-Some distros setting up sysctl:
+Some distros require setting up sysctl:
 
 - Debian (excluding Ubuntu) and Arch:  `sudo sh -c "echo 1 > /proc/sys/kernel/unprivileged_userns_clone"`
 - RHEL/CentOS 7 (excluding RHEL/CentOS 8): `sudo sh -c "echo 28633 > /proc/sys/user/max_user_namespaces"`
