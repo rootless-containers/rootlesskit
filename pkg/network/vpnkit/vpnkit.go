@@ -13,10 +13,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jamescun/tuntap"
 	"github.com/moby/vpnkit/go/pkg/vmnet"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/songgao/water"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
@@ -134,8 +134,8 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	d.infoMu.Lock()
 	d.info = func() *api.NetworkDriverInfo {
 		return &api.NetworkDriverInfo{
-			Driver:    DriverName,
-			DNS:       []net.IP{net.ParseIP(netmsg.DNS)},
+			Driver:         DriverName,
+			DNS:            []net.IP{net.ParseIP(netmsg.DNS)},
 			ChildIP:        net.ParseIP(netmsg.IP),
 			DynamicChildIP: false,
 		}
@@ -197,7 +197,13 @@ func startVPNKitRoutines(ctx context.Context, tapName, macStr, socket, uuidStr s
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
 		return "", errors.Wrapf(err, "executing %v", cmds)
 	}
-	tap, err := tuntap.Tap(tapName)
+	tap, err := water.New(
+		water.Config{
+			DeviceType: water.TAP,
+			PlatformSpecificParams: water.PlatformSpecificParams{
+				Name: tapName,
+			},
+		})
 	if err != nil {
 		return "", errors.Wrapf(err, "creating tap %s", tapName)
 	}
@@ -226,9 +232,15 @@ func tap2vif(vif *vmnet.Vif, r io.Reader) {
 	for {
 		n, err := r.Read(b)
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return
+			}
 			panic(errors.Wrap(err, "tap2vif: read"))
 		}
 		if err := vif.Write(b[:n]); err != nil {
+			if errors.Is(err, io.EOF) {
+				return
+			}
 			panic(errors.Wrap(err, "tap2vif: write"))
 		}
 	}
@@ -238,9 +250,16 @@ func vif2tap(w io.Writer, vif *vmnet.Vif) {
 	for {
 		b, err := vif.Read()
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return
+			}
 			panic(errors.Wrap(err, "vif2tap: read"))
 		}
 		if _, err := w.Write(b); err != nil {
+			if errors.Is(err, io.EOF) {
+				return
+			}
+
 			panic(errors.Wrap(err, "vif2tap: write"))
 		}
 	}

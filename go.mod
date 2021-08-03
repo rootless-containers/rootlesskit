@@ -8,12 +8,12 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/insomniacslk/dhcp v0.0.0-20210120172423-cc9239ac6294
-	github.com/jamescun/tuntap v0.0.0-20190712092105-cb1fb277045c
 	github.com/moby/sys/mountinfo v0.4.1
 	github.com/moby/vpnkit v0.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
+	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/net v0.0.0-20210119194325-5f4716e94777 // indirect
