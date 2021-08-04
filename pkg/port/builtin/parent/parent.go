@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -141,13 +140,8 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 	}
 	routineStopCh := make(chan struct{})
 	routineStop := func() error {
-		routineStopCh <- struct{}{}
-		select {
-		case <-routineStopCh:
-		case <-time.After(5 * time.Second):
-			return errors.New("stop timeout after 5 seconds")
-		}
-		return nil
+		close(routineStopCh)
+		return nil // FIXME
 	}
 	switch spec.Proto {
 	case "tcp", "tcp4", "tcp6":
