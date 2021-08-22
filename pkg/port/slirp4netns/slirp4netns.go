@@ -3,13 +3,13 @@ package slirp4netns
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"strings"
 	"sync"
-
-	"github.com/pkg/errors"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
@@ -68,7 +68,7 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 		return nil, err
 	}
 	if strings.HasSuffix(spec.Proto, "6") {
-		return nil, errors.Errorf("unsupported protocol %q", spec.Proto)
+		return nil, fmt.Errorf("unsupported protocol %q", spec.Proto)
 	}
 	proto := strings.TrimSuffix(spec.Proto, "4")
 	ip := spec.ChildIP
@@ -77,11 +77,11 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 	} else {
 		p := net.ParseIP(ip)
 		if p == nil {
-			return nil, errors.Errorf("invalid IP: %q", ip)
+			return nil, fmt.Errorf("invalid IP: %q", ip)
 		}
 		p = p.To4()
 		if p == nil {
-			return nil, errors.Errorf("unsupported IP (v6?): %s", ip)
+			return nil, fmt.Errorf("unsupported IP (v6?): %s", ip)
 		}
 		ip = p.String()
 	}
@@ -100,15 +100,15 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 		return nil, err
 	}
 	if len(rep.Error) != 0 {
-		return nil, errors.Errorf("reply.Error: %+v", rep.Error)
+		return nil, fmt.Errorf("reply.Error: %+v", rep.Error)
 	}
 	idIntf, ok := rep.Return["id"]
 	if !ok {
-		return nil, errors.Errorf("unexpected reply: %+v", rep)
+		return nil, fmt.Errorf("unexpected reply: %+v", rep)
 	}
 	idFloat, ok := idIntf.(float64)
 	if !ok {
-		return nil, errors.Errorf("unexpected id: %+v", idIntf)
+		return nil, fmt.Errorf("unexpected id: %+v", idIntf)
 	}
 	id := int(idFloat)
 	st := port.Status{
@@ -143,7 +143,7 @@ func (d *driver) RemovePort(ctx context.Context, id int) error {
 		return err
 	}
 	if len(rep.Error) != 0 {
-		return errors.Errorf("reply.Error: %v", rep.Error)
+		return fmt.Errorf("reply.Error: %v", rep.Error)
 	}
 	delete(d.ports, id)
 	return nil

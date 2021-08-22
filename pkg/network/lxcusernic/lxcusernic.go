@@ -2,6 +2,8 @@ package lxcusernic
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -11,7 +13,7 @@ import (
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/client4"
-	"github.com/pkg/errors"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api"
@@ -72,7 +74,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	cmd := exec.Command(d.binary, "create", dummyLXCPath, dummyLXCName, strconv.Itoa(childPID), "veth", d.bridge, d.ifname)
 	b, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, common.Seq(cleanups), errors.Wrapf(err, "%s failed: %s", d.binary, string(b))
+		return nil, common.Seq(cleanups), fmt.Errorf("%s failed: %s: %w", d.binary, string(b), err)
 	}
 	netmsg := common.NetworkMessage{
 		Dev: d.ifname,
@@ -104,7 +106,7 @@ func exchangeDHCP(c *client4.Client, dev string) (*dhcpv4.DHCPv4, error) {
 				// Retry on EINTR
 				continue
 			}
-			return nil, errors.Wrapf(err, "could not exchange DHCP with %s", dev)
+			return nil, fmt.Errorf("could not exchange DHCP with %s: %w", dev, err)
 		}
 		break
 	}
@@ -134,7 +136,7 @@ func (d *childDriver) ConfigureNetworkChild(netmsg *common.NetworkMessage) (stri
 		{"ip", "link", "set", dev, "up"},
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-		return "", errors.Wrapf(err, "executing %v", cmds)
+		return "", fmt.Errorf("executing %v: %w", cmds, err)
 	}
 	c := client4.NewClient()
 	c.ReadTimeout = 30 * time.Second
@@ -175,7 +177,7 @@ func dhcpRenewRoutine(c *client4.Client, dev string, initialIP net.IP, lease tim
 		ip := p.YourIPAddr.To4()
 		if !ip.Equal(initialIP) {
 			// FIXME(AkihiroSuda): unlikely to happen for LXC usecase but good to consider supporting
-			panic(errors.Errorf("expected to retain %s, got %s", initialIP, ip))
+			panic(fmt.Errorf("expected to retain %s, got %s", initialIP, ip))
 		}
 		lease = p.IPAddressLeaseTime(lease)
 	}

@@ -1,12 +1,11 @@
 package child
 
 import (
+	"fmt"
 	"golang.org/x/sys/unix"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"github.com/pkg/errors"
 )
 
 func generateResolvConf(dns string) []byte {
@@ -17,7 +16,7 @@ func writeResolvConf(dns string) error {
 	// remove copied-up link
 	_ = os.Remove("/etc/resolv.conf")
 	if err := ioutil.WriteFile("/etc/resolv.conf", generateResolvConf(dns), 0644); err != nil {
-		return errors.Wrapf(err, "writing %s", "/etc/resolv.conf")
+		return fmt.Errorf("writing %s: %w", "/etc/resolv.conf", err)
 	}
 	return nil
 }
@@ -33,11 +32,11 @@ func writeResolvConf(dns string) error {
 func mountResolvConf(tempDir, dns string) error {
 	myResolvConf := filepath.Join(tempDir, "resolv.conf")
 	if err := ioutil.WriteFile(myResolvConf, generateResolvConf(dns), 0644); err != nil {
-		return errors.Wrapf(err, "writing %s", myResolvConf)
+		return fmt.Errorf("writing %s: %w", myResolvConf, err)
 	}
 
 	if err := unix.Mount(myResolvConf, "/etc/resolv.conf", "", uintptr(unix.MS_BIND), ""); err != nil {
-		return errors.Wrapf(err, "failed to create bind mount /etc/resolv.conf for %s", myResolvConf)
+		return fmt.Errorf("failed to create bind mount /etc/resolv.conf for %s: %w", myResolvConf, err)
 	}
 	return nil
 }

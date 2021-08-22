@@ -2,6 +2,8 @@ package slirp4netns
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -12,7 +14,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
@@ -46,16 +47,17 @@ func DetectFeatures(binary string) (*Features, error) {
 	}
 	realBinary, err := exec.LookPath(binary)
 	if err != nil {
-		return nil, errors.Wrapf(err, "slirp4netns binary %q is not installed", binary)
+		return nil, fmt.Errorf("slirp4netns binary %q is not installed: %w", binary, err)
 	}
 	cmd := exec.Command(realBinary, "--help")
 	cmd.Env = os.Environ()
 	b, err := cmd.CombinedOutput()
 	s := string(b)
 	if err != nil {
-		return nil, errors.Wrapf(err,
-			"command \"%s --help\" failed, make sure slirp4netns v0.4.0+ is installed: %q",
-			realBinary, s)
+		return nil, fmt.Errorf(
+			"command \"%s --help\" failed, make sure slirp4netns v0.4.0+ is installed: %q: %w",
+			realBinary, s, err,
+		)
 	}
 	if !strings.Contains(s, "--netns-type") {
 		// We don't use --netns-type, but we check the presence of --netns-type to
@@ -174,7 +176,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	tap := d.ifname
 	var cleanups []func() error
 	if err := parentutils.PrepareTap(childPID, tap); err != nil {
-		return nil, common.Seq(cleanups), errors.Wrapf(err, "setting up tap %s", tap)
+		return nil, common.Seq(cleanups), fmt.Errorf("setting up tap %s: %w", tap, err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	readyR, readyW, err := os.Pipe()
@@ -219,11 +221,11 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 		return nil
 	})
 	if err := cmd.Start(); err != nil {
-		return nil, common.Seq(cleanups), errors.Wrapf(err, "executing %v", cmd)
+		return nil, common.Seq(cleanups), fmt.Errorf("executing %v: %w", cmd, err)
 	}
 
 	if err := waitForReadyFD(cmd.Process.Pid, readyR); err != nil {
-		return nil, common.Seq(cleanups), errors.Wrapf(err, "waiting for ready fd (%v)", cmd)
+		return nil, common.Seq(cleanups), fmt.Errorf("waiting for ready fd (%v): %w", cmd, err)
 	}
 	netmsg := common.NetworkMessage{
 		Dev: tap,
@@ -273,7 +275,7 @@ func waitForReadyFD(cmdPid int, r *os.File) error {
 	b := make([]byte, 16)
 	for {
 		if err := r.SetDeadline(time.Now().Add(1 * time.Second)); err != nil {
-			return errors.Wrapf(err, "error setting slirp4netns pipe timeout")
+			return fmt.Errorf("error setting slirp4netns pipe timeout: %w", err)
 		}
 		if _, err := r.Read(b); err == nil {
 			break
@@ -283,7 +285,7 @@ func waitForReadyFD(cmdPid int, r *os.File) error {
 				var status syscall.WaitStatus
 				pid, err := syscall.Wait4(cmdPid, &status, syscall.WNOHANG, nil)
 				if err != nil {
-					return errors.Wrapf(err, "failed to read slirp4netns process status")
+					return fmt.Errorf("failed to read slirp4netns process status: %w", err)
 				}
 				if pid != cmdPid {
 					continue
@@ -296,7 +298,7 @@ func waitForReadyFD(cmdPid int, r *os.File) error {
 				}
 				continue
 			}
-			return errors.Wrapf(err, "failed to read from slirp4netns sync pipe")
+			return fmt.Errorf("failed to read from slirp4netns sync pipe: %w", err)
 		}
 	}
 	return nil

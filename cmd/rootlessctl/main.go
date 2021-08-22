@@ -1,11 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 

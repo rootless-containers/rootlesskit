@@ -1,7 +1,8 @@
 package parentutils
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
+
 	"os"
 	"strconv"
 
@@ -14,7 +15,7 @@ func PrepareTap(pid int, tap string) error {
 		nsenter(pid, []string{"ip", "link", "set", tap, "up"}),
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-		return errors.Wrapf(err, "executing %v", cmds)
+		return fmt.Errorf("executing %v: %w", cmds, err)
 	}
 	return nil
 }

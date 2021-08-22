@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 
 	"golang.org/x/sys/unix"
-
-	"github.com/pkg/errors"
 )
 
 // generateEtcHosts makes sure the current hostname is resolved into
@@ -40,7 +38,7 @@ func writeEtcHosts() error {
 	// remove copied-up link
 	_ = os.Remove("/etc/hosts")
 	if err := ioutil.WriteFile("/etc/hosts", newEtcHosts, 0644); err != nil {
-		return errors.Wrapf(err, "writing /etc/hosts")
+		return fmt.Errorf("writing /etc/hosts: %w", err)
 	}
 	return nil
 }
@@ -54,11 +52,11 @@ func mountEtcHosts(tempDir string) error {
 	}
 	myEtcHosts := filepath.Join(tempDir, "hosts")
 	if err := ioutil.WriteFile(myEtcHosts, newEtcHosts, 0644); err != nil {
-		return errors.Wrapf(err, "writing %s", myEtcHosts)
+		return fmt.Errorf("writing %s: %w", myEtcHosts, err)
 	}
 
 	if err := unix.Mount(myEtcHosts, "/etc/hosts", "", uintptr(unix.MS_BIND), ""); err != nil {
-		return errors.Wrapf(err, "failed to create bind mount /etc/hosts for %s", myEtcHosts)
+		return fmt.Errorf("failed to create bind mount /etc/hosts for %s: %w", myEtcHosts, err)
 	}
 	return nil
 }

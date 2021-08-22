@@ -37,8 +37,6 @@ github.com/moby/sys/mountinfo v0.4.1 h1:1O+1cHA1aujwEwwVMa2Xm2l+gIpUHyd3+D+d7LZh
 github.com/moby/sys/mountinfo v0.4.1/go.mod h1:rEr8tzG/lsIZHBtN/JjGG+LMYx9eXgW2JI+6q0qou+A=
 github.com/moby/vpnkit v0.5.0 h1:VcDpS9y+PmT9itf+mH5Qdh9GME7ungLMt9yjf9o4REY=
 github.com/moby/vpnkit v0.5.0/go.mod h1:KyjUrL9cb6ZSNNAUwZfqRjhwwgJ3BJN+kXh0t43WTUQ=
-github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
-github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=

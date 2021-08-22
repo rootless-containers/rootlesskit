@@ -2,6 +2,7 @@ package parent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -15,7 +16,7 @@ import (
 
 	"github.com/gofrs/flock"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
+
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
@@ -65,7 +66,7 @@ func checkPreflight(opt Opt) error {
 		return errors.New("state dir must be absolute")
 	}
 	if stat, err := os.Stat(opt.StateDir); err != nil || !stat.IsDir() {
-		return errors.Wrap(err, "state dir is inaccessible")
+		return fmt.Errorf("state dir is inaccessible: %w", err)
 	}
 
 	if os.Geteuid() == 0 {
@@ -108,10 +109,10 @@ func LockStateDir(stateDir string) (*flock.Flock, error) {
 	lock := flock.New(lockPath)
 	locked, err := lock.TryLock()
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to lock %s", lockPath)
+		return nil, fmt.Errorf("failed to lock %s: %w", lockPath, err)
 	}
 	if !locked {
-		return nil, errors.Errorf("failed to lock %s, another RootlessKit is running with the same state directory?", lockPath)
+		return nil, fmt.Errorf("failed to lock %s, another RootlessKit is running with the same state directory?", lockPath)
 	}
 	return lock, nil
 }
@@ -173,10 +174,10 @@ func Parent(opt Opt) error {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", opt.ParentEGIDEnvKey, os.Getegid()))
 	}
 	if err := cmd.Start(); err != nil {
-		return errors.Wrap(err, "failed to start the child")
+		return fmt.Errorf("failed to start the child: %w", err)
 	}
 	if err := setupUIDGIDMap(cmd.Process.Pid); err != nil {
-		return errors.Wrap(err, "failed to setup UID/GID map")
+		return fmt.Errorf("failed to setup UID/GID map: %w", err)
 	}
 	sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)
 	defer signal.StopCatch(sigc)
@@ -209,7 +210,7 @@ func Parent(opt Opt) error {
 			defer cleanupNetwork()
 		}
 		if err != nil {
-			return errors.Wrapf(err, "failed to setup network %+v", opt.NetworkDriver)
+			return fmt.Errorf("failed to setup network %+v: %w", opt.NetworkDriver, err)
 		}
 		msg.Message1.Network = *netMsg
 	}
@@ -248,7 +249,7 @@ func Parent(opt Opt) error {
 		for _, p := range opt.PublishPorts {
 			st, err := opt.PortDriver.AddPort(context.TODO(), p)
 			if err != nil {
-				return errors.Wrapf(err, "failed to expose port %v", p)
+				return fmt.Errorf("failed to expose port %v: %w", p, err)
 			}
 			logrus.Debugf("published port %v", st)
 		}
@@ -257,7 +258,7 @@ func Parent(opt Opt) error {
 	// after child is fully configured, write PID to child_pid file
 	childPIDPath := filepath.Join(opt.StateDir, StateFileChildPID)
 	if err := ioutil.WriteFile(childPIDPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0444); err != nil {
-		return errors.Wrapf(err, "failed to write the child PID %d to %s", cmd.Process.Pid, childPIDPath)
+		return fmt.Errorf("failed to write the child PID %d to %s: %w", cmd.Process.Pid, childPIDPath, err)
 	}
 	// listens the API
 	apiSockPath := filepath.Join(opt.StateDir, StateFileAPISock)
@@ -272,11 +273,11 @@ func Parent(opt Opt) error {
 	}
 	// block until the child exits
 	if err := cmd.Wait(); err != nil {
-		return errors.Wrap(err, "child exited")
+		return fmt.Errorf("child exited: %w", err)
 	}
 	// close the API socket
 	if err := apiCloser.Close(); err != nil {
-		return errors.Wrapf(err, "failed to close %s", apiSockPath)
+		return fmt.Errorf("failed to close %s: %w", apiSockPath, err)
 	}
 	// shut down port driver
 	if opt.PortDriver != nil {
@@ -336,18 +337,18 @@ func newugidmapArgs() ([]string, []string, error) {
 func setupUIDGIDMap(pid int) error {
 	uArgs, gArgs, err := newugidmapArgs()
 	if err != nil {
-		return errors.Wrap(err, "failed to compute uid/gid map")
+		return fmt.Errorf("failed to compute uid/gid map: %w", err)
 	}
 	pidS := strconv.Itoa(pid)
 	cmd := exec.Command("newuidmap", append([]string{pidS}, uArgs...)...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrapf(err, "newuidmap %s %v failed: %s", pidS, uArgs, string(out))
+		return fmt.Errorf("newuidmap %s %v failed: %s: %w", pidS, uArgs, string(out), err)
 	}
 	cmd = exec.Command("newgidmap", append([]string{pidS}, gArgs...)...)
 	out, err = cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrapf(err, "newgidmap %s %v failed: %s", pidS, gArgs, string(out))
+		return fmt.Errorf("newgidmap %s %v failed: %s: %w", pidS, gArgs, string(out), err)
 	}
 	return nil
 }
@@ -397,7 +398,7 @@ func InitStateDir(stateDir string) error {
 		}
 		p := filepath.Join(stateDir, f.Name())
 		if err := os.RemoveAll(p); err != nil {
-			return errors.Wrapf(err, "failed to remove %s", p)
+			return fmt.Errorf("failed to remove %s: %w", p, err)
 		}
 	}
 	return nil
