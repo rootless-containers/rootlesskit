@@ -1,6 +1,7 @@
 package cgrouputil
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -8,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/moby/sys/mountinfo"
-	"github.com/pkg/errors"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,7 +26,7 @@ func EvacuateCgroup2(evac string) error {
 		return errors.New("got empty evacuation group name")
 	}
 	if strings.Contains(evac, "/") {
-		return errors.Errorf("unexpected evacuation group name %q: must not contain \"/\"", evac)
+		return fmt.Errorf("unexpected evacuation group name %q: must not contain \"/\"", evac)
 	}
 
 	mountpoint := findCgroup2Mountpoint()

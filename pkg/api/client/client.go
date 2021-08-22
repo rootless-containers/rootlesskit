@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
-
-	"github.com/pkg/errors"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
@@ -99,7 +98,7 @@ func readAtMost(r io.Reader, maxBytes int) ([]byte, error) {
 		return b, err
 	}
 	if lr.N == 0 {
-		return b, errors.Errorf("expected at most %d bytes, got more", maxBytes)
+		return b, fmt.Errorf("expected at most %d bytes, got more", maxBytes)
 	}
 	return b, nil
 }

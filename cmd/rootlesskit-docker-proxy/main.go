@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -18,8 +19,6 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/api/client"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/sirupsen/logrus"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -119,11 +118,11 @@ func callRootlessKitAPI(c client.Client, info *api.Info,
 	}
 	st, err := pm.AddPort(context.Background(), p)
 	if err != nil {
-		return nil, errors.Wrap(err, "error while calling PortManager.AddPort()")
+		return nil, fmt.Errorf("error while calling PortManager.AddPort(): %w", err)
 	}
 	deferFunc := func() error {
 		if dErr := pm.RemovePort(context.Background(), st.ID); dErr != nil {
-			return errors.Wrap(err, "error while calling PortManager.RemovePort()")
+			return fmt.Errorf("error while calling PortManager.RemovePort(): %w", err)
 		}
 		return nil
 	}
@@ -145,12 +144,12 @@ func xmain(f *os.File) error {
 	socketPath := filepath.Join(stateDir, "api.sock")
 	c, err := client.New(socketPath)
 	if err != nil {
-		return errors.Wrap(err, "error while connecting to RootlessKit API socket")
+		return fmt.Errorf("error while connecting to RootlessKit API socket: %w", err)
 	}
 
 	info, err := c.Info(context.Background())
 	if err != nil {
-		return errors.Wrap(err, "failed to call info API, probably RootlessKit binary is too old (needs to be v0.14.0 or later)")
+		return fmt.Errorf("failed to call info API, probably RootlessKit binary is too old (needs to be v0.14.0 or later): %w", err)
 	}
 
 	// use loopback IP as the child IP, when port-driver="builtin"
@@ -162,7 +161,7 @@ func xmain(f *os.File) error {
 	if info.PortDriver.DisallowLoopbackChildIP {
 		// i.e., port-driver="slirp4netns"
 		if info.NetworkDriver.ChildIP == nil {
-			return errors.Errorf("port driver (%q) does not allow loopback child IP, but network driver (%q) has no non-loopback IP",
+			return fmt.Errorf("port driver (%q) does not allow loopback child IP, but network driver (%q) has no non-loopback IP",
 				info.PortDriver.Driver, info.NetworkDriver.Driver)
 		}
 		childIP = info.NetworkDriver.ChildIP.String()
@@ -200,14 +199,14 @@ func xmain(f *os.File) error {
 		Pdeathsig: syscall.SIGKILL,
 	}
 	if err := cmd.Start(); err != nil {
-		return errors.Wrapf(err, "error while starting %s", realProxy)
+		return fmt.Errorf("error while starting %s: %w", realProxy, err)
 	}
 
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
 	<-ch
 	if err := cmd.Process.Kill(); err != nil {
-		return errors.Wrapf(err, "error while killing %s", realProxy)
+		return fmt.Errorf("error while killing %s: %w", realProxy, err)
 	}
 	return nil
 }

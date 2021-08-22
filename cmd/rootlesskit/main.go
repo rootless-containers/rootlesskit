@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -10,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
@@ -247,7 +247,7 @@ func parseCIDR(s string) (*net.IPNet, error) {
 		return nil, err
 	}
 	if !ip.Equal(ipnet.IP) {
-		return nil, errors.Errorf("cidr must be like 10.0.2.0/24, not like 10.0.2.100/24")
+		return nil, fmt.Errorf("cidr must be like 10.0.2.0/24, not like 10.0.2.100/24")
 	}
 	return ipnet, nil
 }
@@ -278,7 +278,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 	if opt.StateDir == "" {
 		opt.StateDir, err = ioutil.TempDir("", "rootlesskit")
 		if err != nil {
-			return opt, errors.Wrap(err, "creating a state directory")
+			return opt, fmt.Errorf("creating a state directory: %w", err)
 		}
 	} else {
 		opt.StateDir, err = filepath.Abs(opt.StateDir)
@@ -293,7 +293,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 	mtu := clicontext.Int("mtu")
 	if mtu < 0 || mtu > 65521 {
 		// 0 is ok (stands for the driver's default)
-		return opt, errors.Errorf("mtu must be <= 65521, got %d", mtu)
+		return opt, fmt.Errorf("mtu must be <= 65521, got %d", mtu)
 	}
 	ipnet, err := parseCIDR(clicontext.String("cidr"))
 	if err != nil {
@@ -367,7 +367,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		case "false", "": // default
 			// NOP
 		default:
-			return opt, errors.Errorf("unsupported slirp4netns-sandbox mode: %q", s)
+			return opt, fmt.Errorf("unsupported slirp4netns-sandbox mode: %q", s)
 		}
 		enableSeccomp := false
 		switch s := clicontext.String("slirp4netns-seccomp"); s {
@@ -384,7 +384,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		case "false", "": // default
 			// NOP
 		default:
-			return opt, errors.Errorf("unsupported slirp4netns-seccomp mode: %q", s)
+			return opt, fmt.Errorf("unsupported slirp4netns-seccomp mode: %q", s)
 		}
 		opt.NetworkDriver, err = slirp4netns.NewParentDriver(&logrusDebugWriter{label: "network/slirp4netns"}, binary, mtu, ipnet, ifname, disableHostLoopback, slirp4netnsAPISocketPath,
 			enableSandbox, enableSeccomp, ipv6)
@@ -417,13 +417,13 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 			return opt, err
 		}
 	default:
-		return opt, errors.Errorf("unknown network mode: %s", s)
+		return opt, fmt.Errorf("unknown network mode: %s", s)
 	}
 	switch s := clicontext.String("port-driver"); s {
 	case "none":
 		// NOP
 		if len(clicontext.StringSlice("publish")) != 0 {
-			return opt, errors.Errorf("port driver %q does not support publishing ports", s)
+			return opt, fmt.Errorf("port driver %q does not support publishing ports", s)
 		}
 	case "slirp4netns":
 		if clicontext.String("net") != "slirp4netns" {
@@ -442,7 +442,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 			return opt, err
 		}
 	default:
-		return opt, errors.Errorf("unknown port driver: %s", s)
+		return opt, fmt.Errorf("unknown port driver: %s", s)
 	}
 	for _, s := range clicontext.StringSlice("publish") {
 		spec, err := portutil.ParsePortSpec(s)
@@ -490,7 +490,7 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 		opt.Reaper = true
 	case "false":
 	default:
-		return opt, errors.Errorf("unknown reaper mode: %s", reaperStr)
+		return opt, fmt.Errorf("unknown reaper mode: %s", reaperStr)
 	}
 	switch s := clicontext.String("net"); s {
 	case "host":
@@ -502,17 +502,17 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 	case "lxc-user-nic":
 		opt.NetworkDriver = lxcusernic.NewChildDriver()
 	default:
-		return opt, errors.Errorf("unknown network mode: %s", s)
+		return opt, fmt.Errorf("unknown network mode: %s", s)
 	}
 	opt.CopyUpDirs = clicontext.StringSlice("copy-up")
 	switch s := clicontext.String("copy-up-mode"); s {
 	case "tmpfs+symlink":
 		opt.CopyUpDriver = tmpfssymlink.NewChildDriver()
 		if len(opt.CopyUpDirs) != 0 && (opt.Propagation == "rshared" || opt.Propagation == "shared") {
-			return opt, errors.Errorf("propagation %s does not support copy-up driver %s", opt.Propagation, s)
+			return opt, fmt.Errorf("propagation %s does not support copy-up driver %s", opt.Propagation, s)
 		}
 	default:
-		return opt, errors.Errorf("unknown copy-up mode: %s", s)
+		return opt, fmt.Errorf("unknown copy-up mode: %s", s)
 	}
 	switch s := clicontext.String("port-driver"); s {
 	case "none":
@@ -522,7 +522,7 @@ func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []st
 	case "builtin":
 		opt.PortDriver = builtin.NewChildDriver(&logrusDebugWriter{label: "port/builtin"})
 	default:
-		return opt, errors.Errorf("unknown port driver: %s", s)
+		return opt, fmt.Errorf("unknown port driver: %s", s)
 	}
 	return opt, nil
 }

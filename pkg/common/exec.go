@@ -1,11 +1,11 @@
 package common
 
 import (
+	"errors"
 	"io"
 	"os/exec"
 	"syscall"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -16,7 +16,7 @@ type ErrorWithSys interface {
 }
 
 func GetExecExitStatus(err error) (int, bool) {
-	err = errors.Cause(err)
+	err = errors.Unwrap(err)
 	if err == nil {
 		return 0, false
 	}

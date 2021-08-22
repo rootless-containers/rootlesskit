@@ -1,13 +1,13 @@
 package tmpfssymlink
 
 import (
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
 	"golang.org/x/sys/unix"
-
-	"github.com/pkg/errors"
 
 	"github.com/rootless-containers/rootlesskit/pkg/copyup"
 )
@@ -24,7 +24,7 @@ func (d *childDriver) CopyUp(dirs []string) ([]string, error) {
 	// copying up /run with stateDir=/run/user/1001/rootlesskit/default.
 	bind0, err := ioutil.TempDir("/tmp", "rootlesskit-b")
 	if err != nil {
-		return nil, errors.Wrap(err, "creating bind0 directory under /tmp")
+		return nil, fmt.Errorf("creating bind0 directory under /tmp: %w", err)
 	}
 	defer os.RemoveAll(bind0)
 	var copied []string
@@ -36,24 +36,24 @@ func (d *childDriver) CopyUp(dirs []string) ([]string, error) {
 		}
 
 		if err := unix.Mount(d, bind0, "", uintptr(unix.MS_BIND|unix.MS_REC), ""); err != nil {
-			return copied, errors.Wrapf(err, "failed to create bind mount on %s", d)
+			return copied, fmt.Errorf("failed to create bind mount on %s: %w", d, err)
 		}
 
 		if err := unix.Mount("none", d, "tmpfs", 0, ""); err != nil {
-			return copied, errors.Wrapf(err, "failed to mount tmpfs on %s", d)
+			return copied, fmt.Errorf("failed to mount tmpfs on %s: %w", d, err)
 		}
 
 		bind1, err := ioutil.TempDir(d, ".ro")
 		if err != nil {
-			return copied, errors.Wrapf(err, "creating a directory under %s", d)
+			return copied, fmt.Errorf("creating a directory under %s: %w", d, err)
 		}
 		if err := unix.Mount(bind0, bind1, "", uintptr(unix.MS_MOVE), ""); err != nil {
-			return copied, errors.Wrapf(err, "failed to move mount point from %s to %s", bind0, bind1)
+			return copied, fmt.Errorf("failed to move mount point from %s to %s: %w", bind0, bind1, err)
 		}
 
 		files, err := ioutil.ReadDir(bind1)
 		if err != nil {
-			return copied, errors.Wrapf(err, "reading dir %s", bind1)
+			return copied, fmt.Errorf("reading dir %s: %w", bind1, err)
 		}
 		for _, f := range files {
 			fFull := filepath.Join(bind1, f.Name())
@@ -61,7 +61,7 @@ func (d *childDriver) CopyUp(dirs []string) ([]string, error) {
 			if f.Mode()&os.ModeSymlink != 0 {
 				symlinkSrc, err = os.Readlink(fFull)
 				if err != nil {
-					return copied, errors.Wrapf(err, "reading dir %s", fFull)
+					return copied, fmt.Errorf("reading dir %s: %w", fFull, err)
 				}
 			} else {
 				symlinkSrc = filepath.Join(filepath.Base(bind1), f.Name())
@@ -70,10 +70,10 @@ func (d *childDriver) CopyUp(dirs []string) ([]string, error) {
 			// `mount` may create extra `/etc/mtab` after mounting empty tmpfs on /etc
 			// https://github.com/rootless-containers/rootlesskit/issues/45
 			if err = os.RemoveAll(symlinkDst); err != nil {
-				return copied, errors.Wrapf(err, "removing %s", symlinkDst)
+				return copied, fmt.Errorf("removing %s: %w", symlinkDst, err)
 			}
 			if err := os.Symlink(symlinkSrc, symlinkDst); err != nil {
-				return copied, errors.Wrapf(err, "symlinking %s to %s", symlinkSrc, symlinkDst)
+				return copied, fmt.Errorf("symlinking %s to %s: %w", symlinkSrc, symlinkDst, err)
 			}
 		}
 		copied = append(copied, d)

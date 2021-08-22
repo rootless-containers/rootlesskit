@@ -2,6 +2,8 @@ package vpnkit
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -14,7 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/moby/vpnkit/go/pkg/vmnet"
-	"github.com/pkg/errors"
+
 	"github.com/sirupsen/logrus"
 	"github.com/songgao/water"
 
@@ -100,13 +102,13 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 		return nil
 	})
 	if err := vpnkitCmd.Start(); err != nil {
-		return nil, common.Seq(cleanups), errors.Wrapf(err, "executing %v", vpnkitCmd)
+		return nil, common.Seq(cleanups), fmt.Errorf("executing %v: %w", vpnkitCmd, err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	cleanups = append(cleanups, func() error { cancel(); return nil })
 	vmnet, err := waitForVPNKit(ctx, vpnkitSocket)
 	if err != nil {
-		return nil, common.Seq(cleanups), errors.Wrapf(err, "connecting to %s", vpnkitSocket)
+		return nil, common.Seq(cleanups), fmt.Errorf("connecting to %s: %w", vpnkitSocket, err)
 	}
 	cleanups = append(cleanups, func() error { return vmnet.Close() })
 	vifUUID := uuid.New()
@@ -114,7 +116,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	// No context.WithTimeout..?
 	vif, err := vmnet.ConnectVif(vifUUID)
 	if err != nil {
-		return nil, common.Seq(cleanups), errors.Wrapf(err, "connecting to %s with uuid %s", vpnkitSocket, vifUUID)
+		return nil, common.Seq(cleanups), fmt.Errorf("connecting to %s with uuid %s: %w", vpnkitSocket, vifUUID, err)
 	}
 	logrus.Debugf("connected to VPNKit vmnet")
 	// TODO: support configuration
@@ -154,7 +156,7 @@ func waitForVPNKit(ctx context.Context, socket string) (*vmnet.Vmnet, error) {
 		sleepTime := (retried % 100) * 10 * int(time.Microsecond)
 		select {
 		case <-ctx.Done():
-			return nil, errors.Wrapf(ctx.Err(), "last error: %v", err)
+			return nil, fmt.Errorf("last error: %v: %w", err, ctx.Err())
 		case <-time.After(time.Duration(sleepTime)):
 		}
 		retried++
@@ -195,7 +197,7 @@ func startVPNKitRoutines(ctx context.Context, tapName, macStr, socket, uuidStr s
 		// IP stuff and MTU are configured in activateTap() in pkg/child/child.go
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-		return "", errors.Wrapf(err, "executing %v", cmds)
+		return "", fmt.Errorf("executing %v: %w", cmds, err)
 	}
 	tap, err := water.New(
 		water.Config{
@@ -205,10 +207,10 @@ func startVPNKitRoutines(ctx context.Context, tapName, macStr, socket, uuidStr s
 			},
 		})
 	if err != nil {
-		return "", errors.Wrapf(err, "creating tap %s", tapName)
+		return "", fmt.Errorf("creating tap %s: %w", tapName, err)
 	}
 	if tap.Name() != tapName {
-		return "", errors.Wrapf(err, "expected %q, got %q", tapName, tap.Name())
+		return "", fmt.Errorf("expected %q, got %q: %w", tapName, tap.Name(), err)
 	}
 	vmnet, err := vmnet.New(ctx, socket)
 	if err != nil {
@@ -235,13 +237,13 @@ func tap2vif(vif *vmnet.Vif, r io.Reader) {
 			if errors.Is(err, io.EOF) {
 				return
 			}
-			panic(errors.Wrap(err, "tap2vif: read"))
+			panic(fmt.Errorf("tap2vif: read: %w", err))
 		}
 		if err := vif.Write(b[:n]); err != nil {
 			if errors.Is(err, io.EOF) {
 				return
 			}
-			panic(errors.Wrap(err, "tap2vif: write"))
+			panic(fmt.Errorf("tap2vif: write: %w", err))
 		}
 	}
 }
@@ -253,14 +255,14 @@ func vif2tap(w io.Writer, vif *vmnet.Vif) {
 			if errors.Is(err, io.EOF) {
 				return
 			}
-			panic(errors.Wrap(err, "vif2tap: read"))
+			panic(fmt.Errorf("vif2tap: read: %w", err))
 		}
 		if _, err := w.Write(b); err != nil {
 			if errors.Is(err, io.EOF) {
 				return
 			}
 
-			panic(errors.Wrap(err, "vif2tap: write"))
+			panic(fmt.Errorf("vif2tap: write: %w", err))
 		}
 	}
 }

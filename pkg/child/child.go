@@ -2,6 +2,7 @@ package child
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -11,7 +12,6 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
@@ -57,10 +57,10 @@ func mountSysfs(hostNetwork, evacuateCgroup2 bool) error {
 		if evacuateCgroup2 {
 			// We need to mount tmpfs before cgroup2 to avoid EBUSY
 			if err := unix.Mount("none", cgroupDir, "tmpfs", 0, ""); err != nil {
-				return errors.Wrapf(err, "failed to mount tmpfs on %s", cgroupDir)
+				return fmt.Errorf("failed to mount tmpfs on %s: %w", cgroupDir, err)
 			}
 			if err := unix.Mount("none", cgroupDir, "cgroup2", 0, ""); err != nil {
-				return errors.Wrapf(err, "failed to mount cgroup2 on %s", cgroupDir)
+				return fmt.Errorf("failed to mount cgroup2 on %s: %w", cgroupDir, err)
 			}
 		}
 		// NOP
@@ -69,12 +69,12 @@ func mountSysfs(hostNetwork, evacuateCgroup2 bool) error {
 
 	tmp, err := ioutil.TempDir("/tmp", "rksys")
 	if err != nil {
-		return errors.Wrap(err, "creating a directory under /tmp")
+		return fmt.Errorf("creating a directory under /tmp: %w", err)
 	}
 	defer os.RemoveAll(tmp)
 	if !evacuateCgroup2 {
 		if err := unix.Mount(cgroupDir, tmp, "", uintptr(unix.MS_BIND|unix.MS_REC), ""); err != nil {
-			return errors.Wrapf(err, "failed to create bind mount on %s", cgroupDir)
+			return fmt.Errorf("failed to create bind mount on %s: %w", cgroupDir, err)
 		}
 	}
 
@@ -91,11 +91,11 @@ func mountSysfs(hostNetwork, evacuateCgroup2 bool) error {
 	}
 	if evacuateCgroup2 {
 		if err := unix.Mount("none", cgroupDir, "cgroup2", 0, ""); err != nil {
-			return errors.Wrapf(err, "failed to mount cgroup2 on %s", cgroupDir)
+			return fmt.Errorf("failed to mount cgroup2 on %s: %w", cgroupDir, err)
 		}
 	} else {
 		if err := unix.Mount(tmp, cgroupDir, "", uintptr(unix.MS_MOVE), ""); err != nil {
-			return errors.Wrapf(err, "failed to move mount point from %s to %s", tmp, cgroupDir)
+			return fmt.Errorf("failed to move mount point from %s to %s: %w", tmp, cgroupDir, err)
 		}
 	}
 	return nil
@@ -116,7 +116,7 @@ func activateLoopback() error {
 		{"ip", "link", "set", "lo", "up"},
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-		return errors.Wrapf(err, "executing %v", cmds)
+		return fmt.Errorf("executing %v: %w", cmds, err)
 	}
 	return nil
 }
@@ -129,7 +129,7 @@ func activateDev(dev, ip string, netmask int, gateway string, mtu int) error {
 		{"ip", "route", "add", "default", "via", gateway, "dev", dev},
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
-		return errors.Wrapf(err, "executing %v", cmds)
+		return fmt.Errorf("executing %v: %w", cmds, err)
 	}
 	return nil
 }
@@ -208,16 +208,16 @@ func Child(opt Opt) error {
 	}
 	pipeFDStr := os.Getenv(opt.PipeFDEnvKey)
 	if pipeFDStr == "" {
-		return errors.Errorf("%s is not set", opt.PipeFDEnvKey)
+		return fmt.Errorf("%s is not set", opt.PipeFDEnvKey)
 	}
 	pipeFD, err := strconv.Atoi(pipeFDStr)
 	if err != nil {
-		return errors.Wrapf(err, "unexpected fd value: %s", pipeFDStr)
+		return fmt.Errorf("unexpected fd value: %s: %w", pipeFDStr, err)
 	}
 	pipeR := os.NewFile(uintptr(pipeFD), "")
 	var msg common.Message
 	if _, err := msgutil.UnmarshalFromReader(pipeR, &msg); err != nil {
-		return errors.Wrapf(err, "parsing message from fd %d", pipeFD)
+		return fmt.Errorf("parsing message from fd %d: %w", pipeFD, err)
 	}
 	logrus.Debugf("child: got msg from parent: %+v", msg)
 	if msg.Stage == 0 {
@@ -230,7 +230,7 @@ func Child(opt Opt) error {
 		panic("should not reach here")
 	}
 	if msg.Stage != 1 {
-		return errors.Errorf("expected stage 1, got stage %d", msg.Stage)
+		return fmt.Errorf("expected stage 1, got stage %d", msg.Stage)
 	}
 	// The parent calls child with Pdeathsig, but it is cleared when newuidmap SUID binary is called
 	// https://github.com/rootless-containers/rootlesskit/issues/65#issuecomment-492343646
@@ -242,7 +242,7 @@ func Child(opt Opt) error {
 	}
 	os.Unsetenv(opt.PipeFDEnvKey)
 	if err := pipeR.Close(); err != nil {
-		return errors.Wrapf(err, "failed to close fd %d", pipeFD)
+		return fmt.Errorf("failed to close fd %d: %w", pipeFD, err)
 	}
 	if msg.StateDir == "" {
 		return errors.New("got empty StateDir")
@@ -279,16 +279,16 @@ func Child(opt Opt) error {
 	}
 	if opt.Reaper {
 		if err := runAndReap(cmd); err != nil {
-			return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
+			return fmt.Errorf("command %v exited: %w", opt.TargetCmd, err)
 		}
 	} else {
 		if err := cmd.Start(); err != nil {
-			return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
+			return fmt.Errorf("command %v exited: %w", opt.TargetCmd, err)
 		}
 		sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)
 		defer sigproxysignal.StopCatch(sigc)
 		if err := cmd.Wait(); err != nil {
-			return errors.Wrapf(err, "command %v exited", opt.TargetCmd)
+			return fmt.Errorf("command %v exited: %w", opt.TargetCmd, err)
 		}
 	}
 	if opt.PortDriver != nil {
@@ -302,7 +302,7 @@ func setMountPropagation(propagation string) error {
 	flags, ok := propagationStates[propagation]
 	if ok {
 		if err := unix.Mount("none", "/", "", flags, ""); err != nil {
-			return errors.Wrapf(err, "failed to share mount point: /")
+			return fmt.Errorf("failed to share mount point: /: %w", err)
 		}
 	}
 	return nil

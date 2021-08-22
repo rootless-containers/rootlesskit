@@ -3,11 +3,12 @@ package router
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
@@ -110,7 +111,7 @@ func (b *Backend) DeletePort(w http.ResponseWriter, r *http.Request) {
 	}
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		b.onError(w, r, errors.Wrapf(err, "bad id %s", idStr), http.StatusBadRequest)
+		b.onError(w, r, fmt.Errorf("bad id %s: %w", idStr, err), http.StatusBadRequest)
 		return
 	}
 	if err := b.PortDriver.RemovePort(context.TODO(), id); err != nil {

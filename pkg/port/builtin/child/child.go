@@ -1,13 +1,14 @@
 package child
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 
 	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
@@ -90,7 +91,7 @@ func (d *childDriver) routine(c *net.UnixConn) error {
 	case msg.RequestTypeConnect:
 		return d.handleConnectRequest(c, &req)
 	default:
-		return errors.Errorf("unknown request type %q", req.Type)
+		return fmt.Errorf("unknown request type %q", req.Type)
 	}
 }
 
@@ -108,7 +109,7 @@ func (d *childDriver) handleConnectRequest(c *net.UnixConn, req *msg.Request) er
 	case "udp4":
 	case "udp6":
 	default:
-		return errors.Errorf("unknown proto: %q", req.Proto)
+		return fmt.Errorf("unknown proto: %q", req.Proto)
 	}
 	// dialProto does not need "4", "6" suffix
 	dialProto := strings.TrimSuffix(strings.TrimSuffix(req.Proto, "6"), "4")
@@ -119,7 +120,7 @@ func (d *childDriver) handleConnectRequest(c *net.UnixConn, req *msg.Request) er
 	} else {
 		p := net.ParseIP(ip)
 		if p == nil {
-			return errors.Errorf("invalid IP: %q", ip)
+			return fmt.Errorf("invalid IP: %q", ip)
 		}
 		ip = p.String()
 	}
@@ -130,7 +131,7 @@ func (d *childDriver) handleConnectRequest(c *net.UnixConn, req *msg.Request) er
 	defer targetConn.Close() // no effect on duplicated FD
 	targetConnFiler, ok := targetConn.(filer)
 	if !ok {
-		return errors.Errorf("unknown target connection: %+v", targetConn)
+		return fmt.Errorf("unknown target connection: %+v", targetConn)
 	}
 	targetConnFile, err := targetConnFiler.File()
 	if err != nil {
