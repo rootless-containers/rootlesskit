@@ -93,8 +93,8 @@ jobs:
     - name: "Check out"
       uses: actions/checkout@v2
     - name: "Build integration test image"
-      # Docker builds RootlessKit with Go 1.13, so we use Go 1.13 as well here.
-      run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker --build-arg GO_VERSION=1.13 .
+      # Docker 20.10.x builds RootlessKit with Go 1.16 (as of Docker 20.10.9), so we use Go 1.16 as well here.
+      run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker --build-arg GO_VERSION=1.16 .
     - name: "Create a custom network to avoid IP confusion"
       run: docker network create custom
     - name: "Docker Integration test: net=slirp4netns, port-driver=builtin"
