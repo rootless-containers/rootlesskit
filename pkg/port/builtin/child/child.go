@@ -77,7 +77,6 @@ func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struc
 			c.Close()
 		}()
 	}
-	return nil
 }
 
 func (d *childDriver) routine(c *net.UnixConn) error {

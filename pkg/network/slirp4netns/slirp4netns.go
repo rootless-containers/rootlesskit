@@ -178,7 +178,6 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	if err := parentutils.PrepareTap(childPID, tap); err != nil {
 		return nil, common.Seq(cleanups), fmt.Errorf("setting up tap %s: %w", tap, err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
 	readyR, readyW, err := os.Pipe()
 	if err != nil {
 		return nil, common.Seq(cleanups), err
@@ -205,7 +204,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	if d.enableIPv6 {
 		opts = append(opts, "--enable-ipv6")
 	}
-	cmd := exec.CommandContext(ctx, d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
+	cmd := exec.Command(d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
 	// FIXME: Stdout doen't seem captured
 	cmd.Stdout = d.logWriter
 	cmd.Stderr = d.logWriter
@@ -215,7 +214,9 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	cmd.ExtraFiles = append(cmd.ExtraFiles, readyW)
 	cleanups = append(cleanups, func() error {
 		logrus.Debugf("killing slirp4netns")
-		cancel()
+		if cmd.Process != nil {
+			_ = cmd.Process.Kill()
+		}
 		wErr := cmd.Wait()
 		logrus.Debugf("killed slirp4netns: %v", wErr)
 		return nil

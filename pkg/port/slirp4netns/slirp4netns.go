@@ -167,8 +167,8 @@ type request struct {
 }
 
 type reply struct {
-	Return map[string]interface{} `json:"return",omitempty`
-	Error  map[string]interface{} `json:"error",omitempty`
+	Return map[string]interface{} `json:"return,omitempty"`
+	Error  map[string]interface{} `json:"error,omitempty"`
 }
 
 func callAPI(apiSocketPath string, req request) (*reply, error) {
