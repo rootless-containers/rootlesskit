@@ -27,7 +27,7 @@ FROM golang:${GO_VERSION} AS test-unit
 RUN apt-get update && apt-get install -y iproute2 netcat-openbsd
 ADD . /go/src/github.com/rootless-containers/rootlesskit
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
-RUN go mod verify
+RUN go mod verify && go vet ./...
 CMD ["go","test","-v","-race","github.com/rootless-containers/rootlesskit/..."]
 
 # idmap runnable without --privileged (but still requires seccomp=unconfined apparmor=unconfined)
