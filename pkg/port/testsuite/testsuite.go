@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -51,7 +50,7 @@ func Main(m *testing.M, cf func() port.ChildDriver) {
 	}
 	quitR := os.NewFile(uintptr(quitFD), "")
 	defer quitR.Close()
-	if _, err = ioutil.ReadAll(quitR); err != nil {
+	if _, err = io.ReadAll(quitR); err != nil {
 		panic(err)
 	}
 	quit <- struct{}{}

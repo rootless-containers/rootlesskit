@@ -3,7 +3,6 @@ package cgrouputil
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,7 +50,7 @@ func EvacuateCgroup2(evac string) error {
 	}
 
 	// evacuate existing procs from oldGroup to newGroup, so that we can enable all controllers including threaded ones
-	cgroupProcsBytes, err := ioutil.ReadFile(filepath.Join(oldPath, "cgroup.procs"))
+	cgroupProcsBytes, err := os.ReadFile(filepath.Join(oldPath, "cgroup.procs"))
 	if err != nil {
 		return err
 	}
@@ -59,19 +58,19 @@ func EvacuateCgroup2(evac string) error {
 		if pidStr == "" || pidStr == "0" {
 			continue
 		}
-		if err := ioutil.WriteFile(filepath.Join(newPath, "cgroup.procs"), []byte(pidStr), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(newPath, "cgroup.procs"), []byte(pidStr), 0644); err != nil {
 			logrus.WithError(err).Warnf("failed to move process %s to cgroup %q", pidStr, newGroup)
 		}
 	}
 
 	// enable controllers for all subgroups under the oldGroup
-	controllerBytes, err := ioutil.ReadFile(filepath.Join(oldPath, "cgroup.controllers"))
+	controllerBytes, err := os.ReadFile(filepath.Join(oldPath, "cgroup.controllers"))
 	if err != nil {
 		return err
 	}
 	for _, controller := range strings.Fields(string(controllerBytes)) {
 		logrus.Debugf("enabling controller %q", controller)
-		if err := ioutil.WriteFile(filepath.Join(oldPath, "cgroup.subtree_control"), []byte("+"+controller), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(oldPath, "cgroup.subtree_control"), []byte("+"+controller), 0644); err != nil {
 			logrus.WithError(err).Warnf("failed to enable controller %q", controller)
 		}
 	}
@@ -97,7 +96,7 @@ func findCgroup2Mountpoint() string {
 
 func getCgroup2(pid int) string {
 	p := fmt.Sprintf("/proc/%d/cgroup", pid)
-	b, err := ioutil.ReadFile(p)
+	b, err := os.ReadFile(p)
 	if err != nil {
 		logrus.WithError(err).Warnf("failed to read %q", p)
 		return ""

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -67,7 +66,7 @@ func mountSysfs(hostNetwork, evacuateCgroup2 bool) error {
 		return nil
 	}
 
-	tmp, err := ioutil.TempDir("/tmp", "rksys")
+	tmp, err := os.MkdirTemp("/tmp", "rksys")
 	if err != nil {
 		return fmt.Errorf("creating a directory under /tmp: %w", err)
 	}

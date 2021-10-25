@@ -3,7 +3,6 @@ package tmpfssymlink
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -22,7 +21,7 @@ type childDriver struct {
 func (d *childDriver) CopyUp(dirs []string) ([]string, error) {
 	// we create bind0 outside of StateDir so as to allow
 	// copying up /run with stateDir=/run/user/1001/rootlesskit/default.
-	bind0, err := ioutil.TempDir("/tmp", "rootlesskit-b")
+	bind0, err := os.MkdirTemp("/tmp", "rootlesskit-b")
 	if err != nil {
 		return nil, fmt.Errorf("creating bind0 directory under /tmp: %w", err)
 	}
@@ -43,7 +42,7 @@ func (d *childDriver) CopyUp(dirs []string) ([]string, error) {
 			return copied, fmt.Errorf("failed to mount tmpfs on %s: %w", d, err)
 		}
 
-		bind1, err := ioutil.TempDir(d, ".ro")
+		bind1, err := os.MkdirTemp(d, ".ro")
 		if err != nil {
 			return copied, fmt.Errorf("creating a directory under %s: %w", d, err)
 		}
@@ -51,14 +50,14 @@ func (d *childDriver) CopyUp(dirs []string) ([]string, error) {
 			return copied, fmt.Errorf("failed to move mount point from %s to %s: %w", bind0, bind1, err)
 		}
 
-		files, err := ioutil.ReadDir(bind1)
+		files, err := os.ReadDir(bind1)
 		if err != nil {
 			return copied, fmt.Errorf("reading dir %s: %w", bind1, err)
 		}
 		for _, f := range files {
 			fFull := filepath.Join(bind1, f.Name())
 			var symlinkSrc string
-			if f.Mode()&os.ModeSymlink != 0 {
+			if f.Type()&os.ModeSymlink != 0 {
 				symlinkSrc, err = os.Readlink(fFull)
 				if err != nil {
 					return copied, fmt.Errorf("reading dir %s: %w", fFull, err)

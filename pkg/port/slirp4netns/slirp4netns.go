@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"strings"
 	"sync"
@@ -184,7 +183,7 @@ func callAPI(apiSocketPath string, req request) (*reply, error) {
 	if err := conn.CloseWrite(); err != nil {
 		return nil, err
 	}
-	b, err := ioutil.ReadAll(conn)
+	b, err := io.ReadAll(conn)
 	if err != nil {
 		return nil, err
 	}

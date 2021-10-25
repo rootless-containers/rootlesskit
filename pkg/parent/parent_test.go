@@ -1,7 +1,6 @@
 package parent
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -10,7 +9,7 @@ import (
 
 func TestBSDLockFileCreated(t *testing.T) {
 
-	tmpDir, err := ioutil.TempDir("", "rootlesskit")
+	tmpDir, err := os.MkdirTemp("", "rootlesskit")
 	if err != nil {
 		t.Fatalf("expected no error, got %q", err)
 	}

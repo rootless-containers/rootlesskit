@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"os"
@@ -257,7 +256,7 @@ func Parent(opt Opt) error {
 
 	// after child is fully configured, write PID to child_pid file
 	childPIDPath := filepath.Join(opt.StateDir, StateFileChildPID)
-	if err := ioutil.WriteFile(childPIDPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0444); err != nil {
+	if err := os.WriteFile(childPIDPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0444); err != nil {
 		return fmt.Errorf("failed to write the child PID %d to %s: %w", cmd.Process.Pid, childPIDPath, err)
 	}
 	// listens the API
@@ -388,7 +387,7 @@ func InitStateDir(stateDir string) error {
 		return err
 	}
 	defer lk.Unlock()
-	stateDirStuffs, err := ioutil.ReadDir(stateDir)
+	stateDirStuffs, err := os.ReadDir(stateDir)
 	if err != nil {
 		return err
 	}
