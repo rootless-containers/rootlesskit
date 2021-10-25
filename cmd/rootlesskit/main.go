@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -276,7 +275,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 	}
 	opt.StateDir = clicontext.String("state-dir")
 	if opt.StateDir == "" {
-		opt.StateDir, err = ioutil.TempDir("", "rootlesskit")
+		opt.StateDir, err = os.MkdirTemp("", "rootlesskit")
 		if err != nil {
 			return opt, fmt.Errorf("creating a state directory: %w", err)
 		}

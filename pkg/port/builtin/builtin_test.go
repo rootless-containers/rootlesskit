@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -17,7 +16,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestBuiltIn(t *testing.T) {
-	tmpDir, err := ioutil.TempDir("", "test-builtin")
+	tmpDir, err := os.MkdirTemp("", "test-builtin")
 	if err != nil {
 		t.Fatal(err)
 	}

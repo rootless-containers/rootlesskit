@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -78,7 +77,7 @@ func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{
 	if err != nil {
 		return err
 	}
-	if _, err = ioutil.ReadAll(childReadyPipeR); err != nil {
+	if _, err = io.ReadAll(childReadyPipeR); err != nil {
 		return err
 	}
 	childReadyPipeR.Close()
@@ -109,7 +108,7 @@ func annotateEPERM(origErr error, spec port.Spec) error {
 	// Read "net.ipv4.ip_unprivileged_port_start" value (typically 1024)
 	// TODO: what for IPv6?
 	// NOTE: sync.Once should not be used here
-	b, e := ioutil.ReadFile("/proc/sys/net/ipv4/ip_unprivileged_port_start")
+	b, e := os.ReadFile("/proc/sys/net/ipv4/ip_unprivileged_port_start")
 	if e != nil {
 		return origErr
 	}

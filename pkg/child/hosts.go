@@ -2,7 +2,6 @@ package child
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -14,7 +13,7 @@ import (
 //
 // Note that /etc/hosts is not used by nslookup/dig. (Use `getent ahostsv4` instead.)
 func generateEtcHosts() ([]byte, error) {
-	etcHosts, err := ioutil.ReadFile("/etc/hosts")
+	etcHosts, err := os.ReadFile("/etc/hosts")
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +36,7 @@ func writeEtcHosts() error {
 	}
 	// remove copied-up link
 	_ = os.Remove("/etc/hosts")
-	if err := ioutil.WriteFile("/etc/hosts", newEtcHosts, 0644); err != nil {
+	if err := os.WriteFile("/etc/hosts", newEtcHosts, 0644); err != nil {
 		return fmt.Errorf("writing /etc/hosts: %w", err)
 	}
 	return nil
@@ -51,7 +50,7 @@ func mountEtcHosts(tempDir string) error {
 		return err
 	}
 	myEtcHosts := filepath.Join(tempDir, "hosts")
-	if err := ioutil.WriteFile(myEtcHosts, newEtcHosts, 0644); err != nil {
+	if err := os.WriteFile(myEtcHosts, newEtcHosts, 0644); err != nil {
 		return fmt.Errorf("writing %s: %w", myEtcHosts, err)
 	}
 

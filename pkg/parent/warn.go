@@ -1,7 +1,7 @@
 package parent
 
 import (
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -28,7 +28,7 @@ func warnPropagation(propagation string) {
 
 // warnSysctl verifies /proc/sys/kernel/unprivileged_userns_clone and /proc/sys/user/max_user_namespaces
 func warnSysctl() {
-	uuc, err := ioutil.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
+	uuc, err := os.ReadFile("/proc/sys/kernel/unprivileged_userns_clone")
 	// The file exists only on distros with the "add sysctl to disallow unprivileged CLONE_NEWUSER by default" patch.
 	// (e.g. Debian and Arch)
 	if err == nil {
@@ -41,7 +41,7 @@ func warnSysctl() {
 		}
 	}
 
-	mun, err := ioutil.ReadFile("/proc/sys/user/max_user_namespaces")
+	mun, err := os.ReadFile("/proc/sys/user/max_user_namespaces")
 	if err == nil {
 		s := strings.TrimSpace(string(mun))
 		i, err := strconv.ParseInt(strings.TrimSpace(string(mun)), 10, 64)

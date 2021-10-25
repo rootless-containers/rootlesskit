@@ -2,10 +2,10 @@ package child
 
 import (
 	"fmt"
-	"golang.org/x/sys/unix"
-	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"golang.org/x/sys/unix"
 )
 
 func generateResolvConf(dns string) []byte {
@@ -15,7 +15,7 @@ func generateResolvConf(dns string) []byte {
 func writeResolvConf(dns string) error {
 	// remove copied-up link
 	_ = os.Remove("/etc/resolv.conf")
-	if err := ioutil.WriteFile("/etc/resolv.conf", generateResolvConf(dns), 0644); err != nil {
+	if err := os.WriteFile("/etc/resolv.conf", generateResolvConf(dns), 0644); err != nil {
 		return fmt.Errorf("writing %s: %w", "/etc/resolv.conf", err)
 	}
 	return nil
@@ -31,7 +31,7 @@ func writeResolvConf(dns string) error {
 // Use writeResolvConf with copying-up /etc for most cases.
 func mountResolvConf(tempDir, dns string) error {
 	myResolvConf := filepath.Join(tempDir, "resolv.conf")
-	if err := ioutil.WriteFile(myResolvConf, generateResolvConf(dns), 0644); err != nil {
+	if err := os.WriteFile(myResolvConf, generateResolvConf(dns), 0644); err != nil {
 		return fmt.Errorf("writing %s: %w", myResolvConf, err)
 	}
 
