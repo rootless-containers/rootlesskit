@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/insomniacslk/dhcp v0.0.0-20211026125128-ad197bcd36fd
-	github.com/moby/sys/mountinfo v0.5.0
+	github.com/moby/sys/mountinfo v0.6.0
 	github.com/moby/vpnkit v0.5.0
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.8.1
