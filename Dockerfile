@@ -1,4 +1,4 @@
-ARG GO_VERSION=1.17
+ARG GO_VERSION=1.18
 ARG UBUNTU_VERSION=20.04
 ARG SHADOW_VERSION=4.8.1
 ARG SLIRP4NETNS_VERSION=v1.1.12
@@ -6,7 +6,7 @@ ARG VPNKIT_VERSION=0.5.0
 ARG DOCKER_VERSION=20.10.13
 
 FROM golang:${GO_VERSION}-alpine AS build
-RUN apk add --no-cache file make
+RUN apk add --no-cache file git make
 ADD . /go/src/github.com/rootless-containers/rootlesskit
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
 
@@ -24,7 +24,7 @@ COPY --from=cross /go/src/github.com/rootless-containers/rootlesskit/_artifact/*
 
 # `go test -race` requires non-Alpine
 FROM golang:${GO_VERSION} AS test-unit
-RUN apt-get update && apt-get install -y iproute2 netcat-openbsd
+RUN apt-get update && apt-get install -y git iproute2 netcat-openbsd
 ADD . /go/src/github.com/rootless-containers/rootlesskit
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
 RUN go mod verify && go vet ./...
