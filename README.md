@@ -61,12 +61,12 @@ Kubernetes distributions:
 
 ## Setup
 
-```console
-$ go get github.com/rootless-containers/rootlesskit/cmd/rootlesskit
-$ go get github.com/rootless-containers/rootlesskit/cmd/rootlessctl
-```
+Run `make && sudo make install` .
 
-or just run `make` to make binaries under `./bin` directory.
+The following binaries will be installed:
+- `/usr/local/bin/rootlesskit`
+- `/usr/local/bin/rootlessctl`
+- `/usr/local/bin/rootlesskit-docker-proxy` (Can be safely removed if you do not use Docker)
 
 ### Requirements
 
