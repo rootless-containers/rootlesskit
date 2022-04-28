@@ -21,6 +21,7 @@ x amd64 x86_64
 x arm64 aarch64
 x s390x s390x
 x ppc64le ppc64le
+x riscv64 riscv64
 GOARM=7
 export GOARM
 x arm armv7l
