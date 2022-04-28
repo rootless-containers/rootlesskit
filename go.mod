@@ -12,7 +12,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/stretchr/testify v1.7.1
-	github.com/urfave/cli/v2 v2.4.4
+	github.com/urfave/cli/v2 v2.5.0
 	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
 )
 
