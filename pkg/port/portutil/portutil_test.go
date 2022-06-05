@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/rootless-containers/rootlesskit/pkg/port"
-	"github.com/stretchr/testify/assert"
+	"gotest.tools/v3/assert"
 )
 
 func TestParsePortSpec(t *testing.T) {
@@ -132,21 +132,21 @@ func TestValidatePortSpec(t *testing.T) {
 		s := spec
 		s.Proto = p
 		err := ValidatePortSpec(s, existingPorts)
-		assert.Error(t, err)
+		assert.ErrorContains(t, err, "unknown proto")
 	}
 	for _, p := range validProtos {
 		s := spec
 		s.Proto = p
 		err := ValidatePortSpec(s, existingPorts)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 	}
 
 	s := port.Spec{Proto: "tcp", ParentIP: "invalid", ParentPort: 80, ChildPort: 80}
-	assert.Error(t, ValidatePortSpec(s, existingPorts))
+	assert.ErrorContains(t, ValidatePortSpec(s, existingPorts), "invalid ParentIP")
 
 	s = port.Spec{Proto: "tcp", ParentPort: 80, ChildIP: "invalid", ChildPort: 80}
-	assert.Error(t, ValidatePortSpec(s, existingPorts))
+	assert.ErrorContains(t, ValidatePortSpec(s, existingPorts), "invalid ChildIP")
 
 	invalidPorts := []int{-200, 0, 1000000}
 	validPorts := []int{20, 500, 1337, 65000}
@@ -156,13 +156,13 @@ func TestValidatePortSpec(t *testing.T) {
 		s := spec
 		s.ParentPort = p
 		err := ValidatePortSpec(s, existingPorts)
-		assert.Error(t, err)
+		assert.ErrorContains(t, err, "invalid ParentPort")
 	}
 	for _, p := range validPorts {
 		s := spec
 		s.ParentPort = p
 		err := ValidatePortSpec(s, existingPorts)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 	}
 
 	// 0 < childPort <= 65535
@@ -170,13 +170,13 @@ func TestValidatePortSpec(t *testing.T) {
 		s := spec
 		s.ChildPort = p
 		err := ValidatePortSpec(s, existingPorts)
-		assert.Error(t, err, "invalid ChildPort")
+		assert.ErrorContains(t, err, "invalid ChildPort")
 	}
 	for _, p := range validPorts {
 		s := spec
 		s.ChildPort = p
 		err := ValidatePortSpec(s, existingPorts)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 	}
 
 	// ChildPorts can overlap so long as parent port/IPs don't
@@ -184,24 +184,24 @@ func TestValidatePortSpec(t *testing.T) {
 
 	// udp doesn't conflict with tcp
 	s = port.Spec{Proto: "udp", ParentPort: 80, ChildPort: 80}
-	assert.NoError(t, ValidatePortSpec(s, existingPorts))
+	assert.NilError(t, ValidatePortSpec(s, existingPorts))
 
 	// same parent, same child, different IP has no conflict
 	s = port.Spec{Proto: "tcp", ParentIP: "10.10.10.11", ParentPort: 8080, ChildPort: 8080}
-	assert.NoError(t, ValidatePortSpec(s, existingPorts))
+	assert.NilError(t, ValidatePortSpec(s, existingPorts))
 
 	// same IP different parentPort, same child port has no conflict
 	s = port.Spec{Proto: "tcp", ParentIP: "10.10.10.10", ParentPort: 8081, ChildPort: 8080}
-	assert.NoError(t, ValidatePortSpec(s, existingPorts))
+	assert.NilError(t, ValidatePortSpec(s, existingPorts))
 
 	// Same parent IP and Port should conflict, even if child port different
 	// conflict with ID 1:
 	s = port.Spec{Proto: "tcp", ParentPort: 80, ChildPort: 90}
 	err := ValidatePortSpec(s, existingPorts)
-	assert.EqualError(t, err, "conflict with ID 1")
+	assert.Error(t, err, "conflict with ID 1")
 
 	// conflict with ID 2
 	s = port.Spec{Proto: "tcp", ParentIP: "10.10.10.10", ParentPort: 8080, ChildPort: 8080}
 	err = ValidatePortSpec(s, existingPorts)
-	assert.EqualError(t, err, "conflict with ID 2")
+	assert.Error(t, err, "conflict with ID 2")
 }
