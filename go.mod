@@ -13,7 +13,7 @@ require (
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.8.1
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
-	gotest.tools/v3 v3.2.0
+	gotest.tools/v3 v3.3.0
 )
 
 require (
