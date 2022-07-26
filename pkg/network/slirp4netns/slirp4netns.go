@@ -103,7 +103,7 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 		return nil, err
 	}
 	if enableIPv6 && !features.SupportsEnableIPv6 {
-		return nil, errors.New("this version of slirp4netns does not support --enable-sandbox")
+		return nil, errors.New("this version of slirp4netns does not support --enable-ipv6")
 	}
 	if ipnet != nil && !features.SupportsCIDR {
 		return nil, errors.New("this version of slirp4netns does not support --cidr")
