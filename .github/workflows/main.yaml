@@ -100,7 +100,7 @@ jobs:
     - name: "Check out"
       uses: actions/checkout@v3
     - name: "Build integration test image"
-      run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker --build-arg GO_VERSION=1.17 .
+      run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker --build-arg GO_VERSION=1.18 .
     - name: "Create a custom network to avoid IP confusion"
       run: docker network create custom
     - name: "Docker Integration test: net=slirp4netns, port-driver=builtin"
