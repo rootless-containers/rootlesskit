@@ -11,7 +11,7 @@ require (
 	github.com/moby/vpnkit v0.5.0
 	github.com/sirupsen/logrus v1.9.0
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
-	github.com/urfave/cli/v2 v2.11.2
+	github.com/urfave/cli/v2 v2.15.0
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8
 	gotest.tools/v3 v3.3.0
 )
