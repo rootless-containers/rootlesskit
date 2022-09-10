@@ -1,6 +1,6 @@
 module github.com/rootless-containers/rootlesskit
 
-go 1.17
+go 1.19
 
 require (
 	github.com/gofrs/flock v0.8.1
