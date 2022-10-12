@@ -51,6 +51,7 @@ Container engines:
 * [Docker/Moby](https://get.docker.com/rootless)
 * [Podman](https://podman.io/) (since Podman v1.8.0)
 * [nerdctl](https://github.com/containerd/nerdctl): Docker-compatible CLI for containerd
+* [iSulad](https://github.com/openeuler-mirror/iSulad/tree/master/docs/manual/rootless.md): a lightweight container engine
 
 Container image builders:
 * [BuildKit](https://github.com/moby/buildkit): Next-generation `docker build` backend
