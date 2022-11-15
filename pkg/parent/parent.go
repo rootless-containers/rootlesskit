@@ -346,25 +346,23 @@ func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []id
 		"1",
 	}
 
-	ims := idtools.NewIdentityMappingFromSubIDRanges(subuidRanges, subgidRanges)
-
 	uidMapLast := 1
-	for _, im := range ims.UIDs() {
+	for _, f := range subuidRanges {
 		uidMap = append(uidMap, []string{
 			strconv.Itoa(uidMapLast),
-			strconv.Itoa(im.HostID),
-			strconv.Itoa(im.Size),
+			strconv.Itoa(f.Start),
+			strconv.Itoa(f.Length),
 		}...)
-		uidMapLast += im.Size
+		uidMapLast += f.Length
 	}
 	gidMapLast := 1
-	for _, im := range ims.GIDs() {
+	for _, f := range subgidRanges {
 		gidMap = append(gidMap, []string{
 			strconv.Itoa(gidMapLast),
-			strconv.Itoa(im.HostID),
-			strconv.Itoa(im.Size),
+			strconv.Itoa(f.Start),
+			strconv.Itoa(f.Length),
 		}...)
-		gidMapLast += im.Size
+		gidMapLast += f.Length
 	}
 
 	return uidMap, gidMap, nil
