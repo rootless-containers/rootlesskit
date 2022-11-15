@@ -176,6 +176,11 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 			Name:  "evacuate-cgroup2",
 			Usage: "evacuate processes into the specified subgroup. Requires --pidns and --cgroupns",
 		}, CategoryProcess),
+		Categorize(&cli.StringFlag{
+			Name:  "subid-source",
+			Value: "auto",
+			Usage: "the source of the subids. \"dynamic\" executes /usr/bin/getsubids. \"static\" reads /etc/{subuid,subgid}. [auto,dynamic,static]",
+		}, CategorySubID),
 	}
 	app.CustomAppHelpTemplate = `NAME:
    {{.Name}}{{if .Usage}} - {{.Usage}}{{end}}
@@ -264,6 +269,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		ParentEGIDEnvKey: parentEGIDEnvKey,
 		Propagation:      clicontext.String("propagation"),
 		EvacuateCgroup2:  clicontext.String("evacuate-cgroup2"),
+		SubidSource:      parent.SubidSource(clicontext.String("subid-source")),
 	}
 	if opt.EvacuateCgroup2 != "" {
 		if !opt.CreateCgroupNS {

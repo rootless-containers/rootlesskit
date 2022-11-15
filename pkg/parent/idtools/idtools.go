@@ -18,12 +18,12 @@ type IDMap struct {
 	Size        int `json:"size"`
 }
 
-type subIDRange struct {
+type SubIDRange struct {
 	Start  int
 	Length int
 }
 
-type ranges []subIDRange
+type ranges []SubIDRange
 
 func (e ranges) Len() int           { return len(e) }
 func (e ranges) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
@@ -97,25 +97,36 @@ type IdentityMapping struct {
 // using the data from /etc/sub{uid,gid} ranges, creates the
 // proper uid and gid remapping ranges for that user/group pair
 func NewIdentityMapping(uid int, username string) (*IdentityMapping, error) {
-	subuidRanges, err := parseSubuid(uid, username)
+	subuidRanges, subgidRanges, err := GetSubIDRanges(uid, username)
 	if err != nil {
 		return nil, err
+	}
+	return NewIdentityMappingFromSubIDRanges(subuidRanges, subgidRanges), nil
+}
+
+func GetSubIDRanges(uid int, username string) ([]SubIDRange, []SubIDRange, error) {
+	subuidRanges, err := parseSubuid(uid, username)
+	if err != nil {
+		return nil, nil, err
 	}
 	subgidRanges, err := parseSubgid(uid, username)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(subuidRanges) == 0 {
-		return nil, fmt.Errorf("No subuid ranges found for user %d (%q)", uid, username)
+		return nil, nil, fmt.Errorf("No subuid ranges found for user %d (%q)", uid, username)
 	}
 	if len(subgidRanges) == 0 {
-		return nil, fmt.Errorf("No subgid ranges found for user %d (%q)", uid, username)
+		return nil, nil, fmt.Errorf("No subgid ranges found for user %d (%q)", uid, username)
 	}
+	return subuidRanges, subgidRanges, nil
+}
 
+func NewIdentityMappingFromSubIDRanges(subuidRanges, subgidRanges []SubIDRange) *IdentityMapping {
 	return &IdentityMapping{
 		uids: createIDMap(subuidRanges),
 		gids: createIDMap(subgidRanges),
-	}, nil
+	}
 }
 
 // NewIDMappingsFromMaps creates a new mapping from two slices
@@ -232,7 +243,7 @@ func parseSubidFile(path string, uid int, username string) (ranges, error) {
 			if err != nil {
 				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
 			}
-			rangeList = append(rangeList, subIDRange{startid, length})
+			rangeList = append(rangeList, SubIDRange{startid, length})
 		}
 	}
 	return rangeList, s.Err()

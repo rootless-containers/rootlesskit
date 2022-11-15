@@ -24,6 +24,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 	"github.com/rootless-containers/rootlesskit/pkg/parent/cgrouputil"
+	"github.com/rootless-containers/rootlesskit/pkg/parent/dynidtools"
 	"github.com/rootless-containers/rootlesskit/pkg/parent/idtools"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/sigproxy"
@@ -45,7 +46,16 @@ type Opt struct {
 	ParentEGIDEnvKey string // optional env key to propagate getegid() value
 	Propagation      string
 	EvacuateCgroup2  string // e.g. "rootlesskit_evacuation"
+	SubidSource      SubidSource
 }
+
+type SubidSource string
+
+const (
+	SubidSourceAuto    = SubidSource("auto")    // Try dynamic then fallback to static
+	SubidSourceDynamic = SubidSource("dynamic") // /usr/bin/getsubids
+	SubidSourceStatic  = SubidSource("static")  // /etc/{subuid,subgid}
+)
 
 // Documented state files. Undocumented ones are subject to change.
 const (
@@ -175,7 +185,7 @@ func Parent(opt Opt) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start the child: %w", err)
 	}
-	if err := setupUIDGIDMap(cmd.Process.Pid); err != nil {
+	if err := setupUIDGIDMap(cmd.Process.Pid, opt.SubidSource); err != nil {
 		return fmt.Errorf("failed to setup UID/GID map: %w", err)
 	}
 	sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)
@@ -286,11 +296,45 @@ func Parent(opt Opt) error {
 	return err
 }
 
-func newugidmapArgs() ([]string, []string, error) {
+func getSubIDRanges(u *user.User, subidSource SubidSource) ([]idtools.SubIDRange, []idtools.SubIDRange, error) {
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return nil, nil, err
+	}
+	switch subidSource {
+	case SubidSourceStatic:
+		logrus.Debugf("subid-source: using the static source")
+		return idtools.GetSubIDRanges(uid, u.Username)
+	case SubidSourceDynamic:
+		logrus.Debugf("subid-source: using the dynamic source")
+		return dynidtools.GetSubIDRanges(uid, u.Username)
+	case "", SubidSourceAuto:
+		subuidRanges, subgidRanges, err := getSubIDRanges(u, SubidSourceDynamic)
+		if err == nil && len(subuidRanges) > 0 && len(subgidRanges) > 0 {
+			return subuidRanges, subgidRanges, nil
+		}
+		logrus.WithError(err).Debugf("failed to use subid source %q, falling back to %q", SubidSourceDynamic, SubidSourceStatic)
+		return getSubIDRanges(u, SubidSourceStatic)
+	default:
+		return nil, nil, fmt.Errorf("unknown subid source %q", subidSource)
+	}
+}
+
+func newugidmapArgs(subidSource SubidSource) ([]string, []string, error) {
 	u, err := user.Current()
 	if err != nil {
 		return nil, nil, err
 	}
+	subuidRanges, subgidRanges, err := getSubIDRanges(u, subidSource)
+	if err != nil {
+		return nil, nil, err
+	}
+	logrus.Debugf("subuid ranges=%v", subuidRanges)
+	logrus.Debugf("subgid ranges=%v", subgidRanges)
+	return newugidmapArgsFromSubIDRanges(u, subuidRanges, subgidRanges)
+}
+
+func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []idtools.SubIDRange) ([]string, []string, error) {
 	uidMap := []string{
 		"0",
 		u.Uid,
@@ -302,14 +346,7 @@ func newugidmapArgs() ([]string, []string, error) {
 		"1",
 	}
 
-	uid, err := strconv.Atoi(u.Uid)
-	if err != nil {
-		return nil, nil, err
-	}
-	ims, err := idtools.NewIdentityMapping(uid, u.Username)
-	if err != nil {
-		return nil, nil, err
-	}
+	ims := idtools.NewIdentityMappingFromSubIDRanges(subuidRanges, subgidRanges)
 
 	uidMapLast := 1
 	for _, im := range ims.UIDs() {
@@ -333,8 +370,8 @@ func newugidmapArgs() ([]string, []string, error) {
 	return uidMap, gidMap, nil
 }
 
-func setupUIDGIDMap(pid int) error {
-	uArgs, gArgs, err := newugidmapArgs()
+func setupUIDGIDMap(pid int, subidSource SubidSource) error {
+	uArgs, gArgs, err := newugidmapArgs(subidSource)
 	if err != nil {
 		return fmt.Errorf("failed to compute uid/gid map: %w", err)
 	}

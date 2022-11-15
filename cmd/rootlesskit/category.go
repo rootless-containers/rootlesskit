@@ -16,6 +16,7 @@ const (
 	CategoryPort        = "Port"
 	CategoryMount       = "Mount"
 	CategoryProcess     = "Process"
+	CategorySubID       = "SubID"
 	CategoryMisc        = "Misc"
 )
 

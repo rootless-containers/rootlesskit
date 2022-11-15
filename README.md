@@ -250,3 +250,4 @@ Undocumented environment variables are subject to change.
 - [`./docs/mount.md`](./docs/mount.md): Mount (`--propagation`, ...)
 - [`./docs/process.md`](./docs/process.md): Process (`--pidns`, `--reaper`, `--cgroupns`, `--evacuate-cgroup2`, ...)
 - [`./docs/api.md`](./docs/api.md): REST API
+- [`./docs/subid.md`](./docs/subid.md): Sub UIDs and sub GIDs
