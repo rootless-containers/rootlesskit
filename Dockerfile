@@ -3,7 +3,8 @@ ARG UBUNTU_VERSION=20.04
 ARG SHADOW_VERSION=4.8.1
 ARG SLIRP4NETNS_VERSION=v1.2.0
 ARG VPNKIT_VERSION=0.5.0
-ARG DOCKER_VERSION=20.10.21
+ARG DOCKER_VERSION=23.0.0-rc.1
+ARG DOCKER_CHANNEL=test
 
 FROM golang:${GO_VERSION}-alpine AS build
 RUN apk add --no-cache file git make
@@ -79,7 +80,8 @@ WORKDIR /home/user/hack
 FROM test-integration AS test-integration-docker
 COPY --from=artifact /rootlesskit-docker-proxy /home/user/bin/
 ARG DOCKER_VERSION
-RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_VERSION}.tgz | tar xz --strip-components=1 -C /home/user/bin/
+ARG DOCKER_CHANNEL
+RUN curl -fsSL https://download.docker.com/linux/static/${DOCKER_CHANNEL}/x86_64/docker-${DOCKER_VERSION}.tgz | tar xz --strip-components=1 -C /home/user/bin/
 RUN curl -fsSL -o /home/user/bin/dockerd-rootless.sh https://raw.githubusercontent.com/moby/moby/v${DOCKER_VERSION}/contrib/dockerd-rootless.sh && \
   chmod +x /home/user/bin/dockerd-rootless.sh
 ENV DOCKERD_ROOTLESS_ROOTLESSKIT_NET=slirp4netns
