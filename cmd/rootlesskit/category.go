@@ -10,6 +10,7 @@ import (
 const (
 	CategoryState       = "State"
 	CategoryNetwork     = "Network"
+	CategoryPasta       = "Network [pasta]"
 	CategorySlirp4netns = "Network [slirp4netns]"
 	CategoryVPNKit      = "Network [vpnkit]"
 	CategoryLXCUserNic  = "Network [lxc-user-nic]"

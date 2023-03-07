@@ -12,7 +12,11 @@ The default value is `none` (do not expose ports).
 
 ([Benchmark: iperf3 from the parent to the child (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728))
 
-The `builtin` driver is fastest, but be aware that the source IP is not propagated and always set to 127.0.0.1.
+The `builtin` driver is fast, but be aware that the source IP is not propagated and always set to 127.0.0.1.
+
+For [`pasta`](./network.md) networks, the `implicit` port driver is the best choice.
+
+* To be documented: [`bypass4netns`](https://github.com/rootless-containers/bypass4netns) for native performance.
 
 ### Exposing ports
 For example, to expose 80 in the child as 8080 in the parent:

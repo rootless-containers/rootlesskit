@@ -152,6 +152,15 @@ func xmain(f *os.File) error {
 		return fmt.Errorf("failed to call info API, probably RootlessKit binary is too old (needs to be v0.14.0 or later): %w", err)
 	}
 
+	// info.PortDriver is currently nil for "none" and "implicit", but this may change in future
+	if info.PortDriver == nil || info.PortDriver.Driver == "none" || info.PortDriver.Driver == "implicit" {
+		realProxyExe, err := exec.LookPath(realProxy)
+		if err != nil {
+			return err
+		}
+		return syscall.Exec(realProxyExe, append([]string{realProxy}, os.Args[1:]...), os.Environ())
+	}
+
 	// use loopback IP as the child IP, when port-driver="builtin"
 	childIP := "127.0.0.1"
 	if isIPv6(*hostIP) {
