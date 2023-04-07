@@ -4,6 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/gofrs/flock"
+	"github.com/gorilla/mux"
+	"github.com/rootless-containers/rootlesskit/pkg/api/router"
+	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
+	"github.com/rootless-containers/rootlesskit/pkg/network"
+
+	//"github.com/rootless-containers/rootlesskit/pkg/network/parentutils"
 	"net"
 	"net/http"
 	"os"
@@ -13,22 +22,14 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/gofrs/flock"
-	"github.com/gorilla/mux"
-
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
-
-	"github.com/rootless-containers/rootlesskit/pkg/api/router"
-	"github.com/rootless-containers/rootlesskit/pkg/common"
-	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
-	"github.com/rootless-containers/rootlesskit/pkg/network"
 	"github.com/rootless-containers/rootlesskit/pkg/parent/cgrouputil"
 	"github.com/rootless-containers/rootlesskit/pkg/parent/dynidtools"
 	"github.com/rootless-containers/rootlesskit/pkg/parent/idtools"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/sigproxy"
 	"github.com/rootless-containers/rootlesskit/pkg/sigproxy/signal"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 type Opt struct {
@@ -42,6 +43,7 @@ type Opt struct {
 	CreateCgroupNS   bool
 	CreateUTSNS      bool
 	CreateIPCNS      bool
+	DetachNS         bool
 	ParentEUIDEnvKey string // optional env key to propagate geteuid() value
 	ParentEGIDEnvKey string // optional env key to propagate getegid() value
 	Propagation      string
@@ -62,6 +64,7 @@ const (
 	StateFileLock     = "lock"
 	StateFileChildPID = "child_pid" // decimal pid number text
 	StateFileAPISock  = "api.sock"  // REST API Socket
+	StateFileNetNs    = "netns"     // rootlesskit network namespace
 )
 
 func checkPreflight(opt Opt) error {
@@ -152,9 +155,13 @@ func Parent(opt Opt) error {
 		Pdeathsig:  syscall.SIGKILL,
 		Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS,
 	}
+
 	if opt.NetworkDriver != nil {
-		cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
+		if !opt.DetachNS {
+			cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
+		}
 	}
+
 	if opt.CreatePIDNS {
 		// cannot be Unshareflags (panics)
 		cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWPID
@@ -213,8 +220,9 @@ func Parent(opt Opt) error {
 			StateDir: opt.StateDir,
 		},
 	}
+
 	if opt.NetworkDriver != nil {
-		netMsg, cleanupNetwork, err := opt.NetworkDriver.ConfigureNetwork(cmd.Process.Pid, opt.StateDir)
+		netMsg, cleanupNetwork, err := opt.NetworkDriver.ConfigureNetwork(cmd.Process.Pid, opt.StateDir, opt.DetachNS)
 		if cleanupNetwork != nil {
 			defer cleanupNetwork()
 		}

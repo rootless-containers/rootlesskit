@@ -67,7 +67,7 @@ func (d *parentDriver) MTU() int {
 	return d.mtu
 }
 
-func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.NetworkMessage, func() error, error) {
+func (d *parentDriver) ConfigureNetwork(childPID int, _ string, _ bool) (*common.NetworkMessage, func() error, error) {
 	var cleanups []func() error
 	dummyLXCPath := "/dev/null"
 	dummyLXCName := "dummy"

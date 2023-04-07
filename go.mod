@@ -12,6 +12,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.25.1
+	github.com/vishvananda/netns v0.0.4
 	golang.org/x/sys v0.7.0
 	gotest.tools/v3 v3.4.0
 )

@@ -162,6 +162,10 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 			Name:  "ipcns",
 			Usage: "create an IPC namespace",
 		}, CategoryProcess),
+		Categorize(&cli.BoolFlag{
+			Name:  "detach-ns",
+			Usage: "detach network namespaces ",
+		}, CategoryProcess),
 		Categorize(&cli.StringFlag{
 			Name:  "propagation",
 			Usage: "mount propagation [rprivate, rslave]",
@@ -265,6 +269,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		CreateCgroupNS:   clicontext.Bool("cgroupns"),
 		CreateUTSNS:      clicontext.Bool("utsns"),
 		CreateIPCNS:      clicontext.Bool("ipcns"),
+		DetachNS:         clicontext.Bool("detach-ns"),
 		ParentEUIDEnvKey: parentEUIDEnvKey,
 		ParentEGIDEnvKey: parentEGIDEnvKey,
 		Propagation:      clicontext.String("propagation"),
@@ -477,10 +482,12 @@ func (w *logrusDebugWriter) Write(p []byte) (int, error) {
 
 func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []string) (child.Opt, error) {
 	pidns := clicontext.Bool("pidns")
+	detachNs := clicontext.Bool("detach-ns")
 	opt := child.Opt{
 		PipeFDEnvKey:    pipeFDEnvKey,
 		TargetCmd:       targetCmd,
 		MountProcfs:     pidns,
+		DetachNS:        detachNs,
 		Propagation:     clicontext.String("propagation"),
 		EvacuateCgroup2: clicontext.String("evacuate-cgroup2") != "",
 	}

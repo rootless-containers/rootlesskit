@@ -83,7 +83,7 @@ func (d *parentDriver) MTU() int {
 	return d.mtu
 }
 
-func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.NetworkMessage, func() error, error) {
+func (d *parentDriver) ConfigureNetwork(_ int, stateDir string, _ bool) (*common.NetworkMessage, func() error, error) {
 	var cleanups []func() error
 	vpnkitSocket := filepath.Join(stateDir, "vpnkit-ethernet.sock")
 	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())

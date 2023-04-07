@@ -172,11 +172,13 @@ func (d *parentDriver) MTU() int {
 	return d.mtu
 }
 
-func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.NetworkMessage, func() error, error) {
+func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string, detachNS bool) (*common.NetworkMessage, func() error, error) {
 	tap := d.ifname
 	var cleanups []func() error
-	if err := parentutils.PrepareTap(childPID, tap); err != nil {
-		return nil, common.Seq(cleanups), fmt.Errorf("setting up tap %s: %w", tap, err)
+	if !detachNS {
+		if err := parentutils.PrepareTap(childPID, "", tap); err != nil {
+			return nil, common.Seq(cleanups), fmt.Errorf("setting up tap %s: %w", tap, err)
+		}
 	}
 	readyR, readyW, err := os.Pipe()
 	if err != nil {

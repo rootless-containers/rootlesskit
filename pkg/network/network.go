@@ -13,7 +13,7 @@ type ParentDriver interface {
 	// MTU returns MTU
 	MTU() int
 	// ConfigureNetwork sets up Slirp, updates msg, and returns destructor function.
-	ConfigureNetwork(childPID int, stateDir string) (netmsg *common.NetworkMessage, cleanup func() error, err error)
+	ConfigureNetwork(childPID int, stateDir string, detachNS bool) (netmsg *common.NetworkMessage, cleanup func() error, err error)
 }
 
 // ChildDriver is called from the child namespace

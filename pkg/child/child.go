@@ -11,16 +11,16 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
-
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/copyup"
 	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
+	"github.com/rootless-containers/rootlesskit/pkg/network/parentutils"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/sigproxy"
 	sigproxysignal "github.com/rootless-containers/rootlesskit/pkg/sigproxy/signal"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 var propagationStates = map[string]uintptr{
@@ -151,7 +151,7 @@ func setupCopyDir(driver copyup.ChildDriver, dirs []string) (bool, error) {
 	return false, nil
 }
 
-func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver) error {
+func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver, detachNS bool) error {
 	// HostNetwork
 	if driver == nil {
 		return nil
@@ -194,6 +194,7 @@ type Opt struct {
 	NetworkDriver   network.ChildDriver // nil for HostNetwork
 	CopyUpDriver    copyup.ChildDriver  // cannot be nil if len(CopyUpDirs) != 0
 	CopyUpDirs      []string
+	DetachNS        bool
 	PortDriver      port.ChildDriver
 	MountProcfs     bool   // needs to be set if (and only if) parent.Opt.CreatePIDNS is set
 	Propagation     string // mount propagation type
@@ -219,6 +220,14 @@ func Child(opt Opt) error {
 		return fmt.Errorf("parsing message from fd %d: %w", pipeFD, err)
 	}
 	logrus.Debugf("child: got msg from parent: %+v", msg)
+	// this variable is hardcoded for test purposes
+	childNsPath := "/tmp/test/netns"
+	if err := parentutils.NewNamedNetNs("netns", "/tmp/test/"); err != nil {
+		return err
+	}
+	if err := parentutils.PrepareTap(0, childNsPath, "tap"); err != nil {
+		return err
+	}
 	if msg.Stage == 0 {
 		// the parent has configured the child's uid_map and gid_map, but the child doesn't have caps here.
 		// so we exec the child again to obtain caps.
@@ -256,7 +265,7 @@ func Child(opt Opt) error {
 	if err := mountSysfs(opt.NetworkDriver == nil, opt.EvacuateCgroup2); err != nil {
 		return err
 	}
-	if err := setupNet(msg, etcWasCopied, opt.NetworkDriver); err != nil {
+	if err := setupNet(msg, etcWasCopied, opt.NetworkDriver, opt.DetachNS); err != nil {
 		return err
 	}
 	if opt.MountProcfs {
