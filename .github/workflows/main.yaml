@@ -3,7 +3,7 @@ on: [push, pull_request]
 jobs:
   test-unit:
     name: "Unit test"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - name: "Check out"
       uses: actions/checkout@v3
@@ -13,14 +13,14 @@ jobs:
       run: docker run --rm --privileged rootlesskit:test-unit
   test-cross:
     name: "Cross compilation test"
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
     - name: "Build binaries"
       run: DOCKER_BUILDKIT=1 docker build -o /tmp/artifact --target cross-artifact .
   test-integration:
     name: "Integration test"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - name: "Check out"
       uses: actions/checkout@v3
