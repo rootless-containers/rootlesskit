@@ -3,6 +3,7 @@ module github.com/rootless-containers/rootlesskit
 go 1.19
 
 require (
+	github.com/containernetworking/plugins v1.3.0
 	github.com/gofrs/flock v0.8.1
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0

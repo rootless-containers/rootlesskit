@@ -5,6 +5,7 @@ Common:
 - `lock`
 - `child_pid`
 - `api.sock`
+- `netns` (detached netns)
 
 Network driver `slirp4netns`:
 - `.s4nn.sock`

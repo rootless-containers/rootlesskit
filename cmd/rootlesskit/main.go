@@ -166,6 +166,10 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 			Name:  "ipcns",
 			Usage: "create an IPC namespace",
 		}, CategoryProcess),
+		Categorize(&cli.BoolFlag{
+			Name:  "detach-netns",
+			Usage: "detach network namespaces ",
+		}, CategoryNetwork),
 		Categorize(&cli.StringFlag{
 			Name:  "propagation",
 			Usage: "mount propagation [rprivate, rslave]",
@@ -280,6 +284,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		CreateCgroupNS:   clicontext.Bool("cgroupns"),
 		CreateUTSNS:      clicontext.Bool("utsns"),
 		CreateIPCNS:      clicontext.Bool("ipcns"),
+		DetachNetNS:      clicontext.Bool("detach-netns"),
 		ParentEUIDEnvKey: parentEUIDEnvKey,
 		ParentEGIDEnvKey: parentEGIDEnvKey,
 		Propagation:      clicontext.String("propagation"),
@@ -375,14 +380,20 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 		enableSandbox := false
 		switch s := clicontext.String("slirp4netns-sandbox"); s {
 		case "auto":
-			// this might not work when /etc/resolv.conf is a symlink to a file outside /etc or /run
+			// Sandbox might not work when /etc/resolv.conf is a symlink to a file outside /etc or /run
 			// https://github.com/rootless-containers/slirp4netns/issues/116
-			enableSandbox = features.SupportsEnableSandbox
+
+			// Sandbox is known to be incompatible with detach-netns
+			// https://github.com/rootless-containers/slirp4netns/issues/317
+			enableSandbox = features.SupportsEnableSandbox && !opt.DetachNetNS
 		case "true":
 			enableSandbox = true
 			if !features.SupportsEnableSandbox {
 				// NOTREACHED
 				return opt, errors.New("unsupported slirp4netns version: lacks SupportsEnableSandbox")
+			}
+			if opt.DetachNetNS {
+				return opt, errors.New("--slirp4netns-sandbox conflicts with --detach-netns (https://github.com/rootless-containers/slirp4netns/issues/317)")
 			}
 		case "false", "": // default
 			// NOP
@@ -492,11 +503,13 @@ func (w *logrusDebugWriter) Write(p []byte) (int, error) {
 
 func createChildOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey string, targetCmd []string) (child.Opt, error) {
 	pidns := clicontext.Bool("pidns")
+	detachNetNS := clicontext.Bool("detach-netns")
 	opt := child.Opt{
 		PipeFDEnvKey:    pipeFDEnvKey,
 		StateDirEnvKey:  stateDirEnvKey,
 		TargetCmd:       targetCmd,
 		MountProcfs:     pidns,
+		DetachNetNS:     detachNetNS,
 		Propagation:     clicontext.String("propagation"),
 		EvacuateCgroup2: clicontext.String("evacuate-cgroup2") != "",
 	}

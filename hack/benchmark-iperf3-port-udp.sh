@@ -3,7 +3,11 @@ source $(realpath $(dirname $0))/common.inc.sh
 function benchmark::iperf3::port::udp() {
 	statedir=$(mktemp -d)
 	INFO "[benchmark:iperf3::port::udp] $@"
-	$ROOTLESSKIT --state-dir=$statedir $@ iperf3 -s >/dev/null &
+	IPERF3="iperf3"
+	if echo "$@" | grep -q -- --detach-netns; then
+		IPERF3="nsenter -n${statedir}/netns $IPERF3"
+	fi
+	$ROOTLESSKIT --state-dir=$statedir $@ $IPERF3 -s >/dev/null &
 	rkpid=$!
 	# wait for socket to be available
 	sleep 3

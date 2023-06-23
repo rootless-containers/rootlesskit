@@ -55,5 +55,6 @@ type ParentDriver interface {
 }
 
 type ChildDriver interface {
-	RunChildDriver(opaque map[string]string, quit <-chan struct{}) error
+	// RunChildDriver is executed in the child's namespaces, excluding detached-netns.
+	RunChildDriver(opaque map[string]string, quit <-chan struct{}, detachedNetNSPath string) error
 }

@@ -173,10 +173,13 @@ func (d *parentDriver) MTU() int {
 	return d.mtu
 }
 
-func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
+func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPath string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
+	if detachedNetNSPath != "" && d.enableSandbox {
+		return nil, nil, errors.New("slirp4netns sandbox is not compatible with detach-netns (https://github.com/rootless-containers/slirp4netns/issues/317)")
+	}
 	tap := d.ifname
 	var cleanups []func() error
-	if err := parentutils.PrepareTap(childPID, tap); err != nil {
+	if err := parentutils.PrepareTap(childPID, detachedNetNSPath, tap); err != nil {
 		return nil, common.Seq(cleanups), fmt.Errorf("setting up tap %s: %w", tap, err)
 	}
 	readyR, readyW, err := os.Pipe()
@@ -205,7 +208,16 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*message
 	if d.enableIPv6 {
 		opts = append(opts, "--enable-ipv6")
 	}
-	cmd := exec.Command(d.binary, append(opts, []string{strconv.Itoa(childPID), tap}...)...)
+	if detachedNetNSPath == "" {
+		opts = append(opts, strconv.Itoa(childPID))
+	} else {
+		opts = append(opts,
+			fmt.Sprintf("--userns-path=/proc/%d/ns/user", childPID),
+			"--netns-type=path",
+			detachedNetNSPath)
+	}
+	opts = append(opts, tap)
+	cmd := exec.Command(d.binary, opts...)
 	// FIXME: Stdout doen't seem captured
 	cmd.Stdout = d.logWriter
 	cmd.Stderr = d.logWriter
@@ -313,7 +325,7 @@ func NewChildDriver() network.ChildDriver {
 type childDriver struct {
 }
 
-func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted) (string, error) {
+func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted, detachedNetNSPath string) (string, error) {
 	tap := netmsg.Dev
 	if tap == "" {
 		return "", errors.New("could not determine the preconfigured tap")

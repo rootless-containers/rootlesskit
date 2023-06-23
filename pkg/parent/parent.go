@@ -15,10 +15,6 @@ import (
 
 	"github.com/gofrs/flock"
 	"github.com/gorilla/mux"
-
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
-
 	"github.com/rootless-containers/rootlesskit/pkg/api/router"
 	"github.com/rootless-containers/rootlesskit/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
@@ -28,6 +24,8 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/sigproxy"
 	"github.com/rootless-containers/rootlesskit/pkg/sigproxy/signal"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 type Opt struct {
@@ -41,6 +39,7 @@ type Opt struct {
 	CreateCgroupNS   bool
 	CreateUTSNS      bool
 	CreateIPCNS      bool
+	DetachNetNS      bool
 	ParentEUIDEnvKey string // optional env key to propagate geteuid() value
 	ParentEGIDEnvKey string // optional env key to propagate getegid() value
 	Propagation      string
@@ -61,6 +60,7 @@ const (
 	StateFileLock     = "lock"
 	StateFileChildPID = "child_pid" // decimal pid number text
 	StateFileAPISock  = "api.sock"  // REST API Socket
+	StateFileNetNs    = "netns"     // rootlesskit network namespace
 )
 
 func checkPreflight(opt Opt) error {
@@ -155,9 +155,13 @@ func Parent(opt Opt) error {
 		Pdeathsig:  syscall.SIGKILL,
 		Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS,
 	}
+
 	if opt.NetworkDriver != nil {
-		cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
+		if !opt.DetachNetNS {
+			cmd.SysProcAttr.Unshareflags |= syscall.CLONE_NEWNET
+		}
 	}
+
 	if opt.CreatePIDNS {
 		// cannot be Unshareflags (panics)
 		cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWPID
@@ -231,8 +235,13 @@ func Parent(opt Opt) error {
 			ParentInitNetworkDriverCompleted: &messages.ParentInitNetworkDriverCompleted{},
 		},
 	}
+
 	if opt.NetworkDriver != nil {
-		netMsg, cleanupNetwork, err := opt.NetworkDriver.ConfigureNetwork(cmd.Process.Pid, opt.StateDir)
+		var netns string
+		if opt.DetachNetNS {
+			netns = filepath.Join("/proc", strconv.Itoa(cmd.Process.Pid), "root", filepath.Clean(opt.StateDir), "netns")
+		}
+		netMsg, cleanupNetwork, err := opt.NetworkDriver.ConfigureNetwork(cmd.Process.Pid, opt.StateDir, netns)
 		if cleanupNetwork != nil {
 			defer cleanupNetwork()
 		}

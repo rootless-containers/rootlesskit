@@ -201,7 +201,7 @@ func NewChildDriver() port.ChildDriver {
 type childDriver struct {
 }
 
-func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struct{}) error {
+func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struct{}, detachedNetNSPath string) error {
 	// NOP
 	<-quit
 	return nil

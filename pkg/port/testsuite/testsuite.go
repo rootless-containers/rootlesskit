@@ -41,7 +41,7 @@ func Main(m *testing.M, cf func() port.ChildDriver) {
 	errCh := make(chan error)
 	go func() {
 		d := cf()
-		dErr := d.RunChildDriver(opaque, quit)
+		dErr := d.RunChildDriver(opaque, quit, "")
 		errCh <- dErr
 	}()
 	quitFD, err := strconv.Atoi(os.Getenv(reexecKeyQuitFD))

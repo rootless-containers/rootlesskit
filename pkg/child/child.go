@@ -7,14 +7,13 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"syscall"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	"golang.org/x/sys/unix"
-
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/copyup"
 	"github.com/rootless-containers/rootlesskit/pkg/messages"
@@ -22,6 +21,8 @@ import (
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/sigproxy"
 	sigproxysignal "github.com/rootless-containers/rootlesskit/pkg/sigproxy/signal"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 var propagationStates = map[string]uintptr{
@@ -152,39 +153,60 @@ func setupCopyDir(driver copyup.ChildDriver, dirs []string) (bool, error) {
 	return false, nil
 }
 
-func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, etcWasCopied bool, driver network.ChildDriver) error {
+func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, etcWasCopied bool, driver network.ChildDriver, detachedNetNSPath string) error {
 	// HostNetwork
 	if driver == nil {
 		return nil
 	}
-	if err := activateLoopback(); err != nil {
-		return err
-	}
-	dev, err := driver.ConfigureNetworkChild(msg)
-	if err != nil {
-		return err
-	}
-	if err := activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU); err != nil {
-		return err
-	}
-	if etcWasCopied {
-		if err := writeResolvConf(msg.DNS); err != nil {
+
+	if detachedNetNSPath == "" {
+		// non-detached mode
+		if err := activateLoopback(); err != nil {
 			return err
 		}
-		if err := writeEtcHosts(); err != nil {
+		dev, err := driver.ConfigureNetworkChild(msg, detachedNetNSPath)
+		if err != nil {
 			return err
+		}
+		if err := activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU); err != nil {
+			return err
+		}
+		if etcWasCopied {
+			if err := writeResolvConf(msg.DNS); err != nil {
+				return err
+			}
+			if err := writeEtcHosts(); err != nil {
+				return err
+			}
+		} else {
+			logrus.Warn("Mounting /etc/resolv.conf without copying-up /etc. " +
+				"Note that /etc/resolv.conf in the namespace will be unmounted when it is recreated on the host. " +
+				"Unless /etc/resolv.conf is statically configured, copying-up /etc is highly recommended. " +
+				"Please refer to RootlessKit documentation for further information.")
+			if err := mountResolvConf(stateDir, msg.DNS); err != nil {
+				return err
+			}
+			if err := mountEtcHosts(stateDir); err != nil {
+				return err
+			}
 		}
 	} else {
-		logrus.Warn("Mounting /etc/resolv.conf without copying-up /etc. " +
-			"Note that /etc/resolv.conf in the namespace will be unmounted when it is recreated on the host. " +
-			"Unless /etc/resolv.conf is statically configured, copying-up /etc is highly recommended. " +
-			"Please refer to RootlessKit documentation for further information.")
-		if err := mountResolvConf(stateDir, msg.DNS); err != nil {
+		// detached mode
+		if err := ns.WithNetNSPath(detachedNetNSPath, func(_ ns.NetNS) error {
+			return activateLoopback()
+		}); err != nil {
 			return err
 		}
-		if err := mountEtcHosts(stateDir); err != nil {
+		dev, err := driver.ConfigureNetworkChild(msg, detachedNetNSPath)
+		if err != nil {
 			return err
 		}
+		if err := ns.WithNetNSPath(detachedNetNSPath, func(_ ns.NetNS) error {
+			return activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU)
+		}); err != nil {
+			return err
+		}
+		// TODO: write /etc/resolv.conf and /etc/hosts in a custom directory?
 	}
 	return nil
 }
@@ -196,6 +218,7 @@ type Opt struct {
 	NetworkDriver   network.ChildDriver // nil for HostNetwork
 	CopyUpDriver    copyup.ChildDriver  // cannot be nil if len(CopyUpDirs) != 0
 	CopyUpDirs      []string
+	DetachNetNS     bool
 	PortDriver      port.ChildDriver
 	MountProcfs     bool   // needs to be set if (and only if) parent.Opt.CreatePIDNS is set
 	Propagation     string // mount propagation type
@@ -322,6 +345,20 @@ func Child(opt Opt) error {
 		}
 	}
 
+	if opt.MountProcfs {
+		if err := mountProcfs(); err != nil {
+			return err
+		}
+	}
+
+	var detachedNetNSPath string
+	if opt.DetachNetNS {
+		detachedNetNSPath = filepath.Join(stateDir, "netns")
+		if err = NewNetNsWithPathWithoutEnter(detachedNetNSPath); err != nil {
+			return fmt.Errorf("failed to create a detached netns on %q: %w", detachedNetNSPath, err)
+		}
+	}
+
 	msgChildInitUserNSCompleted := &messages.Message{
 		U: messages.U{
 			ChildInitUserNSCompleted: &messages.ChildInitUserNSCompleted{},
@@ -362,16 +399,13 @@ func Child(opt Opt) error {
 	if err != nil {
 		return err
 	}
-	if err := mountSysfs(opt.NetworkDriver == nil, opt.EvacuateCgroup2); err != nil {
-		return err
-	}
-	if err := setupNet(stateDir, netMsg, etcWasCopied, opt.NetworkDriver); err != nil {
-		return err
-	}
-	if opt.MountProcfs {
-		if err := mountProcfs(); err != nil {
+	if detachedNetNSPath == "" {
+		if err := mountSysfs(opt.NetworkDriver == nil, opt.EvacuateCgroup2); err != nil {
 			return err
 		}
+	}
+	if err := setupNet(stateDir, netMsg, etcWasCopied, opt.NetworkDriver, detachedNetNSPath); err != nil {
+		return err
 	}
 	portQuitCh := make(chan struct{})
 	portErrCh := make(chan error)
@@ -381,7 +415,7 @@ func Child(opt Opt) error {
 			portDriverOpaque = portMsg.PortDriverOpaque
 		}
 		go func() {
-			portErrCh <- opt.PortDriver.RunChildDriver(portDriverOpaque, portQuitCh)
+			portErrCh <- opt.PortDriver.RunChildDriver(portDriverOpaque, portQuitCh, detachedNetNSPath)
 		}()
 	}
 
@@ -483,4 +517,17 @@ func (e *reaperErr) Error() string {
 		return fmt.Sprintf("signal: %s", e.ws.Signal())
 	}
 	return fmt.Sprintf("exited with WAITSTATUS=0x%08x", e.ws)
+}
+
+func NewNetNsWithPathWithoutEnter(p string) error {
+	if err := os.WriteFile(p, nil, 0400); err != nil {
+		return err
+	}
+	// this is hard (not impossible though) to reimplement in Go: https://github.com/cloudflare/slirpnetstack/commit/d7766a8a77f0093d3cb7a94bd0ccbe3f67d411ba
+	cmd := exec.Command("unshare", "-n", "mount", "--bind", "/proc/self/ns/net", p)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to execute %v: %w (out=%q)", cmd.Args, err, string(out))
+	}
+	return nil
 }
