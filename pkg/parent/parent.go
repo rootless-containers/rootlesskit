@@ -197,21 +197,9 @@ func Parent(opt Opt) error {
 		}
 	}
 
-	// send message 0
-	msg := common.Message{
-		Stage:    0,
-		Message0: common.Message0{},
-	}
-	if _, err := msgutil.MarshalToWriter(pipeW, &msg); err != nil {
-		return err
-	}
-
 	// configure Network driver
-	msg = common.Message{
-		Stage: 1,
-		Message1: common.Message1{
-			StateDir: opt.StateDir,
-		},
+	msg := common.Message{
+		StateDir: opt.StateDir,
 	}
 	if opt.NetworkDriver != nil {
 		netMsg, cleanupNetwork, err := opt.NetworkDriver.ConfigureNetwork(cmd.Process.Pid, opt.StateDir)
@@ -221,7 +209,7 @@ func Parent(opt Opt) error {
 		if err != nil {
 			return fmt.Errorf("failed to setup network %+v: %w", opt.NetworkDriver, err)
 		}
-		msg.Message1.Network = *netMsg
+		msg.Network = *netMsg
 	}
 
 	// configure Port driver
@@ -229,7 +217,7 @@ func Parent(opt Opt) error {
 	portDriverQuit := make(chan struct{})
 	portDriverErr := make(chan error)
 	if opt.PortDriver != nil {
-		msg.Message1.Port.Opaque = opt.PortDriver.OpaqueForChild()
+		msg.Port.Opaque = opt.PortDriver.OpaqueForChild()
 		cctx := &port.ChildContext{
 			PID: cmd.Process.Pid,
 			IP:  net.ParseIP(msg.Network.IP).To4(),
@@ -240,7 +228,7 @@ func Parent(opt Opt) error {
 		}()
 	}
 
-	// send message 1
+	// send message
 	if _, err := msgutil.MarshalToWriter(pipeW, &msg); err != nil {
 		return err
 	}

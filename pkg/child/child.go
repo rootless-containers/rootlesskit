@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -201,7 +202,55 @@ type Opt struct {
 	EvacuateCgroup2 bool // needs to correspond to parent.Opt.EvacuateCgroup2 is set
 }
 
+// gainCaps gains the caps inside the user namespace.
+// The caps are gained on re-execution after the child's uid_map and gid_map are fully written.
+func gainCaps() error {
+	pid := os.Getpid()
+	envName := fmt.Sprintf("_ROOTLESSKIT_REEXEC_COUNT_%d", pid)
+	hdr := unix.CapUserHeader{
+		Version: unix.LINUX_CAPABILITY_VERSION_3,
+		Pid:     int32(pid),
+	}
+	var data unix.CapUserData
+	if err := unix.Capget(&hdr, &data); err != nil {
+		return fmt.Errorf("failed to get the current caps: %w", err)
+	}
+	logrus.Debugf("Capabilities: %+v", data)
+	if data.Effective == 0 {
+		logrus.Debugf("Re-executing the RootlessKit child process (PID=%d) to gain the caps", pid)
+
+		var envValueInt int
+		if envValueStr := os.Getenv(envName); envValueStr != "" {
+			var err error
+			envValueInt, err = strconv.Atoi(envValueStr)
+			if err != nil {
+				return fmt.Errorf("failed to parse %s value %q: %w", envName, envValueStr, err)
+			}
+		}
+		if envValueInt > 5 {
+			time.Sleep(10 * time.Millisecond * time.Duration(envValueInt))
+		}
+		if envValueInt > 10 {
+			return fmt.Errorf("no capabilities was gained after reexecuting the child (%s=%d)", envName, envValueInt)
+		}
+		logrus.Debugf("%s: %d->%d", envName, envValueInt, envValueInt+1)
+		os.Setenv(envName, strconv.Itoa(envValueInt+1))
+
+		// PID should be kept after re-execution.
+		if err := syscall.Exec("/proc/self/exe", os.Args, os.Environ()); err != nil {
+			return err
+		}
+		panic("should not reach here")
+	}
+	os.Unsetenv(envName)
+	return nil
+}
+
 func Child(opt Opt) error {
+	if err := gainCaps(); err != nil {
+		return fmt.Errorf("failed to gain the caps inside the user namespace: %w", err)
+	}
+
 	if opt.PipeFDEnvKey == "" {
 		return errors.New("pipe FD env key is not set")
 	}
@@ -219,18 +268,7 @@ func Child(opt Opt) error {
 		return fmt.Errorf("parsing message from fd %d: %w", pipeFD, err)
 	}
 	logrus.Debugf("child: got msg from parent: %+v", msg)
-	if msg.Stage == 0 {
-		// the parent has configured the child's uid_map and gid_map, but the child doesn't have caps here.
-		// so we exec the child again to obtain caps.
-		// PID should be kept.
-		if err = syscall.Exec("/proc/self/exe", os.Args, os.Environ()); err != nil {
-			return err
-		}
-		panic("should not reach here")
-	}
-	if msg.Stage != 1 {
-		return fmt.Errorf("expected stage 1, got stage %d", msg.Stage)
-	}
+
 	// The parent calls child with Pdeathsig, but it is cleared when newuidmap SUID binary is called
 	// https://github.com/rootless-containers/rootlesskit/issues/65#issuecomment-492343646
 	runtime.LockOSThread()
