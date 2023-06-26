@@ -1,4 +1,4 @@
-package msgutil
+package lowlevelmsgutil
 
 import (
 	"encoding/hex"

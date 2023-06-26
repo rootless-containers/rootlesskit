@@ -20,8 +20,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/rootless-containers/rootlesskit/pkg/api/router"
-	"github.com/rootless-containers/rootlesskit/pkg/common"
-	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
+	"github.com/rootless-containers/rootlesskit/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 	"github.com/rootless-containers/rootlesskit/pkg/parent/cgrouputil"
 	"github.com/rootless-containers/rootlesskit/pkg/parent/dynidtools"
@@ -143,7 +142,11 @@ func Parent(opt Opt) error {
 	defer os.RemoveAll(opt.StateDir)
 	defer lock.Unlock()
 
-	pipeR, pipeW, err := os.Pipe()
+	pipeR, pipeW, err := os.Pipe() // parent-to-child
+	if err != nil {
+		return err
+	}
+	pipe2R, pipe2W, err := os.Pipe() // child-to-parent
 	if err != nil {
 		return err
 	}
@@ -171,8 +174,8 @@ func Parent(opt Opt) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.ExtraFiles = []*os.File{pipeR}
-	cmd.Env = append(os.Environ(), opt.PipeFDEnvKey+"=3")
+	cmd.ExtraFiles = []*os.File{pipeR, pipe2W}
+	cmd.Env = append(os.Environ(), opt.PipeFDEnvKey+"=3,4")
 	if opt.StateDirEnvKey != "" {
 		cmd.Env = append(cmd.Env, opt.StateDirEnvKey+"="+opt.StateDir)
 	}
@@ -185,9 +188,34 @@ func Parent(opt Opt) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start the child: %w", err)
 	}
+
+	msgParentHello := &messages.Message{
+		U: messages.U{
+			ParentHello: &messages.ParentHello{},
+		},
+	}
+	if err := messages.Send(pipeW, msgParentHello); err != nil {
+		return err
+	}
+	if _, err := messages.WaitFor(pipe2R, messages.Name(messages.ChildHello{})); err != nil {
+		return err
+	}
+
 	if err := setupUIDGIDMap(cmd.Process.Pid, opt.SubidSource); err != nil {
 		return fmt.Errorf("failed to setup UID/GID map: %w", err)
 	}
+	msgParentInitIdmapCompleted := &messages.Message{
+		U: messages.U{
+			ParentInitIdmapCompleted: &messages.ParentInitIdmapCompleted{},
+		},
+	}
+	if err := messages.Send(pipeW, msgParentInitIdmapCompleted); err != nil {
+		return err
+	}
+	if _, err := messages.WaitFor(pipe2R, messages.Name(messages.ChildInitUserNSCompleted{})); err != nil {
+		return err
+	}
+
 	sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)
 	defer signal.StopCatch(sigc)
 
@@ -198,8 +226,10 @@ func Parent(opt Opt) error {
 	}
 
 	// configure Network driver
-	msg := common.Message{
-		StateDir: opt.StateDir,
+	msgParentInitNetworkDriverCompleted := &messages.Message{
+		U: messages.U{
+			ParentInitNetworkDriverCompleted: &messages.ParentInitNetworkDriverCompleted{},
+		},
 	}
 	if opt.NetworkDriver != nil {
 		netMsg, cleanupNetwork, err := opt.NetworkDriver.ConfigureNetwork(cmd.Process.Pid, opt.StateDir)
@@ -209,29 +239,37 @@ func Parent(opt Opt) error {
 		if err != nil {
 			return fmt.Errorf("failed to setup network %+v: %w", opt.NetworkDriver, err)
 		}
-		msg.Network = *netMsg
+		msgParentInitNetworkDriverCompleted.U.ParentInitNetworkDriverCompleted = netMsg
+	}
+	if err := messages.Send(pipeW, msgParentInitNetworkDriverCompleted); err != nil {
+		return err
 	}
 
 	// configure Port driver
+	msgParentInitPortDriverCompleted := &messages.Message{
+		U: messages.U{
+			ParentInitPortDriverCompleted: &messages.ParentInitPortDriverCompleted{},
+		},
+	}
 	portDriverInitComplete := make(chan struct{})
 	portDriverQuit := make(chan struct{})
 	portDriverErr := make(chan error)
 	if opt.PortDriver != nil {
-		msg.Port.Opaque = opt.PortDriver.OpaqueForChild()
+		msgParentInitPortDriverCompleted.U.ParentInitPortDriverCompleted.PortDriverOpaque = opt.PortDriver.OpaqueForChild()
 		cctx := &port.ChildContext{
 			PID: cmd.Process.Pid,
-			IP:  net.ParseIP(msg.Network.IP).To4(),
+			IP:  net.ParseIP(msgParentInitNetworkDriverCompleted.U.ParentInitNetworkDriverCompleted.IP).To4(),
 		}
 		go func() {
 			portDriverErr <- opt.PortDriver.RunParentDriver(portDriverInitComplete,
 				portDriverQuit, cctx)
 		}()
 	}
-
-	// send message
-	if _, err := msgutil.MarshalToWriter(pipeW, &msg); err != nil {
+	if err := messages.Send(pipeW, msgParentInitPortDriverCompleted); err != nil {
 		return err
 	}
+
+	// Close the parent-to-child pipe
 	if err := pipeW.Close(); err != nil {
 		return err
 	}

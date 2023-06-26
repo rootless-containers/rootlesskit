@@ -210,7 +210,7 @@ OPTIONS:
 			return errors.New("no command specified")
 		}
 		if iAmChild {
-			childOpt, err := createChildOpt(clicontext, pipeFDEnvKey, clicontext.Args().Slice())
+			childOpt, err := createChildOpt(clicontext, pipeFDEnvKey, stateDirEnvKey, clicontext.Args().Slice())
 			if err != nil {
 				return err
 			}
@@ -475,10 +475,11 @@ func (w *logrusDebugWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []string) (child.Opt, error) {
+func createChildOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey string, targetCmd []string) (child.Opt, error) {
 	pidns := clicontext.Bool("pidns")
 	opt := child.Opt{
 		PipeFDEnvKey:    pipeFDEnvKey,
+		StateDirEnvKey:  stateDirEnvKey,
 		TargetCmd:       targetCmd,
 		MountProcfs:     pidns,
 		Propagation:     clicontext.String("propagation"),

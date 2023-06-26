@@ -22,6 +22,7 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 )
 
@@ -83,7 +84,7 @@ func (d *parentDriver) MTU() int {
 	return d.mtu
 }
 
-func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.NetworkMessage, func() error, error) {
+func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
 	var cleanups []func() error
 	vpnkitSocket := filepath.Join(stateDir, "vpnkit-ethernet.sock")
 	vpnkitCtx, vpnkitCancel := context.WithCancel(context.Background())
@@ -120,14 +121,14 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	}
 	logrus.Debugf("connected to VPNKit vmnet")
 	// TODO: support configuration
-	netmsg := common.NetworkMessage{
+	netmsg := messages.ParentInitNetworkDriverCompleted{
 		Dev:     d.ifname,
 		IP:      vif.IP.String(),
 		Netmask: 24,
 		Gateway: "192.168.65.1",
 		DNS:     "192.168.65.1",
 		MTU:     d.mtu,
-		Opaque: map[string]string{
+		NetworkDriverOpaque: map[string]string{
 			opaqueMAC:    vif.ClientMAC.String(),
 			opaqueSocket: vpnkitSocket,
 			opaqueUUID:   vifUUID.String(),
@@ -170,14 +171,14 @@ func NewChildDriver() network.ChildDriver {
 type childDriver struct {
 }
 
-func (d *childDriver) ConfigureNetworkChild(netmsg *common.NetworkMessage) (tap string, err error) {
+func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted) (tap string, err error) {
 	tapName := netmsg.Dev
 	if tapName == "" {
 		return "", errors.New("no dev is set")
 	}
-	macStr := netmsg.Opaque[opaqueMAC]
-	socket := netmsg.Opaque[opaqueSocket]
-	uuidStr := netmsg.Opaque[opaqueUUID]
+	macStr := netmsg.NetworkDriverOpaque[opaqueMAC]
+	socket := netmsg.NetworkDriverOpaque[opaqueSocket]
+	uuidStr := netmsg.NetworkDriverOpaque[opaqueUUID]
 	if macStr == "" {
 		return "", errors.New("no VPNKit MAC is set")
 	}

@@ -18,6 +18,7 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 )
 
@@ -67,7 +68,7 @@ func (d *parentDriver) MTU() int {
 	return d.mtu
 }
 
-func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.NetworkMessage, func() error, error) {
+func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
 	var cleanups []func() error
 	dummyLXCPath := "/dev/null"
 	dummyLXCName := "dummy"
@@ -76,7 +77,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	if err != nil {
 		return nil, common.Seq(cleanups), fmt.Errorf("%s failed: %s: %w", d.binary, string(b), err)
 	}
-	netmsg := common.NetworkMessage{
+	netmsg := messages.ParentInitNetworkDriverCompleted{
 		Dev: d.ifname,
 		// IP, Netmask, Gateway, and DNS are configured in Child (via DHCP)
 		MTU: d.mtu,
@@ -126,7 +127,7 @@ func exchangeDHCP(c *client4.Client, dev string) (*dhcpv4.DHCPv4, error) {
 	return ack, nil
 }
 
-func (d *childDriver) ConfigureNetworkChild(netmsg *common.NetworkMessage) (string, error) {
+func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted) (string, error) {
 	dev := netmsg.Dev
 	if dev == "" {
 		return "", errors.New("could not determine the dev")

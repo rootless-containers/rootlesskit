@@ -17,7 +17,7 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/common"
 	"github.com/rootless-containers/rootlesskit/pkg/copyup"
-	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
+	"github.com/rootless-containers/rootlesskit/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/sigproxy"
@@ -152,7 +152,7 @@ func setupCopyDir(driver copyup.ChildDriver, dirs []string) (bool, error) {
 	return false, nil
 }
 
-func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver) error {
+func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, etcWasCopied bool, driver network.ChildDriver) error {
 	// HostNetwork
 	if driver == nil {
 		return nil
@@ -160,15 +160,15 @@ func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver)
 	if err := activateLoopback(); err != nil {
 		return err
 	}
-	dev, err := driver.ConfigureNetworkChild(&msg.Network)
+	dev, err := driver.ConfigureNetworkChild(msg)
 	if err != nil {
 		return err
 	}
-	if err := activateDev(dev, msg.Network.IP, msg.Network.Netmask, msg.Network.Gateway, msg.Network.MTU); err != nil {
+	if err := activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU); err != nil {
 		return err
 	}
 	if etcWasCopied {
-		if err := writeResolvConf(msg.Network.DNS); err != nil {
+		if err := writeResolvConf(msg.DNS); err != nil {
 			return err
 		}
 		if err := writeEtcHosts(); err != nil {
@@ -179,10 +179,10 @@ func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver)
 			"Note that /etc/resolv.conf in the namespace will be unmounted when it is recreated on the host. " +
 			"Unless /etc/resolv.conf is statically configured, copying-up /etc is highly recommended. " +
 			"Please refer to RootlessKit documentation for further information.")
-		if err := mountResolvConf(msg.StateDir, msg.Network.DNS); err != nil {
+		if err := mountResolvConf(stateDir, msg.DNS); err != nil {
 			return err
 		}
-		if err := mountEtcHosts(msg.StateDir); err != nil {
+		if err := mountEtcHosts(stateDir); err != nil {
 			return err
 		}
 	}
@@ -191,6 +191,7 @@ func setupNet(msg common.Message, etcWasCopied bool, driver network.ChildDriver)
 
 type Opt struct {
 	PipeFDEnvKey    string              // needs to be set
+	StateDirEnvKey  string              // needs to be set
 	TargetCmd       []string            // needs to be set
 	NetworkDriver   network.ChildDriver // nil for HostNetwork
 	CopyUpDriver    copyup.ChildDriver  // cannot be nil if len(CopyUpDirs) != 0
@@ -202,55 +203,71 @@ type Opt struct {
 	EvacuateCgroup2 bool // needs to correspond to parent.Opt.EvacuateCgroup2 is set
 }
 
-// gainCaps gains the caps inside the user namespace.
-// The caps are gained on re-execution after the child's uid_map and gid_map are fully written.
-func gainCaps() error {
+// statPIDNS is from https://github.com/containerd/containerd/blob/v1.7.2/services/introspection/pidns_linux.go#L25-L36
+func statPIDNS(pid int) (uint64, error) {
+	f := fmt.Sprintf("/proc/%d/ns/pid", pid)
+	st, err := os.Stat(f)
+	if err != nil {
+		return 0, err
+	}
+	stSys, ok := st.Sys().(*syscall.Stat_t)
+	if !ok {
+		return 0, fmt.Errorf("%T is not *syscall.Stat_t", st.Sys())
+	}
+	return stSys.Ino, nil
+}
+
+func hasCaps() (bool, error) {
 	pid := os.Getpid()
-	envName := fmt.Sprintf("_ROOTLESSKIT_REEXEC_COUNT_%d", pid)
 	hdr := unix.CapUserHeader{
 		Version: unix.LINUX_CAPABILITY_VERSION_3,
 		Pid:     int32(pid),
 	}
 	var data unix.CapUserData
 	if err := unix.Capget(&hdr, &data); err != nil {
-		return fmt.Errorf("failed to get the current caps: %w", err)
+		return false, fmt.Errorf("failed to get the current caps: %w", err)
 	}
 	logrus.Debugf("Capabilities: %+v", data)
-	if data.Effective == 0 {
-		logrus.Debugf("Re-executing the RootlessKit child process (PID=%d) to gain the caps", pid)
+	return data.Effective != 0, nil
+}
 
-		var envValueInt int
-		if envValueStr := os.Getenv(envName); envValueStr != "" {
-			var err error
-			envValueInt, err = strconv.Atoi(envValueStr)
-			if err != nil {
-				return fmt.Errorf("failed to parse %s value %q: %w", envName, envValueStr, err)
-			}
-		}
-		if envValueInt > 5 {
-			time.Sleep(10 * time.Millisecond * time.Duration(envValueInt))
-		}
-		if envValueInt > 10 {
-			return fmt.Errorf("no capabilities was gained after reexecuting the child (%s=%d)", envName, envValueInt)
-		}
-		logrus.Debugf("%s: %d->%d", envName, envValueInt, envValueInt+1)
-		os.Setenv(envName, strconv.Itoa(envValueInt+1))
-
-		// PID should be kept after re-execution.
-		if err := syscall.Exec("/proc/self/exe", os.Args, os.Environ()); err != nil {
-			return err
-		}
-		panic("should not reach here")
+// gainCaps gains the caps inside the user namespace.
+// The caps are gained on re-execution after the child's uid_map and gid_map are fully written.
+func gainCaps() error {
+	pid := os.Getpid()
+	pidns, err := statPIDNS(pid)
+	if err != nil {
+		logrus.WithError(err).Debug("Failed to stat pidns (negligible when unsharing pidns)")
+		pidns = 0
 	}
-	os.Unsetenv(envName)
-	return nil
+	envName := fmt.Sprintf("_ROOTLESSKIT_REEXEC_COUNT_%d_%d", pidns, pid)
+	logrus.Debugf("Re-executing the RootlessKit child process (PID=%d) to gain the caps", pid)
+
+	var envValueInt int
+	if envValueStr := os.Getenv(envName); envValueStr != "" {
+		var err error
+		envValueInt, err = strconv.Atoi(envValueStr)
+		if err != nil {
+			return fmt.Errorf("failed to parse %s value %q: %w", envName, envValueStr, err)
+		}
+	}
+	if envValueInt > 5 {
+		time.Sleep(10 * time.Millisecond * time.Duration(envValueInt))
+	}
+	if envValueInt > 10 {
+		return fmt.Errorf("no capabilities was gained after reexecuting the child (%s=%d)", envName, envValueInt)
+	}
+	logrus.Debugf("%s: %d->%d", envName, envValueInt, envValueInt+1)
+	os.Setenv(envName, strconv.Itoa(envValueInt+1))
+
+	// PID should be kept after re-execution.
+	if err := syscall.Exec("/proc/self/exe", os.Args, os.Environ()); err != nil {
+		return err
+	}
+	panic("should not reach here")
 }
 
 func Child(opt Opt) error {
-	if err := gainCaps(); err != nil {
-		return fmt.Errorf("failed to gain the caps inside the user namespace: %w", err)
-	}
-
 	if opt.PipeFDEnvKey == "" {
 		return errors.New("pipe FD env key is not set")
 	}
@@ -258,16 +275,73 @@ func Child(opt Opt) error {
 	if pipeFDStr == "" {
 		return fmt.Errorf("%s is not set", opt.PipeFDEnvKey)
 	}
-	pipeFD, err := strconv.Atoi(pipeFDStr)
-	if err != nil {
+	var pipeFD, pipe2FD int
+	if _, err := fmt.Sscanf(pipeFDStr, "%d,%d", &pipeFD, &pipe2FD); err != nil {
 		return fmt.Errorf("unexpected fd value: %s: %w", pipeFDStr, err)
 	}
+	logrus.Debugf("pipeFD=%d, pipe2FD=%d", pipeFD, pipe2FD)
 	pipeR := os.NewFile(uintptr(pipeFD), "")
-	var msg common.Message
-	if _, err := msgutil.UnmarshalFromReader(pipeR, &msg); err != nil {
-		return fmt.Errorf("parsing message from fd %d: %w", pipeFD, err)
+	pipe2W := os.NewFile(uintptr(pipe2FD), "")
+
+	if opt.StateDirEnvKey == "" {
+		opt.StateDirEnvKey = "ROOTLESSKIT_STATE_DIR" // for backward compatibility of Go API
 	}
-	logrus.Debugf("child: got msg from parent: %+v", msg)
+	stateDir := os.Getenv(opt.StateDirEnvKey)
+	if stateDir == "" {
+		return errors.New("got empty StateDir")
+	}
+
+	var (
+		msg *messages.Message
+		err error
+	)
+	if ok, err := hasCaps(); err != nil {
+		return err
+	} else if !ok {
+		msg, err = messages.WaitFor(pipeR, messages.Name(messages.ParentHello{}))
+		if err != nil {
+			return err
+		}
+
+		msgChildHello := &messages.Message{
+			U: messages.U{
+				ChildHello: &messages.ChildHello{},
+			},
+		}
+		if err := messages.Send(pipe2W, msgChildHello); err != nil {
+			return err
+		}
+
+		msg, err = messages.WaitFor(pipeR, messages.Name(messages.ParentInitIdmapCompleted{}))
+		if err != nil {
+			return err
+		}
+
+		if err := gainCaps(); err != nil {
+			return fmt.Errorf("failed to gain the caps inside the user namespace: %w", err)
+		}
+	}
+
+	msgChildInitUserNSCompleted := &messages.Message{
+		U: messages.U{
+			ChildInitUserNSCompleted: &messages.ChildInitUserNSCompleted{},
+		},
+	}
+	if err := messages.Send(pipe2W, msgChildInitUserNSCompleted); err != nil {
+		return err
+	}
+
+	msg, err = messages.WaitFor(pipeR, messages.Name(messages.ParentInitNetworkDriverCompleted{}))
+	if err != nil {
+		return err
+	}
+	netMsg := msg.U.ParentInitNetworkDriverCompleted
+
+	msg, err = messages.WaitFor(pipeR, messages.Name(messages.ParentInitPortDriverCompleted{}))
+	if err != nil {
+		return err
+	}
+	portMsg := msg.U.ParentInitPortDriverCompleted
 
 	// The parent calls child with Pdeathsig, but it is cleared when newuidmap SUID binary is called
 	// https://github.com/rootless-containers/rootlesskit/issues/65#issuecomment-492343646
@@ -281,9 +355,6 @@ func Child(opt Opt) error {
 	if err := pipeR.Close(); err != nil {
 		return fmt.Errorf("failed to close fd %d: %w", pipeFD, err)
 	}
-	if msg.StateDir == "" {
-		return errors.New("got empty StateDir")
-	}
 	if err := setMountPropagation(opt.Propagation); err != nil {
 		return err
 	}
@@ -294,7 +365,7 @@ func Child(opt Opt) error {
 	if err := mountSysfs(opt.NetworkDriver == nil, opt.EvacuateCgroup2); err != nil {
 		return err
 	}
-	if err := setupNet(msg, etcWasCopied, opt.NetworkDriver); err != nil {
+	if err := setupNet(stateDir, netMsg, etcWasCopied, opt.NetworkDriver); err != nil {
 		return err
 	}
 	if opt.MountProcfs {
@@ -305,8 +376,12 @@ func Child(opt Opt) error {
 	portQuitCh := make(chan struct{})
 	portErrCh := make(chan error)
 	if opt.PortDriver != nil {
+		var portDriverOpaque map[string]string
+		if portMsg != nil {
+			portDriverOpaque = portMsg.PortDriverOpaque
+		}
 		go func() {
-			portErrCh <- opt.PortDriver.RunChildDriver(msg.Port.Opaque, portQuitCh)
+			portErrCh <- opt.PortDriver.RunChildDriver(portDriverOpaque, portQuitCh)
 		}()
 	}
 
