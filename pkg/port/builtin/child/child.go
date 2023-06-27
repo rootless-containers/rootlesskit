@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rootless-containers/rootlesskit/pkg/msgutil"
+	"github.com/rootless-containers/rootlesskit/pkg/lowlevelmsgutil"
 	"github.com/rootless-containers/rootlesskit/pkg/port"
 	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/msg"
 	opaquepkg "github.com/rootless-containers/rootlesskit/pkg/port/builtin/opaque"
@@ -72,7 +72,7 @@ func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struc
 				rep := msg.Reply{
 					Error: rerr.Error(),
 				}
-				msgutil.MarshalToWriter(c, &rep)
+				lowlevelmsgutil.MarshalToWriter(c, &rep)
 			}
 			c.Close()
 		}()
@@ -81,7 +81,7 @@ func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struc
 
 func (d *childDriver) routine(c *net.UnixConn) error {
 	var req msg.Request
-	if _, err := msgutil.UnmarshalFromReader(c, &req); err != nil {
+	if _, err := lowlevelmsgutil.UnmarshalFromReader(c, &req); err != nil {
 		return err
 	}
 	switch req.Type {
@@ -95,7 +95,7 @@ func (d *childDriver) routine(c *net.UnixConn) error {
 }
 
 func (d *childDriver) handleConnectInit(c *net.UnixConn, req *msg.Request) error {
-	_, err := msgutil.MarshalToWriter(c, nil)
+	_, err := lowlevelmsgutil.MarshalToWriter(c, nil)
 	return err
 }
 

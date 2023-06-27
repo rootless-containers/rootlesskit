@@ -34,6 +34,10 @@ func main() {
 		parentEGIDEnvKey = "ROOTLESSKIT_PARENT_EGID" // documented
 	)
 	iAmChild := os.Getenv(pipeFDEnvKey) != ""
+	id := "parent"
+	if iAmChild {
+		id = "child " // padded to len("parent")
+	}
 	debug := false
 	app := cli.NewApp()
 	app.Name = "rootlesskit"
@@ -203,6 +207,11 @@ OPTIONS:
 		if debug {
 			logrus.SetLevel(logrus.DebugLevel)
 		}
+		formatter := &logrusFormatter{
+			id:        id,
+			Formatter: logrus.StandardLogger().Formatter,
+		}
+		logrus.SetFormatter(formatter)
 		return nil
 	}
 	app.Action = func(clicontext *cli.Context) error {
@@ -210,7 +219,7 @@ OPTIONS:
 			return errors.New("no command specified")
 		}
 		if iAmChild {
-			childOpt, err := createChildOpt(clicontext, pipeFDEnvKey, clicontext.Args().Slice())
+			childOpt, err := createChildOpt(clicontext, pipeFDEnvKey, stateDirEnvKey, clicontext.Args().Slice())
 			if err != nil {
 				return err
 			}
@@ -224,10 +233,6 @@ OPTIONS:
 		return parent.Parent(parentOpt)
 	}
 	if err := app.Run(os.Args); err != nil {
-		id := "parent"
-		if iAmChild {
-			id = "child " // padded to len("parent")
-		}
 		if debug {
 			fmt.Fprintf(os.Stderr, "[rootlesskit:%s] error: %+v\n", id, err)
 		} else {
@@ -240,6 +245,16 @@ OPTIONS:
 		}
 		os.Exit(code)
 	}
+}
+
+type logrusFormatter struct {
+	id string
+	logrus.Formatter
+}
+
+func (f *logrusFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	entry.Message = fmt.Sprintf("[rootlesskit:%s] %s", f.id, entry.Message)
+	return f.Formatter.Format(entry)
 }
 
 func parseCIDR(s string) (*net.IPNet, error) {
@@ -475,10 +490,11 @@ func (w *logrusDebugWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func createChildOpt(clicontext *cli.Context, pipeFDEnvKey string, targetCmd []string) (child.Opt, error) {
+func createChildOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey string, targetCmd []string) (child.Opt, error) {
 	pidns := clicontext.Bool("pidns")
 	opt := child.Opt{
 		PipeFDEnvKey:    pipeFDEnvKey,
+		StateDirEnvKey:  stateDirEnvKey,
 		TargetCmd:       targetCmd,
 		MountProcfs:     pidns,
 		Propagation:     clicontext.String("propagation"),

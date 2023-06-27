@@ -19,6 +19,7 @@ import (
 
 	"github.com/rootless-containers/rootlesskit/pkg/api"
 	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/pkg/network"
 	"github.com/rootless-containers/rootlesskit/pkg/network/iputils"
 	"github.com/rootless-containers/rootlesskit/pkg/network/parentutils"
@@ -172,7 +173,7 @@ func (d *parentDriver) MTU() int {
 	return d.mtu
 }
 
-func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.NetworkMessage, func() error, error) {
+func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
 	tap := d.ifname
 	var cleanups []func() error
 	if err := parentutils.PrepareTap(childPID, tap); err != nil {
@@ -228,7 +229,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*common.
 	if err := waitForReadyFD(cmd.Process.Pid, readyR); err != nil {
 		return nil, common.Seq(cleanups), fmt.Errorf("waiting for ready fd (%v): %w", cmd, err)
 	}
-	netmsg := common.NetworkMessage{
+	netmsg := messages.ParentInitNetworkDriverCompleted{
 		Dev: tap,
 		MTU: d.mtu,
 	}
@@ -312,7 +313,7 @@ func NewChildDriver() network.ChildDriver {
 type childDriver struct {
 }
 
-func (d *childDriver) ConfigureNetworkChild(netmsg *common.NetworkMessage) (string, error) {
+func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted) (string, error) {
 	tap := netmsg.Dev
 	if tap == "" {
 		return "", errors.New("could not determine the preconfigured tap")
