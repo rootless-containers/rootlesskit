@@ -35,8 +35,6 @@ type Manager interface {
 
 // ChildContext is used for RunParentDriver
 type ChildContext struct {
-	// PID of the child, can be used for ns-entering to the child namespaces.
-	PID int
 	// IP of the tap device
 	IP net.IP
 }
