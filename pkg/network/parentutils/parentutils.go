@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/rootless-containers/rootlesskit/pkg/common"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
 )
 
 func PrepareTap(childPID int, childNetNsPath string, tap string) error {

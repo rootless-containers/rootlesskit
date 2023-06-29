@@ -5,7 +5,7 @@ import (
 	"os/user"
 	"testing"
 
-	"github.com/rootless-containers/rootlesskit/pkg/parent/idtools"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/parent/idtools"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 )

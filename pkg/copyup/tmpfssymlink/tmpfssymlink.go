@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rootless-containers/rootlesskit/pkg/copyup"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/copyup"
 )
 
 func NewChildDriver() copyup.ChildDriver {

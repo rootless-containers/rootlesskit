@@ -17,12 +17,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
-	"github.com/rootless-containers/rootlesskit/pkg/api"
-	"github.com/rootless-containers/rootlesskit/pkg/common"
-	"github.com/rootless-containers/rootlesskit/pkg/messages"
-	"github.com/rootless-containers/rootlesskit/pkg/network"
-	"github.com/rootless-containers/rootlesskit/pkg/network/iputils"
-	"github.com/rootless-containers/rootlesskit/pkg/network/parentutils"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/messages"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/iputils"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/parentutils"
 )
 
 type Features struct {

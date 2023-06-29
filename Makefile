@@ -10,13 +10,13 @@ clean:
 	$(RM) -r bin/ _artifact/
 
 bin/rootlesskit: $(GO_FILES)
-	$(GO) build -o $@ -v github.com/rootless-containers/rootlesskit/cmd/rootlesskit
+	$(GO) build -o $@ -v ./cmd/rootlesskit
 
 bin/rootlessctl: $(GO_FILES)
-	$(GO) build -o $@ -v github.com/rootless-containers/rootlesskit/cmd/rootlessctl
+	$(GO) build -o $@ -v ./cmd/rootlessctl
 
 bin/rootlesskit-docker-proxy: $(GO_FILES)
-	$(GO) build -o $@ -v github.com/rootless-containers/rootlesskit/cmd/rootlesskit-docker-proxy
+	$(GO) build -o $@ -v ./cmd/rootlesskit-docker-proxy
 
 .PHONY: cross
 cross:

@@ -10,9 +10,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/rootless-containers/rootlesskit/pkg/api"
-	"github.com/rootless-containers/rootlesskit/pkg/port"
-	"github.com/rootless-containers/rootlesskit/pkg/port/portutil"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/port/portutil"
 )
 
 func NewParentDriver(logWriter io.Writer, apiSocketPath string) (port.ParentDriver, error) {

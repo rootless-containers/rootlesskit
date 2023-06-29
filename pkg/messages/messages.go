@@ -5,7 +5,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/rootless-containers/rootlesskit/pkg/lowlevelmsgutil"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/lowlevelmsgutil"
 	"github.com/sirupsen/logrus"
 )
 

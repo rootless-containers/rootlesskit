@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rootless-containers/rootlesskit/pkg/parent/idtools"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/parent/idtools"
 	"gotest.tools/v3/assert"
 )
 

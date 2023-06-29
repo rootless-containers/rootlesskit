@@ -7,7 +7,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 
-	"github.com/rootless-containers/rootlesskit/pkg/sigproxy/signal"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/sigproxy/signal"
 )
 
 // ForwardAllSignals forwards signals.

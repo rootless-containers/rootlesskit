@@ -10,21 +10,22 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-	"github.com/rootless-containers/rootlesskit/pkg/child"
-	"github.com/rootless-containers/rootlesskit/pkg/common"
-	"github.com/rootless-containers/rootlesskit/pkg/copyup/tmpfssymlink"
-	"github.com/rootless-containers/rootlesskit/pkg/network/lxcusernic"
-	"github.com/rootless-containers/rootlesskit/pkg/network/pasta"
-	"github.com/rootless-containers/rootlesskit/pkg/network/slirp4netns"
-	"github.com/rootless-containers/rootlesskit/pkg/network/vpnkit"
-	"github.com/rootless-containers/rootlesskit/pkg/parent"
-	"github.com/rootless-containers/rootlesskit/pkg/port/builtin"
-	"github.com/rootless-containers/rootlesskit/pkg/port/portutil"
-	slirp4netns_port "github.com/rootless-containers/rootlesskit/pkg/port/slirp4netns"
-	"github.com/rootless-containers/rootlesskit/pkg/version"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/child"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/copyup/tmpfssymlink"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/lxcusernic"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/pasta"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/slirp4netns"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/vpnkit"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/parent"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/port/builtin"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/port/portutil"
+	slirp4netns_port "github.com/rootless-containers/rootlesskit/v2/pkg/port/slirp4netns"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/version"
 )
 
 func main() {
@@ -71,6 +72,10 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 			Name:        "debug",
 			Usage:       "debug mode",
 			Destination: &debug,
+		}, CategoryMisc),
+		Categorize(&cli.StringFlag{
+			Name:  "print-semver",
+			Usage: "print a version component as a decimal integer [major, minor, patch]",
 		}, CategoryMisc),
 		Categorize(&cli.StringFlag{
 			Name:  "state-dir",
@@ -222,9 +227,27 @@ OPTIONS:
 			Formatter: logrus.StandardLogger().Formatter,
 		}
 		logrus.SetFormatter(formatter)
+
 		return nil
 	}
 	app.Action = func(clicontext *cli.Context) error {
+		if s := clicontext.String("print-semver"); s != "" {
+			sv, err := semver.NewVersion(version.Version)
+			if err != nil {
+				return fmt.Errorf("failed to parse version %q: %w", version.Version, err)
+			}
+			switch s {
+			case "major":
+				fmt.Fprintln(clicontext.App.Writer, sv.Major())
+			case "minor":
+				fmt.Fprintln(clicontext.App.Writer, sv.Minor())
+			case "patch":
+				fmt.Fprintln(clicontext.App.Writer, sv.Patch())
+			default:
+				return fmt.Errorf("expected --print-semver=(major|minor|patch), got %q", s)
+			}
+			return nil
+		}
 		if clicontext.NArg() < 1 {
 			return errors.New("no command specified")
 		}

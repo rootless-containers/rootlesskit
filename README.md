@@ -154,78 +154,83 @@ USAGE:
    rootlesskit [global options] [arguments...]
 
 VERSION:
-   1.1.0
+   2.0.0-alpha.0
 
 DESCRIPTION:
    RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
-
+   
    Web site: https://github.com/rootless-containers/rootlesskit
-
+   
    Examples:
      # spawn a shell with a new user namespace and a mount namespace
      rootlesskit bash
-
+   
      # make /etc writable
      rootlesskit --copy-up=/etc bash
-
+   
      # set mount propagation to rslave
      rootlesskit --propagation=rslave bash
-
+   
      # create a network namespace with slirp4netns, and expose 80/tcp on the namespace as 8080/tcp on the host
      rootlesskit --copy-up=/etc --net=slirp4netns --disable-host-loopback --port-driver=builtin -p 127.0.0.1:8080:80/tcp bash
-
+   
    Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.
    See https://rootlesscontaine.rs/getting-started/common/ .
 
 OPTIONS:
-  Misc:
+  Misc:                                                      
     --debug                                                  debug mode (default: false)
-    --help, -h                                               show help (default: false)
-    --version, -v                                            print the version (default: false)
-
-  Mount:
+    --print-semver value                                     print a version component as a decimal integer [major, minor, patch]
+    --help, -h                                               show help
+    --version, -v                                            print the version
+                                                             
+  Mount:                                                     
     --copy-up value [ --copy-up value ]                      mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
     --copy-up-mode value                                     copy-up mode [tmpfs+symlink]
     --propagation value                                      mount propagation [rprivate, rslave]
-
-  Network:
-    --net value                                              network driver [host, slirp4netns, vpnkit, lxc-user-nic(experimental)]
-    --mtu value                                              MTU for non-host network (default: 65520 for slirp4netns, 1500 for others) (default: 0)
-    --cidr value                                             CIDR for slirp4netns network (default: 10.0.2.0/24)
-    --ifname value                                           Network interface name (default: tap0 for slirp4netns and vpnkit, eth0 for lxc-user-nic)
+                                                             
+  Network:                                                   
+    --net value                                              network driver [host, pasta(experimental), slirp4netns, vpnkit, lxc-user-nic(experimental)]
+    --mtu value                                              MTU for non-host network (default: 65520 for pasta and slirp4netns, 1500 for others) (default: 0)
+    --cidr value                                             CIDR for pasta and slirp4netns networks (default: 10.0.2.0/24)
+    --ifname value                                           Network interface name (default: tap0 for pasta, slirp4netns, and vpnkit; eth0 for lxc-user-nic)
     --disable-host-loopback                                  prohibit connecting to 127.0.0.1:* on the host namespace (default: false)
-    --ipv6                                                   enable IPv6 routing. Unrelated to port forwarding. Only supported for slirp4netns. (experimental) (default: false)
-
-  Network [lxc-user-nic]:
+    --ipv6                                                   enable IPv6 routing. Unrelated to port forwarding. Only supported for pasta and slirp4netns. (experimental) (default: false)
+    --detach-netns                                           detach network namespaces  (default: false)
+                                                             
+  Network [lxc-user-nic]:                                    
     --lxc-user-nic-binary value                              path of lxc-user-nic binary for --net=lxc-user-nic
     --lxc-user-nic-bridge value                              lxc-user-nic bridge name
-
-  Network [slirp4netns]:
+                                                             
+  Network [pasta]:                                           
+    --pasta-binary value                                     path of pasta binary for --net=pasta
+                                                             
+  Network [slirp4netns]:                                     
     --slirp4netns-binary value                               path of slirp4netns binary for --net=slirp4netns
     --slirp4netns-sandbox value                              enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be "auto" in future)
     --slirp4netns-seccomp value                              enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be "auto" in future)
-
-  Network [vpnkit]:
+                                                             
+  Network [vpnkit]:                                          
     --vpnkit-binary value                                    path of VPNKit binary for --net=vpnkit
-
-  Port:
-    --port-driver value                                      port driver for non-host network. [none, builtin, slirp4netns]
+                                                             
+  Port:                                                      
+    --port-driver value                                      port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns]
     --publish value, -p value [ --publish value, -p value ]  publish ports. e.g. "127.0.0.1:8080:80/tcp"
-
-  Process:
+                                                             
+  Process:                                                   
     --pidns                                                  create a PID namespace (default: false)
     --cgroupns                                               create a cgroup namespace (default: false)
     --utsns                                                  create a UTS namespace (default: false)
     --ipcns                                                  create an IPC namespace (default: false)
     --reaper value                                           enable process reaper. Requires --pidns. [auto,true,false]
     --evacuate-cgroup2 value                                 evacuate processes into the specified subgroup. Requires --pidns and --cgroupns
-
-  State:
+                                                             
+  State:                                                     
     --state-dir value                                        state directory
-
-  SubID:
+                                                             
+  SubID:                                                     
     --subid-source value                                     the source of the subids. "dynamic" executes /usr/bin/getsubids. "static" reads /etc/{subuid,subgid}. [auto,dynamic,static]
-
+                                                             
 ```
 
 ## State directory

@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/rootless-containers/rootlesskit/pkg/port"
-	"github.com/rootless-containers/rootlesskit/pkg/port/testsuite"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/port/testsuite"
 )
 
 func TestMain(m *testing.M) {
