@@ -8,8 +8,8 @@ import (
 
 	"golang.org/x/sys/unix"
 
-	"github.com/rootless-containers/rootlesskit/pkg/lowlevelmsgutil"
-	"github.com/rootless-containers/rootlesskit/pkg/port"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/lowlevelmsgutil"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
 )
 
 const (

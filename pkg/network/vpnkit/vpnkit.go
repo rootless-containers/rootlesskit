@@ -21,10 +21,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songgao/water"
 
-	"github.com/rootless-containers/rootlesskit/pkg/api"
-	"github.com/rootless-containers/rootlesskit/pkg/common"
-	"github.com/rootless-containers/rootlesskit/pkg/messages"
-	"github.com/rootless-containers/rootlesskit/pkg/network"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/messages"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network"
 )
 
 func NewParentDriver(binary string, mtu int, ifname string, disableHostLoopback bool) network.ParentDriver {

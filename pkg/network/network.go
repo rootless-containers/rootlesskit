@@ -3,8 +3,8 @@ package network
 import (
 	"context"
 
-	"github.com/rootless-containers/rootlesskit/pkg/api"
-	"github.com/rootless-containers/rootlesskit/pkg/messages"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/messages"
 )
 
 // ParentDriver is called from the parent namespace

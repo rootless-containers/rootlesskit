@@ -1,8 +1,9 @@
-module github.com/rootless-containers/rootlesskit
+module github.com/rootless-containers/rootlesskit/v2
 
 go 1.19
 
 require (
+	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/containernetworking/plugins v1.3.0
 	github.com/gofrs/flock v0.8.1
 	github.com/google/uuid v1.3.0

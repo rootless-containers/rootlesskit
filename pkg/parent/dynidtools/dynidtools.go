@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/rootless-containers/rootlesskit/pkg/parent/idtools"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/parent/idtools"
 	"github.com/sirupsen/logrus"
 )
 

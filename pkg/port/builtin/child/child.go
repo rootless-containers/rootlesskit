@@ -12,10 +12,10 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/rootless-containers/rootlesskit/pkg/lowlevelmsgutil"
-	"github.com/rootless-containers/rootlesskit/pkg/port"
-	"github.com/rootless-containers/rootlesskit/pkg/port/builtin/msg"
-	opaquepkg "github.com/rootless-containers/rootlesskit/pkg/port/builtin/opaque"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/lowlevelmsgutil"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/port/builtin/msg"
+	opaquepkg "github.com/rootless-containers/rootlesskit/v2/pkg/port/builtin/opaque"
 )
 
 func NewDriver(logWriter io.Writer) port.ChildDriver {
