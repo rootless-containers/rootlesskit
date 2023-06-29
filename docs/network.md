@@ -3,6 +3,7 @@
 RootlessKit provides several drivers for providing network connectivity:
 
 * `--net=host`: use host network namespace (default)
+* `--net=pasta`: use [pasta](https://passt.top/passt/) (experimental)
 * `--net=slirp4netns`: use [slirp4netns](https://github.com/rootless-containers/slirp4netns) (recommended)
 * `--net=vpnkit`: use [VPNKit](https://github.com/moby/vpnkit)
 * `--net=lxc-user-nic`: use `lxc-user-nic` (experimental)
@@ -137,6 +138,29 @@ The network is configured as follows by default:
 
 As in `--net=slirp4netns`, specifying `--copy-up=/etc` and `--disable-host-loopback` is highly recommended.
 If `--disable-host-loopback` is not specified, ports listening on 127.0.0.1 in the host are accessible as 192.168.65.2 in the RootlessKit's network namespace.
+
+### `--net=pasta` (experimental)
+
+`--net=pasta` (since RootlessKit v2.0, EXPERIMENTAL) uses [pasta (passt)](https://passt.top/passt/).
+`--net=pasta` is expected to be used in conjunction with `--port-driver=implicit`.
+
+> **Note**
+> `--net=pasta` needs [pasta (passt)](https://passt.top/passt/) `2023_06_25.32660ce` or later.
+>
+> Depending on the version of pasta and the host operating system,
+> running `sudo apparmor_parser -R /etc/apparmor.d/usr.bin.passt` might be needed too.
+
+Pros:
+* Possible to perform network-namespaced operations, e.g. creating iptables rules, running `tcpdump`
+* Supports ICMP Echo (`ping`) when `/proc/sys/net/ipv4/ping_group_range` is configured
+* TCP port forwarding (`--port-driver=implicit`) is very fast
+* TCP port forwarding (`--port-driver=implicit`) can retain source IP addresses
+
+Cons:
+* UDP port forwarding is not supported yet
+
+The network configuration for pasta is similar to slirp4netns.
+As in `--net=slirp4netns`, specifying `--copy-up=/etc` and `--disable-host-loopback` is highly recommended.
 
 ### `--net=lxc-user-nic` (experimental)
 

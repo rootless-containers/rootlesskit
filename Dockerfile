@@ -3,6 +3,7 @@ ARG UBUNTU_VERSION=22.04
 ARG SHADOW_VERSION=4.13
 ARG SLIRP4NETNS_VERSION=v1.2.0
 ARG VPNKIT_VERSION=0.5.0
+ARG PASST_VERSION=2023_06_27.289301b
 ARG DOCKER_VERSION=24.0.2
 ARG DOCKER_CHANNEL=stable
 
@@ -45,6 +46,15 @@ RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux -
 
 FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit
 
+FROM ubuntu:${UBUNTU_VERSION} AS passt
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y git gcc libtool make
+RUN git clone https://passt.top/passt
+WORKDIR /passt
+ARG PASST_VERSION
+RUN git pull && git checkout $PASST_VERSION
+RUN make && make install
+
 FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # iproute2: for `ip` command that rootlesskit needs to exec
 # liblxc-common and lxc-utils: for `lxc-user-nic` binary required for --net=lxc-user-nic
@@ -67,6 +77,7 @@ ARG SLIRP4NETNS_VERSION
 RUN curl -sSL -o /home/user/bin/slirp4netns https://github.com/rootless-containers/slirp4netns/releases/download/${SLIRP4NETNS_VERSION}/slirp4netns-x86_64 && \
   chmod +x /home/user/bin/slirp4netns
 COPY --from=vpnkit /vpnkit /home/user/bin/vpnkit
+COPY --from=passt /usr/local /usr/local
 ADD ./hack /home/user/hack
 RUN chown -R user:user /run/user/1000 /home/user
 USER user

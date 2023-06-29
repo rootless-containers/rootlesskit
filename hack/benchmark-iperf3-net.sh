@@ -1,5 +1,16 @@
 #!/bin/bash
 source $(realpath $(dirname $0))/common.inc.sh
+function benchmark::iperf3::pasta() {
+	INFO "[benchmark:iperf3] slirp4netns ($@)"
+	statedir=$(mktemp -d)
+	if echo "$@" | grep -q -- --detach-netns; then
+		IPERF3C="nsenter -n${statedir}/netns $IPERF3C"
+	fi
+	set -x
+	$ROOTLESSKIT --state-dir=$statedir --net=slirp4netns $@ -- $IPERF3C 10.0.2.2
+	set +x
+}
+
 function benchmark::iperf3::slirp4netns() {
 	INFO "[benchmark:iperf3] slirp4netns ($@)"
 	statedir=$(mktemp -d)
