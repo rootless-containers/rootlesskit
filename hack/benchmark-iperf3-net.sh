@@ -2,26 +2,38 @@
 source $(realpath $(dirname $0))/common.inc.sh
 function benchmark::iperf3::slirp4netns() {
 	INFO "[benchmark:iperf3] slirp4netns ($@)"
+	statedir=$(mktemp -d)
+	if echo "$@" | grep -q -- --detach-netns; then
+		IPERF3C="nsenter -n${statedir}/netns $IPERF3C"
+	fi
 	set -x
-	$ROOTLESSKIT --net=slirp4netns $@ -- $IPERF3C 10.0.2.2
+	$ROOTLESSKIT --state-dir=$statedir --net=slirp4netns $@ -- $IPERF3C 10.0.2.2
 	set +x
 }
 
 function benchmark::iperf3::vpnkit() {
 	INFO "[benchmark:iperf3] vpnkit ($@)"
+	statedir=$(mktemp -d)
+	if echo "$@" | grep -q -- --detach-netns; then
+		IPERF3C="nsenter -n${statedir}/netns $IPERF3C"
+	fi
 	set -x
-	$ROOTLESSKIT --net=vpnkit $@ -- $IPERF3C 192.168.65.2
+	$ROOTLESSKIT --state-dir=$statedir --net=vpnkit $@ -- $IPERF3C 192.168.65.2
 	set +x
 }
 
 function benchmark::iperf3::lxc-user-nic() {
 	INFO "[benchmark:iperf3] lxc-user-nic ($@)"
+	statedir=$(mktemp -d)
+	if echo "$@" | grep -q -- --detach-netns; then
+		IPERF3C="nsenter -n${statedir}/netns $IPERF3C"
+	fi
 	dev=lxcbr0
 	set -x
 	# ignore "lxc-net is already running" error
 	sudo /usr/lib/$(uname -m)-linux-gnu/lxc/lxc-net start || true
 	ip=$(ip -4 -o addr show $dev | awk '{print $4}' | cut -d "/" -f 1)
-	$ROOTLESSKIT --net=lxc-user-nic $@ -- $IPERF3C $ip
+	$ROOTLESSKIT --state-dir=$statedir --net=lxc-user-nic $@ -- $IPERF3C $ip
 	set +x
 }
 

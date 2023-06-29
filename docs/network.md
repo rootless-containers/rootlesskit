@@ -151,6 +151,7 @@ Cons:
 * Less secure
 * Needs `/etc/lxc/lxc-usernet` configuration
 * No support for IPv6.
+* No support for `--detach-netns`
 
 To use `lxc-user-nic`, you need to install `liblxc-common` package:
 ```console
@@ -176,3 +177,9 @@ Currently, the MAC address is always set to a random address.
 
 The `--ipv6` flag (since v0.14.0, EXPERIMENTAL) enables IPv6 routing for slirp4netns network driver.
 This flag is unrelated to port forwarding.
+
+## Detaching network namespace
+The `--detach-netns` flag (since v2.0.0) detaches network namespaces into `$ROOTLESSKIT_STATE_DIR/netns`
+and executes the child command in the host's network namespace.
+
+The child command can enter `$ROOTLESSKIT_STATE_DIR/netns` by itself to create nested network namespaces.

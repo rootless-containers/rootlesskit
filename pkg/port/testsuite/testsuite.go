@@ -41,7 +41,7 @@ func Main(m *testing.M, cf func() port.ChildDriver) {
 	errCh := make(chan error)
 	go func() {
 		d := cf()
-		dErr := d.RunChildDriver(opaque, quit)
+		dErr := d.RunChildDriver(opaque, quit, "")
 		errCh <- dErr
 	}()
 	quitFD, err := strconv.Atoi(os.Getenv(reexecKeyQuitFD))
@@ -161,8 +161,7 @@ func testProtoWithPID(t *testing.T, proto string, d port.ParentDriver, childPID 
 	driverErr := make(chan error)
 	go func() {
 		cctx := &port.ChildContext{
-			PID: childPID,
-			IP:  nil, // we don't have tap device in this test suite
+			IP: nil, // we don't have tap device in this test suite
 		}
 		driverErr <- d.RunParentDriver(initComplete, quit, cctx)
 	}()

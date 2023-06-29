@@ -68,7 +68,10 @@ func (d *parentDriver) MTU() int {
 	return d.mtu
 }
 
-func (d *parentDriver) ConfigureNetwork(childPID int, stateDir string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
+func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPath string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
+	if detachedNetNSPath != "" {
+		return nil, nil, fmt.Errorf("network driver %q does not support detach-netns", DriverName)
+	}
 	var cleanups []func() error
 	dummyLXCPath := "/dev/null"
 	dummyLXCName := "dummy"
@@ -127,7 +130,11 @@ func exchangeDHCP(c *client4.Client, dev string) (*dhcpv4.DHCPv4, error) {
 	return ack, nil
 }
 
-func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted) (string, error) {
+func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted, detachedNetNSPath string) (string, error) {
+	if detachedNetNSPath != "" {
+		return "", fmt.Errorf("network driver %q does not support detach-netns", DriverName)
+	}
+
 	dev := netmsg.Dev
 	if dev == "" {
 		return "", errors.New("could not determine the dev")
