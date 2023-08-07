@@ -9,17 +9,18 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/insomniacslk/dhcp/dhcpv4/client4"
 
-	"github.com/sirupsen/logrus"
-
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network"
+	"github.com/sirupsen/logrus"
 )
 
 func NewParentDriver(binary string, mtu int, bridge, ifname string) (network.ParentDriver, error) {
@@ -70,7 +71,15 @@ func (d *parentDriver) MTU() int {
 
 func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPath string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
 	if detachedNetNSPath != "" {
-		return nil, nil, fmt.Errorf("network driver %q does not support detach-netns", DriverName)
+		cmd := exec.Command("nsenter", "-t", strconv.Itoa(childPID), "-n"+detachedNetNSPath, "--no-fork", "-m", "-U", "--preserve-credentials", "sleep", "infinity")
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Pdeathsig: syscall.SIGKILL,
+		}
+		err := cmd.Start()
+		if err != nil {
+			return nil, nil, err
+		}
+		childPID = cmd.Process.Pid
 	}
 	var cleanups []func() error
 	dummyLXCPath := "/dev/null"
@@ -95,24 +104,33 @@ func NewChildDriver() network.ChildDriver {
 type childDriver struct {
 }
 
-func exchangeDHCP(c *client4.Client, dev string) (*dhcpv4.DHCPv4, error) {
+func exchangeDHCP(c *client4.Client, dev string, detachedNetNSPath string) (*dhcpv4.DHCPv4, error) {
 	logrus.Debugf("exchanging DHCP messages using %s, may take a few seconds", dev)
 	var (
 		ps  []*dhcpv4.DHCPv4
 		err error
 	)
-	for {
-		ps, err = c.Exchange(dev)
-		if err != nil {
-			// `github.com/insomniacslk/dhcp` does not use errors.Wrap,
-			// so we need to compare the string.
-			if strings.Contains(err.Error(), "interrupted system call") {
-				// Retry on EINTR
-				continue
+	exchange := func(ns.NetNS) error {
+		for {
+			ps, err = c.Exchange(dev)
+			if err != nil {
+				// `github.com/insomniacslk/dhcp` does not use errors.Wrap,
+				// so we need to compare the string.
+				if strings.Contains(err.Error(), "interrupted system call") {
+					// Retry on EINTR
+					continue
+				}
+				return fmt.Errorf("could not exchange DHCP with %s: %w", dev, err)
 			}
-			return nil, fmt.Errorf("could not exchange DHCP with %s: %w", dev, err)
+			return nil
 		}
-		break
+	}
+	nsPath := "/proc/self/ns/net"
+	if detachedNetNSPath != "" {
+		nsPath = detachedNetNSPath
+	}
+	if err := ns.WithNetNSPath(nsPath, exchange); err != nil {
+		return nil, err
 	}
 	if len(ps) < 1 {
 		return nil, errors.New("got empty DHCP message")
@@ -131,17 +149,17 @@ func exchangeDHCP(c *client4.Client, dev string) (*dhcpv4.DHCPv4, error) {
 }
 
 func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted, detachedNetNSPath string) (string, error) {
-	if detachedNetNSPath != "" {
-		return "", fmt.Errorf("network driver %q does not support detach-netns", DriverName)
-	}
-
 	dev := netmsg.Dev
 	if dev == "" {
 		return "", errors.New("could not determine the dev")
 	}
+	nsPath := "/proc/self/ns/net"
+	if detachedNetNSPath != "" {
+		nsPath = detachedNetNSPath
+	}
 	cmds := [][]string{
 		// FIXME(AkihiroSuda): this should be moved to pkg/child?
-		{"ip", "link", "set", dev, "up"},
+		{"nsenter", "-n" + nsPath, "ip", "link", "set", dev, "up"},
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
 		return "", fmt.Errorf("executing %v: %w", cmds, err)
@@ -149,7 +167,7 @@ func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDr
 	c := client4.NewClient()
 	c.ReadTimeout = 30 * time.Second
 	c.WriteTimeout = 30 * time.Second
-	p, err := exchangeDHCP(c, dev)
+	p, err := exchangeDHCP(c, dev, detachedNetNSPath)
 	if err != nil {
 		return "", err
 	}
@@ -167,18 +185,18 @@ func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDr
 	netmsg.Netmask = netmask
 	netmsg.Gateway = p.Router()[0].To4().String()
 	netmsg.DNS = p.DNS()[0].To4().String()
-	go dhcpRenewRoutine(c, dev, p.YourIPAddr.To4(), p.IPAddressLeaseTime(time.Hour))
+	go dhcpRenewRoutine(c, dev, p.YourIPAddr.To4(), p.IPAddressLeaseTime(time.Hour), detachedNetNSPath)
 	return dev, nil
 }
 
-func dhcpRenewRoutine(c *client4.Client, dev string, initialIP net.IP, lease time.Duration) {
+func dhcpRenewRoutine(c *client4.Client, dev string, initialIP net.IP, lease time.Duration, detachedNetNSPath string) {
 	for {
 		if lease <= 0 {
 			return
 		}
 		logrus.Debugf("DHCP lease=%s, sleeping lease * 0.9", lease)
 		time.Sleep(time.Duration(float64(lease) * 0.9))
-		p, err := exchangeDHCP(c, dev)
+		p, err := exchangeDHCP(c, dev, detachedNetNSPath)
 		if err != nil {
 			panic(err)
 		}
