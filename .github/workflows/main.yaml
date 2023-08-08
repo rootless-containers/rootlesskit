@@ -74,6 +74,10 @@ jobs:
       run: |
           docker run --rm --privileged \
           rootlesskit:test-integration ./benchmark-iperf3-net.sh lxc-user-nic 1500
+    - name: "Benchmark: Network (MTU=1500, network driver=lxc-user-nic) with detach-netns"
+      run: |
+        docker run --rm --privileged \
+        rootlesskit:test-integration ./benchmark-iperf3-net.sh lxc-user-nic 1500 --detach-netns
     - name: "Benchmark: Network (MTU=1500, rootful veth for comparison)"
       run: |
           docker run --rm --privileged \
