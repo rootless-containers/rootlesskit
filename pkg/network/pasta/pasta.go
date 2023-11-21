@@ -159,6 +159,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		logrus.Debugf("killed pasta: %v", wErr)
 		return nil
 	})
+	logrus.Debugf("Executing %v", cmd.Args)
 	if err := cmd.Start(); err != nil {
 		return nil, common.Seq(cleanups), fmt.Errorf("executing %v: %w", cmd, err)
 	}
