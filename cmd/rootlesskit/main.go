@@ -389,7 +389,7 @@ func createParentOpt(clicontext *cli.Context, pipeFDEnvKey, stateDirEnvKey, pare
 			return opt, errors.New("ifname cannot be specified for --net=host")
 		}
 	case "pasta":
-		logrus.Warn("\"pasta\" network driver is experimental. Needs very recent version of pasta (see docs/network.md). No support for forwarding UDP ports (yet).")
+		logrus.Warn("\"pasta\" network driver is experimental. Needs very recent version of pasta (see docs/network.md).")
 		binary := clicontext.String("pasta-binary")
 		if _, err := exec.LookPath(binary); err != nil {
 			return opt, err

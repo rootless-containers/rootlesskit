@@ -131,7 +131,6 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	if d.implicitPortForwarding {
 		opts = append(opts, "--tcp-ports=auto",
 			"--udp-ports=auto")
-		// TCP ports are periodically watched, but UDP ports are not.
 	} else {
 		opts = append(opts, "--tcp-ports=none",
 			"--udp-ports=none")
