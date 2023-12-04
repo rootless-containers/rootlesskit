@@ -131,7 +131,6 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	if d.implicitPortForwarding {
 		opts = append(opts, "--tcp-ports=auto",
 			"--udp-ports=auto")
-		// TCP ports are periodically watched, but UDP ports are not.
 	} else {
 		opts = append(opts, "--tcp-ports=none",
 			"--udp-ports=none")
@@ -159,6 +158,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		logrus.Debugf("killed pasta: %v", wErr)
 		return nil
 	})
+	logrus.Debugf("Executing %v", cmd.Args)
 	if err := cmd.Start(); err != nil {
 		return nil, common.Seq(cleanups), fmt.Errorf("executing %v: %w", cmd, err)
 	}

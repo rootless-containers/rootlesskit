@@ -137,6 +137,14 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh slirp4netns --detach-netns
+    - name: "Benchmark: UDP Ports (network driver=pasta, port driver=implicit)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh implicit --net=pasta
+    - name: "Benchmark: UDP Ports (network driver=pasta, port driver=implicit) with detach-netns"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh implicit --net=pasta --detach-netns
     - name: "Benchmark: UDP Ports (port driver=builtin)"
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
@@ -145,7 +153,7 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh builtin --detach-netns
-# pasta+builtin does not work with UDP yet
+
   test-integration-docker:
     name: "Integration test (Docker)"
     runs-on: ubuntu-latest
