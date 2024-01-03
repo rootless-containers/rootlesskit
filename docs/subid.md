@@ -11,7 +11,7 @@ The `auto` source (`--subid-source=auto`) tries the `dynamic` source and fall ba
 ## Dynamic
 The `dynamic` source (`--subid-source=dynamic`) executes the `/usr/bin/getsubids` binary to get the subids.
 
-The `getsubuids` binary is known to be available for the following distributions:
+The `getsubids` binary is known to be available for the following distributions:
 - Fedora, since 35 (`dnf install shadow-utils-subid`)
 - Alpine, since 3.16 (`apkg install shadow-subids`)
 - Ubuntu, since 22.10 (`apt-get install uidmap`)
