@@ -159,6 +159,19 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 		return nil
 	}
 
+	stateDirResolvConf := filepath.Join(stateDir, "resolv.conf")
+	if err := os.WriteFile(stateDirResolvConf, generateResolvConf(msg.DNS), 0644); err != nil {
+		return fmt.Errorf("writing %s: %w", stateDirResolvConf, err)
+	}
+	hostsContent, err := generateEtcHosts()
+	if err != nil {
+		return err
+	}
+	stateDirHosts := filepath.Join(stateDir, "hosts")
+	if err := os.WriteFile(stateDirHosts, hostsContent, 0644); err != nil {
+		return fmt.Errorf("writing %s: %w", stateDirHosts, err)
+	}
+
 	if detachedNetNSPath == "" {
 		// non-detached mode
 		if err := activateLoopback(); err != nil {
@@ -172,23 +185,26 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 			return err
 		}
 		if etcWasCopied {
-			if err := writeResolvConf(msg.DNS); err != nil {
-				return err
-			}
-			if err := writeEtcHosts(); err != nil {
-				return err
+			// remove copied-up link
+			for _, f := range []string{"/etc/resolv.conf", "/etc/hosts"} {
+				if err := os.RemoveAll(f); err != nil {
+					return fmt.Errorf("failed to remove copied-up link %q: %w", f, err)
+				}
+				if err := os.WriteFile(f, []byte{}, 0644); err != nil {
+					return fmt.Errorf("writing %s: %w", f, err)
+				}
 			}
 		} else {
 			logrus.Warn("Mounting /etc/resolv.conf without copying-up /etc. " +
 				"Note that /etc/resolv.conf in the namespace will be unmounted when it is recreated on the host. " +
 				"Unless /etc/resolv.conf is statically configured, copying-up /etc is highly recommended. " +
 				"Please refer to RootlessKit documentation for further information.")
-			if err := mountResolvConf(stateDir, msg.DNS); err != nil {
-				return err
-			}
-			if err := mountEtcHosts(stateDir); err != nil {
-				return err
-			}
+		}
+		if err := unix.Mount(stateDirResolvConf, "/etc/resolv.conf", "", uintptr(unix.MS_BIND), ""); err != nil {
+			return fmt.Errorf("failed to create bind mount /etc/resolv.conf for %s: %w", stateDirResolvConf, err)
+		}
+		if err := unix.Mount(stateDirHosts, "/etc/hosts", "", uintptr(unix.MS_BIND), ""); err != nil {
+			return fmt.Errorf("failed to create bind mount /etc/hosts for %s: %w", stateDirHosts, err)
 		}
 	} else {
 		// detached mode
@@ -206,7 +222,6 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 		}); err != nil {
 			return err
 		}
-		// TODO: write /etc/resolv.conf and /etc/hosts in a custom directory?
 	}
 	return nil
 }
