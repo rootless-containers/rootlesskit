@@ -62,7 +62,8 @@ FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # busybox: only for debugging purpose
 # sudo: only for lxc-user-nic benchmark and rootful veth benchmark (for comparison)
 # libcap2-bin and curl: used by the RUN instructions in this Dockerfile.
-RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl
+# bind9-dnsutils: for `nslookup` command used by integration-net.sh
+RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl bind9-dnsutils
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \

@@ -153,6 +153,9 @@ func setupCopyDir(driver copyup.ChildDriver, dirs []string) (bool, error) {
 	return false, nil
 }
 
+// setupNet sets up the network driver.
+//
+// NOTE: msg is altered during calling driver.ConfigureNetworkChild
 func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, etcWasCopied bool, driver network.ChildDriver, detachedNetNSPath string) error {
 	// HostNetwork
 	if driver == nil {
@@ -160,9 +163,6 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 	}
 
 	stateDirResolvConf := filepath.Join(stateDir, "resolv.conf")
-	if err := os.WriteFile(stateDirResolvConf, generateResolvConf(msg.DNS), 0644); err != nil {
-		return fmt.Errorf("writing %s: %w", stateDirResolvConf, err)
-	}
 	hostsContent, err := generateEtcHosts()
 	if err != nil {
 		return err
@@ -177,9 +177,12 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 		if err := activateLoopback(); err != nil {
 			return err
 		}
-		dev, err := driver.ConfigureNetworkChild(msg, detachedNetNSPath)
+		dev, err := driver.ConfigureNetworkChild(msg, detachedNetNSPath) // alters msg
 		if err != nil {
 			return err
+		}
+		if err := os.WriteFile(stateDirResolvConf, generateResolvConf(msg.DNS), 0644); err != nil {
+			return fmt.Errorf("writing %s: %w", stateDirResolvConf, err)
 		}
 		if err := activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU); err != nil {
 			return err
@@ -213,9 +216,12 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 		}); err != nil {
 			return err
 		}
-		dev, err := driver.ConfigureNetworkChild(msg, detachedNetNSPath)
+		dev, err := driver.ConfigureNetworkChild(msg, detachedNetNSPath) // alters msg
 		if err != nil {
 			return err
+		}
+		if err := os.WriteFile(stateDirResolvConf, generateResolvConf(msg.DNS), 0644); err != nil {
+			return fmt.Errorf("writing %s: %w", stateDirResolvConf, err)
 		}
 		if err := ns.WithNetNSPath(detachedNetNSPath, func(_ ns.NetNS) error {
 			return activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU)
