@@ -190,6 +190,7 @@ func Parent(opt Opt) error {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", opt.ParentEGIDEnvKey, os.Getegid()))
 	}
 	if err := cmd.Start(); err != nil {
+		warnOnChildStartFailure(err)
 		return fmt.Errorf("failed to start the child: %w", err)
 	}
 

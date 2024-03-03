@@ -1,12 +1,14 @@
 package parent
 
 import (
+	"errors"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/moby/sys/mountinfo"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 func warnPropagation(propagation string) {
@@ -53,6 +55,49 @@ func warnSysctl() {
 			threshold := int64(1024)
 			if i < threshold {
 				logrus.Warnf("/proc/sys/user/max_user_namespaces=%d may be low. Consider setting to >= %d.", i, threshold)
+			}
+		}
+	}
+}
+
+func warnOnChildStartFailure(childStartErr error) {
+	if errors.Is(childStartErr, unix.EACCES) {
+		// apparmor_restrict_unprivileged_userns is available since Ubuntu 23.10.
+		// Enabled by default since Ubuntu 24.04.
+		// https://github.com/containerd/nerdctl/issues/2847
+		b, err := os.ReadFile("/proc/sys/kernel/apparmor_restrict_unprivileged_userns")
+		if err == nil {
+			s := strings.TrimSpace(string(b))
+			i, err := strconv.ParseInt(s, 10, 64)
+			if err != nil {
+				logrus.WithError(err).Warnf("Failed to parse /proc/sys/kernel/apparmor_restrict_unprivileged_userns (%q)", s)
+			} else if i == 1 {
+				logrus.WithError(childStartErr).Warnf("This error might have happened because /proc/sys/kernel/apparmor_restrict_unprivileged_userns is set to 1")
+				selfExe, err := os.Executable()
+				if err != nil {
+					selfExe = "/usr/local/bin/rootlesskit"
+					logrus.WithError(err).Warnf("Failed to detect the path of the rootlesskit binary, assuming it to be %q", selfExe)
+				}
+				profileName := strings.ReplaceAll(strings.TrimPrefix(selfExe, "/"), "/", ".")
+				const tmpl = `
+
+########## BEGIN ##########
+cat <<EOT | sudo tee "/etc/apparmor.d/%s"
+# ref: https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces
+abi <abi/4.0>,
+include <tunables/global>
+
+%s flags=(unconfined) {
+  userns,
+
+  # Site-specific additions and overrides. See local/README for details.
+  include if exists <local/%s>
+}
+EOT
+sudo systemctl restart apparmor.service
+########## END ##########
+`
+				logrus.Warnf("Hint: try running the following commands:\n"+tmpl+"\n", profileName, selfExe, profileName)
 			}
 		}
 	}
