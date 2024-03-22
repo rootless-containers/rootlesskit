@@ -9,6 +9,9 @@ all: $(addprefix bin/, $(BINARIES))
 clean:
 	$(RM) -r bin/ _artifact/
 
+bin/rootlesskit-debug: $(GO_FILES)
+	$(GO) build -o $@ -gcflags="all=-N -l" -v ./cmd/rootlesskit
+
 bin/rootlesskit: $(GO_FILES)
 	$(GO) build -o $@ -v ./cmd/rootlesskit
 

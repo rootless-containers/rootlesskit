@@ -19,6 +19,17 @@ func PrepareTap(childPID int, childNetNsPath string, tap string) error {
 	return nil
 }
 
+func PrepareBridge(childPID int, childNetNsPath string, ifname string, ipnet string, ipgw string) error {
+	cmds := [][]string{
+		nsenter(childPID, childNetNsPath, []string{"ip", "link", "add", ifname, "type", "bridge"}),
+		nsenter(childPID, childNetNsPath, []string{"ip", "link", "set", ifname, "up"}),
+	}
+	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
+		return fmt.Errorf("executing %v: %w", cmds, err)
+	}
+	return nil
+}
+
 func nsenter(childPID int, childNetNsPath string, cmd []string) []string {
 	fullCmd := []string{"nsenter", "-t", strconv.Itoa(childPID)}
 	if childNetNsPath != "" {
