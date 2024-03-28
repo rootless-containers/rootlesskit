@@ -129,7 +129,16 @@ func setupFilesAndEnv(cmd *exec.Cmd, readPipe *os.File, writePipe *os.File, envK
 	// 0 1 and 2  are used for stdin. stdout, and stderr
 	const firstExtraFD = 3
 	systemdActivationFDs := 0
+	// check for systemd socket activation sockets
+	if v := os.Getenv("LISTEN_FDS"); v != "" {
+		if num, err := strconv.Atoi(v); err == nil {
+			systemdActivationFDs = num
+		}
+	}
 	cmd.ExtraFiles = make([]*os.File, systemdActivationFDs + 2)
+	for fd := 0; fd < systemdActivationFDs; fd++ {
+		cmd.ExtraFiles[fd] = os.NewFile(uintptr(firstExtraFD + fd), "")
+	}
 	readIndex := systemdActivationFDs
 	writeIndex := readIndex + 1
 	cmd.ExtraFiles[readIndex] = readPipe
