@@ -126,8 +126,10 @@ func LockStateDir(stateDir string) (*flock.Flock, error) {
 }
 
 func setupFilesAndEnv(cmd *exec.Cmd, readPipe *os.File, writePipe *os.File, envKey string) {
+	// 0 1 and 2  are used for stdin. stdout, and stderr
+	const firstExtraFD = 3
 	cmd.ExtraFiles = []*os.File{readPipe, writePipe}
-	cmd.Env = append(os.Environ(), envKey+"=3,4")
+	cmd.Env = append(os.Environ(), envKey+"="+strconv.Itoa(firstExtraFD)+","+strconv.Itoa(firstExtraFD+1))
 }
 
 func Parent(opt Opt) error {
