@@ -125,6 +125,11 @@ func LockStateDir(stateDir string) (*flock.Flock, error) {
 	return lock, nil
 }
 
+func setupFilesAndEnv(cmd *exec.Cmd, readPipe *os.File, writePipe *os.File, envKey string) {
+	cmd.ExtraFiles = []*os.File{readPipe, writePipe}
+	cmd.Env = append(os.Environ(), envKey+"=3,4")
+}
+
 func Parent(opt Opt) error {
 	if err := checkPreflight(opt); err != nil {
 		return err
@@ -178,8 +183,7 @@ func Parent(opt Opt) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.ExtraFiles = []*os.File{pipeR, pipe2W}
-	cmd.Env = append(os.Environ(), opt.PipeFDEnvKey+"=3,4")
+	setupFilesAndEnv(cmd, pipeR, pipe2W, opt.PipeFDEnvKey)
 	if opt.StateDirEnvKey != "" {
 		cmd.Env = append(cmd.Env, opt.StateDirEnvKey+"="+opt.StateDir)
 	}
