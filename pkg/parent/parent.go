@@ -128,8 +128,9 @@ func LockStateDir(stateDir string) (*flock.Flock, error) {
 func setupFilesAndEnv(cmd *exec.Cmd, readPipe *os.File, writePipe *os.File, envKey string) {
 	// 0 1 and 2  are used for stdin. stdout, and stderr
 	const firstExtraFD = 3
-	cmd.ExtraFiles = make([]*os.File, 2)
-	readIndex := 0
+	systemdActivationFDs := 0
+	cmd.ExtraFiles = make([]*os.File, systemdActivationFDs + 2)
+	readIndex := systemdActivationFDs
 	writeIndex := readIndex + 1
 	cmd.ExtraFiles[readIndex] = readPipe
 	cmd.ExtraFiles[writeIndex] = writePipe
