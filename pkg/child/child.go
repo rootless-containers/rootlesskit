@@ -34,6 +34,23 @@ var propagationStates = map[string]uintptr{
 	"rslave":   uintptr(unix.MS_REC | unix.MS_SLAVE),
 }
 
+func setupFiles(cmd *exec.Cmd) {
+	// 0 1 and 2  are used for stdin. stdout, and stderr
+	const firstExtraFD = 3
+	systemdActivationFDs := 0
+	// check for systemd socket activation sockets
+	if v := os.Getenv("LISTEN_FDS"); v != "" {
+		if num, err := strconv.Atoi(v); err == nil {
+			systemdActivationFDs = num
+			cmd.ExtraFiles = make([]*os.File, systemdActivationFDs)
+		}
+	}
+	for fd := 0; fd < systemdActivationFDs; fd++ {
+		cmd.ExtraFiles[fd] = os.NewFile(uintptr(firstExtraFD + fd), "")
+	}
+}
+
+
 func createCmd(targetCmd []string) (*exec.Cmd, error) {
 	var args []string
 	if len(targetCmd) > 1 {
@@ -47,6 +64,7 @@ func createCmd(targetCmd []string) (*exec.Cmd, error) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
+	setupFiles(cmd)
 	return cmd, nil
 }
 

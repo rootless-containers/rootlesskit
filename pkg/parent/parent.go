@@ -125,6 +125,27 @@ func LockStateDir(stateDir string) (*flock.Flock, error) {
 	return lock, nil
 }
 
+func setupFilesAndEnv(cmd *exec.Cmd, readPipe *os.File, writePipe *os.File, envKey string) {
+	// 0 1 and 2  are used for stdin. stdout, and stderr
+	const firstExtraFD = 3
+	systemdActivationFDs := 0
+	// check for systemd socket activation sockets
+	if v := os.Getenv("LISTEN_FDS"); v != "" {
+		if num, err := strconv.Atoi(v); err == nil {
+			systemdActivationFDs = num
+		}
+	}
+	cmd.ExtraFiles = make([]*os.File, systemdActivationFDs + 2)
+	for fd := 0; fd < systemdActivationFDs; fd++ {
+		cmd.ExtraFiles[fd] = os.NewFile(uintptr(firstExtraFD + fd), "")
+	}
+	readIndex := systemdActivationFDs
+	writeIndex := readIndex + 1
+	cmd.ExtraFiles[readIndex] = readPipe
+	cmd.ExtraFiles[writeIndex] = writePipe
+	cmd.Env = append(os.Environ(), envKey+"="+strconv.Itoa(firstExtraFD+readIndex)+","+strconv.Itoa(firstExtraFD+writeIndex))
+}
+
 func Parent(opt Opt) error {
 	if err := checkPreflight(opt); err != nil {
 		return err
@@ -178,8 +199,7 @@ func Parent(opt Opt) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.ExtraFiles = []*os.File{pipeR, pipe2W}
-	cmd.Env = append(os.Environ(), opt.PipeFDEnvKey+"=3,4")
+	setupFilesAndEnv(cmd, pipeR, pipe2W, opt.PipeFDEnvKey)
 	if opt.StateDirEnvKey != "" {
 		cmd.Env = append(cmd.Env, opt.StateDirEnvKey+"="+opt.StateDir)
 	}
