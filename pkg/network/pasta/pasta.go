@@ -169,13 +169,13 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	netmsg.IP = address.String()
 	netmsg.Netmask = netmask
 	netmsg.Gateway = gateway.String()
-	netmsg.DNS = dns.String()
+	netmsg.DNS = []string{dns.String()}
 
 	d.infoMu.Lock()
 	d.info = func() *api.NetworkDriverInfo {
 		return &api.NetworkDriverInfo{
 			Driver:         DriverName,
-			DNS:            []net.IP{net.ParseIP(netmsg.DNS)},
+			DNS:            []net.IP{net.ParseIP(netmsg.DNS[0])},
 			ChildIP:        net.ParseIP(netmsg.IP),
 			DynamicChildIP: false,
 		}

@@ -184,7 +184,7 @@ func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDr
 	netmask, _ := p.SubnetMask().Size()
 	netmsg.Netmask = netmask
 	netmsg.Gateway = p.Router()[0].To4().String()
-	netmsg.DNS = p.DNS()[0].To4().String()
+	netmsg.DNS = []string{p.DNS()[0].To4().String()}
 	go dhcpRenewRoutine(c, dev, p.YourIPAddr.To4(), p.IPAddressLeaseTime(time.Hour), detachedNetNSPath)
 	return dev, nil
 }

@@ -243,6 +243,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	}
 	netmsg := messages.ParentInitNetworkDriverCompleted{
 		Dev: tap,
+		DNS: make([]string, 0, 2),
 		MTU: d.mtu,
 	}
 	if d.ipnet != nil {
@@ -262,19 +263,24 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		if err != nil {
 			return nil, common.Seq(cleanups), err
 		}
-		netmsg.DNS = x.String()
+		netmsg.DNS = append(netmsg.DNS, x.String())
 	} else {
 		netmsg.IP = "10.0.2.100"
 		netmsg.Netmask = 24
 		netmsg.Gateway = "10.0.2.2"
-		netmsg.DNS = "10.0.2.3"
+		netmsg.DNS = append(netmsg.DNS, "10.0.2.3")
+	}
+
+	apiDNS := make([]net.IP, 0, cap(netmsg.DNS))
+	for _, nameserver := range netmsg.DNS {
+		apiDNS = append(apiDNS, net.ParseIP(nameserver))
 	}
 
 	d.infoMu.Lock()
 	d.info = func() *api.NetworkDriverInfo {
 		return &api.NetworkDriverInfo{
 			Driver:         DriverName,
-			DNS:            []net.IP{net.ParseIP(netmsg.DNS)},
+			DNS:            apiDNS,
 			ChildIP:        net.ParseIP(netmsg.IP),
 			DynamicChildIP: false,
 		}

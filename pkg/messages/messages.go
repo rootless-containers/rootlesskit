@@ -59,7 +59,7 @@ type ParentInitNetworkDriverCompleted struct {
 	IP      string
 	Netmask int
 	Gateway string
-	DNS     string
+	DNS     []string
 	MTU     int
 	// NetworkDriverOpaque strings are specific to driver
 	NetworkDriverOpaque map[string]string
