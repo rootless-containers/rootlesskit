@@ -271,6 +271,12 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		netmsg.DNS = append(netmsg.DNS, "10.0.2.3")
 	}
 
+	if d.enableIPv6 {
+		// for now slirp4netns only supports fd00::3 as v6 nameserver
+		// https://github.com/rootless-containers/slirp4netns/blob/ee1542e1532e6a7f266b8b6118973ab3b10a8bb5/slirp4netns.c#L272
+		netmsg.DNS = append(netmsg.DNS, "fd00::3")
+	}
+
 	apiDNS := make([]net.IP, 0, cap(netmsg.DNS))
 	for _, nameserver := range netmsg.DNS {
 		apiDNS = append(apiDNS, net.ParseIP(nameserver))
