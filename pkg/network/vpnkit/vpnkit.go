@@ -127,7 +127,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		IP:      vif.IP.String(),
 		Netmask: 24,
 		Gateway: "192.168.65.1",
-		DNS:     "192.168.65.1",
+		DNS:     []string{"192.168.65.1"},
 		MTU:     d.mtu,
 		NetworkDriverOpaque: map[string]string{
 			opaqueMAC:    vif.ClientMAC.String(),
@@ -139,7 +139,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	d.info = func() *api.NetworkDriverInfo {
 		return &api.NetworkDriverInfo{
 			Driver:         DriverName,
-			DNS:            []net.IP{net.ParseIP(netmsg.DNS)},
+			DNS:            []net.IP{net.ParseIP(netmsg.DNS[0])},
 			ChildIP:        net.ParseIP(netmsg.IP),
 			DynamicChildIP: false,
 		}
