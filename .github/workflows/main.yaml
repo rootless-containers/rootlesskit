@@ -39,6 +39,8 @@ jobs:
       run: docker run --rm --net=host --privileged rootlesskit:test-integration ./integration-port.sh
     - name: "Integration test: IPv6 routing"
       run: docker run  --rm --privileged --sysctl net.ipv6.conf.all.disable_ipv6=0 rootlesskit:test-integration ./integration-ipv6.sh
+    - name: "Integration test: systemd socket activation"
+      run: docker run --rm --net=none --privileged rootlesskit:test-integration ./integration-systemd-socket.sh
     - name: "Integration test: Network (network driver=slirp4netns)"
       run: |
         docker run --rm --privileged rootlesskit:test-integration ./integration-net.sh slirp4netns

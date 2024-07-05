@@ -51,16 +51,29 @@ func setupFiles(cmd *exec.Cmd) {
 }
 
 
-func createCmd(targetCmd []string) (*exec.Cmd, error) {
-	var args []string
-	if len(targetCmd) > 1 {
-		args = targetCmd[1:]
-	}
-	cmd := exec.Command(targetCmd[0], args...)
+func createCmd(opt Opt) (*exec.Cmd, error) {
+    fixListenPidEnv, err := strconv.ParseBool(os.Getenv(opt.ChildUseActivationEnvKey))
+    if err != nil {
+      fixListenPidEnv = false
+    }
+    os.Unsetenv(opt.ChildUseActivationEnvKey)
+    targetCmd := opt.TargetCmd
+    var cmd *exec.Cmd
+    cmdEnv := os.Environ()
+    if fixListenPidEnv {
+      cmd = exec.Command("/proc/self/exe", os.Args[1:]...)
+      cmdEnv = append(cmdEnv, opt.RunActivationHelperEnvKey + "=true")
+    } else {
+      var args []string
+      if len(targetCmd) > 1 {
+      		args = targetCmd[1:]
+      }
+      cmd = exec.Command(targetCmd[0], args...)
+    }
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = os.Environ()
+	cmd.Env = cmdEnv
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig: syscall.SIGKILL,
 	}
@@ -252,6 +265,8 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 
 type Opt struct {
 	PipeFDEnvKey    string              // needs to be set
+	RunActivationHelperEnvKey string    // needs to be set
+	ChildUseActivationEnvKey string     // needs to be set
 	StateDirEnvKey  string              // needs to be set
 	TargetCmd       []string            // needs to be set
 	NetworkDriver   network.ChildDriver // nil for HostNetwork
@@ -458,7 +473,7 @@ func Child(opt Opt) error {
 		}()
 	}
 
-	cmd, err := createCmd(opt.TargetCmd)
+	cmd, err := createCmd(opt)
 	if err != nil {
 		return err
 	}

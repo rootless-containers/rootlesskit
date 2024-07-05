@@ -30,6 +30,7 @@ import (
 
 type Opt struct {
 	PipeFDEnvKey     string               // needs to be set
+	ChildUseActivationEnvKey string       // needs to be set
 	StateDir         string               // directory needs to be precreated
 	StateDirEnvKey   string               // optional env key to propagate StateDir value
 	NetworkDriver    network.ParentDriver // nil for HostNetwork
@@ -125,25 +126,26 @@ func LockStateDir(stateDir string) (*flock.Flock, error) {
 	return lock, nil
 }
 
-func setupFilesAndEnv(cmd *exec.Cmd, readPipe *os.File, writePipe *os.File, envKey string) {
+func setupFilesAndEnv(readPipe *os.File, writePipe *os.File, opt Opt) ([]*os.File, []string) {
 	// 0 1 and 2  are used for stdin. stdout, and stderr
-	const firstExtraFD = 3
-	systemdActivationFDs := 0
-	// check for systemd socket activation sockets
-	if v := os.Getenv("LISTEN_FDS"); v != "" {
-		if num, err := strconv.Atoi(v); err == nil {
-			systemdActivationFDs = num
-		}
+	const listenFdsStart = 3
+	listenPid, listenPidErr := strconv.Atoi(os.Getenv("LISTEN_PID"))
+	listenFds, listenFdsErr := strconv.Atoi(os.Getenv("LISTEN_FDS"))
+	useSystemdSocketFDs := listenPidErr == nil && listenFdsErr == nil && listenFds > 0
+	if !useSystemdSocketFDs {
+	  listenFds = 0
 	}
-	cmd.ExtraFiles = make([]*os.File, systemdActivationFDs + 2)
-	for fd := 0; fd < systemdActivationFDs; fd++ {
-		cmd.ExtraFiles[fd] = os.NewFile(uintptr(firstExtraFD + fd), "")
+	extraFiles := make([]*os.File, listenFds + 2)
+	for i, fd := 0, listenFdsStart; i < listenFds; i, fd = i + 1, fd + 1 {
+      name := "LISTEN_FD_" + strconv.Itoa(fd)
+      extraFiles[i] = os.NewFile(uintptr(fd), name)
 	}
-	readIndex := systemdActivationFDs
-	writeIndex := readIndex + 1
-	cmd.ExtraFiles[readIndex] = readPipe
-	cmd.ExtraFiles[writeIndex] = writePipe
-	cmd.Env = append(os.Environ(), envKey+"="+strconv.Itoa(firstExtraFD+readIndex)+","+strconv.Itoa(firstExtraFD+writeIndex))
+	extraFiles[listenFds] = readPipe
+	extraFiles[listenFds + 1] = writePipe
+	cmdEnv := os.Environ()
+	cmdEnv = append(cmdEnv, opt.PipeFDEnvKey + "=" + strconv.Itoa(listenFdsStart + listenFds) + "," + strconv.Itoa(listenFdsStart + listenFds + 1))
+	cmdEnv = append(cmdEnv, opt.ChildUseActivationEnvKey + "=" + strconv.FormatBool(listenPid == os.Getpid()))
+	return extraFiles, cmdEnv
 }
 
 func Parent(opt Opt) error {
@@ -199,7 +201,7 @@ func Parent(opt Opt) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	setupFilesAndEnv(cmd, pipeR, pipe2W, opt.PipeFDEnvKey)
+	cmd.ExtraFiles, cmd.Env = setupFilesAndEnv(pipeR, pipe2W, opt)
 	if opt.StateDirEnvKey != "" {
 		cmd.Env = append(cmd.Env, opt.StateDirEnvKey+"="+opt.StateDir)
 	}
