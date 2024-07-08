@@ -14,7 +14,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.27.2
-	golang.org/x/sys v0.21.0
+	golang.org/x/sys v0.22.0
 	gotest.tools/v3 v3.5.1
 )
 
