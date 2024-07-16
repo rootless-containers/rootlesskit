@@ -3,27 +3,38 @@ on: [push, pull_request]
 jobs:
   test-unit:
     name: "Unit test"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
     - name: "Check out"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: "Build unit test image"
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-unit --target test-unit .
     - name: "Unit test"
       run: docker run --rm --privileged rootlesskit:test-unit
   test-cross:
     name: "Cross compilation test"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - name: "Build binaries"
       run: DOCKER_BUILDKIT=1 docker build -o /tmp/artifact --target cross-artifact .
   test-integration:
     name: "Integration test"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
+    - name: "Set up AppArmor"
+      run: |
+        cat <<EOT | sudo tee "/etc/apparmor.d/home.user.bin.rootlesskit"
+        abi <abi/4.0>,
+        include <tunables/global>
+
+        /home/user/bin/rootlesskit flags=(unconfined) {
+          userns,
+        }
+        EOT
+        sudo systemctl restart apparmor.service
     - name: "Check out"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: "Build integration test image"
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration --target test-integration .
     - name: "Integration test: exit-code"
@@ -174,10 +185,21 @@ jobs:
 
   test-integration-docker:
     name: "Integration test (Docker)"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
+    - name: "Set up AppArmor"
+      run: |
+        cat <<EOT | sudo tee "/etc/apparmor.d/home.user.bin.rootlesskit"
+        abi <abi/4.0>,
+        include <tunables/global>
+
+        /home/user/bin/rootlesskit flags=(unconfined) {
+          userns,
+        }
+        EOT
+        sudo systemctl restart apparmor.service
     - name: "Check out"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: "Build integration test image"
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker .
     - name: "Create a custom network to avoid IP confusion"
