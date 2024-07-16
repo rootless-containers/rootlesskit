@@ -1,11 +1,11 @@
 module github.com/rootless-containers/rootlesskit/v2
 
-go 1.19
+go 1.21.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/containernetworking/plugins v1.5.1
-	github.com/gofrs/flock v0.8.1
+	github.com/gofrs/flock v0.12.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/insomniacslk/dhcp v0.0.0-20230516061539-49801966e6cb
