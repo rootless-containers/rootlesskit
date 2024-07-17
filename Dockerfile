@@ -1,10 +1,10 @@
 ARG GO_VERSION=1.22
-ARG UBUNTU_VERSION=22.04
-ARG SHADOW_VERSION=4.13
+ARG UBUNTU_VERSION=24.04
+ARG SHADOW_VERSION=4.16.0
 ARG SLIRP4NETNS_VERSION=v1.3.1
 ARG VPNKIT_VERSION=0.5.0
-ARG PASST_VERSION=2023_12_30.f091893
-ARG DOCKER_VERSION=25.0.2
+ARG PASST_VERSION=2024_06_24.1ee2eca
+ARG DOCKER_VERSION=27.0.3
 ARG DOCKER_CHANNEL=stable
 
 FROM golang:${GO_VERSION}-alpine AS build
@@ -35,7 +35,7 @@ CMD ["go","test","-v","-race","github.com/rootless-containers/rootlesskit/..."]
 # idmap runnable without --privileged (but still requires seccomp=unconfined apparmor=unconfined)
 FROM ubuntu:${UBUNTU_VERSION} AS idmap
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y automake autopoint bison gettext git gcc libcap-dev libtool make
+RUN apt-get update && apt-get install -y automake autopoint bison gettext git gcc libbsd-dev libcap-dev libtool make pkg-config
 RUN git clone https://github.com/shadow-maint/shadow.git /shadow
 WORKDIR /shadow
 ARG SHADOW_VERSION
@@ -64,13 +64,14 @@ FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # libcap2-bin and curl: used by the RUN instructions in this Dockerfile.
 # bind9-dnsutils: for `nslookup` command used by integration-net.sh
 # systemd and uuid-runtime: for systemd-socket-activate used by integration-systemd-socket.sh
-RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl bind9-dnsutils systemd uuid-runtime
+# iptables: for Docker
+RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl bind9-dnsutils systemd uuid-runtime iptables
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \
   /sbin/setcap cap_setgid+eip /usr/bin/newgidmap && \
-  useradd --create-home --home-dir /home/user --uid 1000 user && \
-  mkdir -p /run/user/1000 /etc/lxc && \
+  useradd --create-home --home-dir /home/user --uid 2000 user && \
+  mkdir -p /run/user/2000 /etc/lxc && \
   echo "user veth lxcbr0 32" > /etc/lxc/lxc-usernet && \
   echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user
 COPY --from=artifact /rootlesskit /home/user/bin/
@@ -81,11 +82,11 @@ RUN curl -sSL -o /home/user/bin/slirp4netns https://github.com/rootless-containe
 COPY --from=vpnkit /vpnkit /home/user/bin/vpnkit
 COPY --from=passt /usr/local /usr/local
 ADD ./hack /home/user/hack
-RUN chown -R user:user /run/user/1000 /home/user
+RUN chown -R user:user /run/user/2000 /home/user
 USER user
 ENV HOME /home/user
 ENV USER user
-ENV XDG_RUNTIME_DIR=/run/user/1000
+ENV XDG_RUNTIME_DIR=/run/user/2000
 ENV PATH /home/user/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ENV LD_LIBRARY_PATH=/home/user/lib
 WORKDIR /home/user/hack
@@ -99,7 +100,7 @@ RUN curl -fsSL -o /home/user/bin/dockerd-rootless.sh https://raw.githubuserconte
   chmod +x /home/user/bin/dockerd-rootless.sh
 ENV DOCKERD_ROOTLESS_ROOTLESSKIT_NET=slirp4netns
 ENV DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=builtin
-ENV DOCKER_HOST=unix:///run/user/1000/docker.sock
+ENV DOCKER_HOST=unix:///run/user/2000/docker.sock
 RUN mkdir -p /home/user/.local
 VOLUME /home/user/.local
 CMD ["dockerd-rootless.sh"]

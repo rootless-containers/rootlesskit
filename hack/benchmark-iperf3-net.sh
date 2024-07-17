@@ -42,7 +42,7 @@ function benchmark::iperf3::lxc-user-nic() {
 	dev=lxcbr0
 	set -x
 	# ignore "lxc-net is already running" error
-	sudo /usr/lib/$(uname -m)-linux-gnu/lxc/lxc-net start || true
+	sudo /usr/lib/$(uname -m)-linux-gnu/lxc/lxc-net start || sudo /etc/init.d/lxc-net start || true
 	ip=$(ip -4 -o addr show $dev | awk '{print $4}' | cut -d "/" -f 1)
 	$ROOTLESSKIT --state-dir=$statedir --net=lxc-user-nic $@ -- $IPERF3C $ip
 	set +x
