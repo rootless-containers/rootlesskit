@@ -111,7 +111,6 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	}
 
 	opts := []string{
-		"--foreground",
 		"--stderr",
 		"--ns-ifname=" + d.ifname,
 		"--mtu=" + strconv.Itoa(d.mtu),
@@ -147,21 +146,18 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	// `Couldn't open user namespace /proc/51813/ns/user: Permission denied`
 	// Possibly related to AppArmor.
 	cmd := exec.Command(d.binary, opts...)
-	cmd.Stdout = d.logWriter
-	cmd.Stderr = d.logWriter
-	cleanups = append(cleanups, func() error {
-		logrus.Debugf("killing pasta")
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-		wErr := cmd.Wait()
-		logrus.Debugf("killed pasta: %v", wErr)
-		return nil
-	})
 	logrus.Debugf("Executing %v", cmd.Args)
-	if err := cmd.Start(); err != nil {
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return nil, common.Seq(cleanups),
+			       fmt.Errorf("pasta failed with exit code %d:\n%s",
+					  exitErr.ExitCode(), string(out))
+		}
 		return nil, common.Seq(cleanups), fmt.Errorf("executing %v: %w", cmd, err)
 	}
+
 	netmsg := messages.ParentInitNetworkDriverCompleted{
 		Dev: tap,
 		MTU: d.mtu,
