@@ -137,9 +137,14 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 			"--netns="+detachedNetNSPath)
 	}
 
-	// FIXME: Doesn't work with passt_0.0~git20230216.4663ccc-1_amd64.deb (Ubuntu 23.04)
-	// `Couldn't open user namespace /proc/51813/ns/user: Permission denied`
-	// Possibly related to AppArmor.
+	// FIXME: Doesn't work with:
+	// - passt-0.0~git20230627.289301b-1 (Ubuntu 23.10)
+	// - passt-0.0~git20240220.1e6f92b-1 (Ubuntu 24.04)
+	// see https://bugs.launchpad.net/ubuntu/+source/passt/+bug/2077158
+	//
+	// Workaround: set the kernel.apparmor_restrict_unprivileged_userns
+	// sysctl to 0, or (preferred) add the AppArmor profile from upstream,
+	// or from Debian packages, or from Ubuntu > 24.10.
 	cmd := exec.Command(d.binary, opts...)
 	logrus.Debugf("Executing %v", cmd.Args)
 	out, err := cmd.CombinedOutput()
