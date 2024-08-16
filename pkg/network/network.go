@@ -17,6 +17,10 @@ type ParentDriver interface {
 	ConfigureNetwork(childPID int, stateDir, detachedNetNSPath string) (netmsg *messages.ParentInitNetworkDriverCompleted, cleanup func() error, err error)
 }
 
+type ChildDriverInfo struct {
+	ConfiguresInterface bool // Driver configures own namespace interface
+}
+
 // ChildDriver is called from the child namespace
 type ChildDriver interface {
 	// ConfigureNetworkChild is executed in the child's namespaces, excluding detached-netns.
@@ -24,4 +28,6 @@ type ChildDriver interface {
 	// netmsg MAY be modified.
 	// devName is like "tap" or "eth0"
 	ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted, detachedNetNSPath string) (devName string, err error)
+
+	ChildDriverInfo() (*ChildDriverInfo, error)
 }

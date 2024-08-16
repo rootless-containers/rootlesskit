@@ -172,6 +172,12 @@ func NewChildDriver() network.ChildDriver {
 type childDriver struct {
 }
 
+func (d *childDriver) ChildDriverInfo() (*network.ChildDriverInfo, error) {
+	return &network.ChildDriverInfo {
+		ConfiguresInterface: false,
+	}, nil
+}
+
 func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted, detachedNetNSPath string) (tap string, err error) {
 	tapName := netmsg.Dev
 	if tapName == "" {

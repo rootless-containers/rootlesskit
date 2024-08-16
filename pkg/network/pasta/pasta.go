@@ -17,7 +17,6 @@ import (
 	"github.com/rootless-containers/rootlesskit/v2/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/iputils"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/network/parentutils"
 )
 
 // NewParentDriver instantiates new parent driver.
@@ -92,9 +91,6 @@ func (d *parentDriver) MTU() int {
 func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPath string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
 	tap := d.ifname
 	var cleanups []func() error
-	if err := parentutils.PrepareTap(childPID, detachedNetNSPath, tap); err != nil {
-		return nil, common.Seq(cleanups), fmt.Errorf("setting up tap %s: %w", tap, err)
-	}
 
 	address, err := iputils.AddIPInt(d.ipnet.IP, 100)
 	if err != nil {
@@ -114,8 +110,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		"--stderr",
 		"--ns-ifname=" + d.ifname,
 		"--mtu=" + strconv.Itoa(d.mtu),
-		"--no-dhcp",
-		"--no-ra",
+		"--config-net",
 		"--address=" + address.String(),
 		"--netmask=" + strconv.Itoa(netmask),
 		"--gateway=" + gateway.String(),
@@ -185,6 +180,12 @@ func NewChildDriver() network.ChildDriver {
 }
 
 type childDriver struct {
+}
+
+func (d *childDriver) ChildDriverInfo() (*network.ChildDriverInfo, error) {
+	return &network.ChildDriverInfo {
+		ConfiguresInterface: true,
+	}, nil
 }
 
 func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted, detachedNetNSPath string) (string, error) {

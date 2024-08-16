@@ -215,8 +215,11 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 		if err := os.WriteFile(stateDirResolvConf, generateResolvConf(msg.DNS), 0644); err != nil {
 			return fmt.Errorf("writing %s: %w", stateDirResolvConf, err)
 		}
-		if err := activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU); err != nil {
-			return err
+		Info, _ := driver.ChildDriverInfo()
+		if !Info.ConfiguresInterface {
+			if err := activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU); err != nil {
+				return err
+			}
 		}
 		if etcWasCopied {
 			// remove copied-up link
@@ -255,7 +258,11 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 			return fmt.Errorf("writing %s: %w", stateDirResolvConf, err)
 		}
 		if err := ns.WithNetNSPath(detachedNetNSPath, func(_ ns.NetNS) error {
-			return activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU)
+			Info, _ := driver.ChildDriverInfo()
+			if !Info.ConfiguresInterface {
+				return activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU)
+			}
+			return nil
 		}); err != nil {
 			return err
 		}
