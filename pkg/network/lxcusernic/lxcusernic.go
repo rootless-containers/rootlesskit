@@ -148,6 +148,12 @@ func exchangeDHCP(c *client4.Client, dev string, detachedNetNSPath string) (*dhc
 	return ack, nil
 }
 
+func (d *childDriver) ChildDriverInfo() (*network.ChildDriverInfo, error) {
+	return &network.ChildDriverInfo {
+		ConfiguresInterface: false,
+	}, nil
+}
+
 func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted, detachedNetNSPath string) (string, error) {
 	dev := netmsg.Dev
 	if dev == "" {

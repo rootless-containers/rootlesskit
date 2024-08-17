@@ -17,7 +17,6 @@ import (
 	"github.com/rootless-containers/rootlesskit/v2/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/iputils"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/network/parentutils"
 )
 
 // NewParentDriver instantiates new parent driver.
@@ -92,9 +91,6 @@ func (d *parentDriver) MTU() int {
 func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPath string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
 	tap := d.ifname
 	var cleanups []func() error
-	if err := parentutils.PrepareTap(childPID, detachedNetNSPath, tap); err != nil {
-		return nil, common.Seq(cleanups), fmt.Errorf("setting up tap %s: %w", tap, err)
-	}
 
 	address, err := iputils.AddIPInt(d.ipnet.IP, 100)
 	if err != nil {
@@ -111,12 +107,10 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	}
 
 	opts := []string{
-		"--foreground",
 		"--stderr",
 		"--ns-ifname=" + d.ifname,
 		"--mtu=" + strconv.Itoa(d.mtu),
-		"--no-dhcp",
-		"--no-ra",
+		"--config-net",
 		"--address=" + address.String(),
 		"--netmask=" + strconv.Itoa(netmask),
 		"--gateway=" + gateway.String(),
@@ -147,21 +141,18 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	// `Couldn't open user namespace /proc/51813/ns/user: Permission denied`
 	// Possibly related to AppArmor.
 	cmd := exec.Command(d.binary, opts...)
-	cmd.Stdout = d.logWriter
-	cmd.Stderr = d.logWriter
-	cleanups = append(cleanups, func() error {
-		logrus.Debugf("killing pasta")
-		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
-		}
-		wErr := cmd.Wait()
-		logrus.Debugf("killed pasta: %v", wErr)
-		return nil
-	})
 	logrus.Debugf("Executing %v", cmd.Args)
-	if err := cmd.Start(); err != nil {
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		exitErr := &exec.ExitError{}
+		if errors.As(err, &exitErr) {
+			return nil, common.Seq(cleanups),
+			       fmt.Errorf("pasta failed with exit code %d:\n%s",
+					  exitErr.ExitCode(), string(out))
+		}
 		return nil, common.Seq(cleanups), fmt.Errorf("executing %v: %w", cmd, err)
 	}
+
 	netmsg := messages.ParentInitNetworkDriverCompleted{
 		Dev: tap,
 		MTU: d.mtu,
@@ -189,6 +180,12 @@ func NewChildDriver() network.ChildDriver {
 }
 
 type childDriver struct {
+}
+
+func (d *childDriver) ChildDriverInfo() (*network.ChildDriverInfo, error) {
+	return &network.ChildDriverInfo {
+		ConfiguresInterface: true,
+	}, nil
 }
 
 func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted, detachedNetNSPath string) (string, error) {
