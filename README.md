@@ -67,7 +67,7 @@ Run `make && sudo make install` .
 The following binaries will be installed:
 - `/usr/local/bin/rootlesskit`
 - `/usr/local/bin/rootlessctl`
-- `/usr/local/bin/rootlesskit-docker-proxy` (Can be safely removed if you do not use Docker)
+- `/usr/local/bin/rootlesskit-docker-proxy` (DEPRECATED; Only required for Docker prior to [v28](https://github.com/moby/moby/pull/48132/commits/dac7ffa3404138a4f291c16586e5a2c68dad4151))
 
 ### Requirements
 
