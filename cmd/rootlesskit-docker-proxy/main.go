@@ -1,3 +1,12 @@
+// Package main provides the `rootlesskit-docker-proxy` binary (DEPRECATED)
+// that was used by Docker prior to v28 for supporting rootless mode.
+//
+// The rootlesskit-docker-proxy binary is no longer needed since Docker v28,
+// as the functionality of rootlesskit-docker-proxy is now provided by dockerd itself.
+//
+// https://github.com/moby/moby/pull/48132/commits/dac7ffa3404138a4f291c16586e5a2c68dad4151
+//
+// rootlesskit-docker-proxy will be removed in RootlessKit v3.
 package main
 
 import (
