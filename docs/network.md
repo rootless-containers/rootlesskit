@@ -147,9 +147,6 @@ If `--disable-host-loopback` is not specified, ports listening on 127.0.0.1 in t
 > **Note**
 > `--net=pasta` needs [pasta (passt)](https://passt.top/passt/) `2023_06_25.32660ce` or later.
 > Using `2023_12_04.b86afe3` or later is highly recommended.
->
-> Depending on the version of pasta and the host operating system,
-> running `sudo apparmor_parser -R /etc/apparmor.d/usr.bin.passt` might be needed too.
 
 Pros:
 * Possible to perform network-namespaced operations, e.g. creating iptables rules, running `tcpdump`
