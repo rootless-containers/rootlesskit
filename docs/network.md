@@ -147,6 +147,18 @@ If `--disable-host-loopback` is not specified, ports listening on 127.0.0.1 in t
 > **Note**
 > `--net=pasta` needs [pasta (passt)](https://passt.top/passt/) `2023_06_25.32660ce` or later.
 > Using `2023_12_04.b86afe3` or later is highly recommended.
+>
+> Currently, this doesn't work with some Ubuntu versions of the passt
+> package:
+> - `passt-0.0~git20230627.289301b-1` (Ubuntu 23.10)
+> - `passt-0.0~git20240220.1e6f92b-1` (Ubuntu 24.04)
+> due to a missing `usr.bin.pasta` AppArmor profile, see:
+> https://bugs.launchpad.net/ubuntu/+source/passt/+bug/2077158
+>
+> Workaround: set the `kernel.apparmor_restrict_unprivileged_userns`
+> sysctl to `0`, or (preferred) add the AppArmor profile from
+> upstream, or from Debian packages, or from Ubuntu > 24.10.
+
 
 Pros:
 * Possible to perform network-namespaced operations, e.g. creating iptables rules, running `tcpdump`
