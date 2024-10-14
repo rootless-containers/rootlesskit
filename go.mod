@@ -13,13 +13,13 @@ require (
 	github.com/moby/vpnkit v0.5.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
-	github.com/urfave/cli/v2 v2.27.4
+	github.com/urfave/cli/v2 v2.27.5
 	golang.org/x/sys v0.25.0
 	gotest.tools/v3 v3.5.1
 )
 
 require (
-	github.com/cpuguy83/go-md2man/v2 v2.0.4 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.5 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
