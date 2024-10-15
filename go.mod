@@ -1,20 +1,21 @@
 module github.com/rootless-containers/rootlesskit/v2
 
 go 1.21.0
+toolchain go1.23.2
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.0
-	github.com/containernetworking/plugins v1.5.1
+	github.com/containernetworking/plugins v1.6.0
 	github.com/gofrs/flock v0.12.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/insomniacslk/dhcp v0.0.0-20240812123929-b105c29bd1b5
+	github.com/insomniacslk/dhcp v0.0.0-20240829085014-a3a4c1f04475
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/moby/vpnkit v0.5.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.27.4
-	golang.org/x/sys v0.25.0
+	golang.org/x/sys v0.26.0
 	gotest.tools/v3 v3.5.1
 )
 
