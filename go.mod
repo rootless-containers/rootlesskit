@@ -1,10 +1,10 @@
 module github.com/rootless-containers/rootlesskit/v2
 
-go 1.21.0
+go 1.23
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/containernetworking/plugins v1.5.1
+	github.com/containernetworking/plugins v1.6.2
 	github.com/gofrs/flock v0.12.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
