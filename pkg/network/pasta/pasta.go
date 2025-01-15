@@ -19,6 +19,36 @@ import (
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/iputils"
 )
 
+type Features struct {
+	// Has `--host-lo-to-ns-lo` (introduced in passt 2024_10_30.ee7d0b6)
+	// https://passt.top/passt/commit/?id=b4dace8f462b346ae2135af1f8d681a99a849a5f
+	HasHostLoToNsLo bool
+}
+
+func DetectFeatures(binary string) (*Features, error) {
+	if binary == "" {
+		return nil, errors.New("got empty pasta binary")
+	}
+	realBinary, err := exec.LookPath(binary)
+	if err != nil {
+		return nil, fmt.Errorf("pasta binary %q is not installed: %w", binary, err)
+	}
+	cmd := exec.Command(realBinary, "--version")
+	b, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf(`command "%s --version" failed, make sure pasta is installed: %q: %w`,
+			realBinary, string(b), err)
+	}
+	f := Features{
+		HasHostLoToNsLo: false,
+	}
+	cmd = exec.Command(realBinary, "--host-lo-to-ns-lo", "--version")
+	if cmd.Run() == nil {
+		f.HasHostLoToNsLo = true
+	}
+	return &f, nil
+}
+
 // NewParentDriver instantiates new parent driver.
 func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPNet, ifname string,
 	disableHostLoopback, enableIPv6, implicitPortForwarding bool) (network.ParentDriver, error) {
@@ -44,6 +74,11 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 		ifname = "tap0"
 	}
 
+	feat, err := DetectFeatures(binary)
+	if err != nil {
+		return nil, err
+	}
+
 	return &parentDriver{
 		logWriter:              logWriter,
 		binary:                 binary,
@@ -53,6 +88,7 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 		enableIPv6:             enableIPv6,
 		ifname:                 ifname,
 		implicitPortForwarding: implicitPortForwarding,
+		feat:                   feat,
 	}, nil
 }
 
@@ -67,6 +103,7 @@ type parentDriver struct {
 	infoMu                 sync.RWMutex
 	implicitPortForwarding bool
 	info                   func() *api.NetworkDriverInfo
+	feat                   *Features
 }
 
 const DriverName = "pasta"
@@ -128,6 +165,15 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	} else {
 		opts = append(opts, "--tcp-ports=none",
 			"--udp-ports=none")
+	}
+	if d.feat != nil {
+		if d.feat.HasHostLoToNsLo {
+			// Needed to keep `docker run -p 127.0.0.1:8080:80` functional with
+			// passt >= 2024_10_30.ee7d0b6
+			//
+			// https://github.com/rootless-containers/rootlesskit/pull/482#issuecomment-2591798590
+			opts = append(opts, "--host-lo-to-ns-lo")
+		}
 	}
 	if detachedNetNSPath == "" {
 		opts = append(opts, strconv.Itoa(childPID))
