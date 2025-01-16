@@ -7,38 +7,37 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
-    "github.com/rootless-containers/rootlesskit/v2/pkg/systemd/activation"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/child"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/copyup/tmpfssymlink"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/lxcusernic"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/none"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/pasta"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/slirp4netns"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/vpnkit"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/network/none"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/parent"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/port/builtin"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/port/portutil"
 	slirp4netns_port "github.com/rootless-containers/rootlesskit/v2/pkg/port/slirp4netns"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/systemd/activation"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/version"
 )
 
-
 const (
-		pipeFDEnvKey              = "_ROOTLESSKIT_PIPEFD_UNDOCUMENTED"
-		childUseActivationEnvKey  = "_ROOTLESSKIT_SYSTEMD_ACTIVATION_CHILD_USE_UNDOCUMENTED"
-		runActivationHelperEnvKey = "_ROOTLESSKIT_SYSTEMD_ACTIVATION_RUN_HELPER_UNDOCUMENTED"
-		stateDirEnvKey    = "ROOTLESSKIT_STATE_DIR"   // documented
-		parentEUIDEnvKey  = "ROOTLESSKIT_PARENT_EUID" // documented
-		parentEGIDEnvKey  = "ROOTLESSKIT_PARENT_EGID" // documented
+	pipeFDEnvKey              = "_ROOTLESSKIT_PIPEFD_UNDOCUMENTED"
+	childUseActivationEnvKey  = "_ROOTLESSKIT_SYSTEMD_ACTIVATION_CHILD_USE_UNDOCUMENTED"
+	runActivationHelperEnvKey = "_ROOTLESSKIT_SYSTEMD_ACTIVATION_RUN_HELPER_UNDOCUMENTED"
+	stateDirEnvKey            = "ROOTLESSKIT_STATE_DIR"   // documented
+	parentEUIDEnvKey          = "ROOTLESSKIT_PARENT_EUID" // documented
+	parentEGIDEnvKey          = "ROOTLESSKIT_PARENT_EGID" // documented
 )
 
 func main() {
@@ -48,7 +47,7 @@ func main() {
 	if iAmChild {
 		id = "child " // padded to len("parent")
 	} else if iAmActivationHelper {
-	    id = "activation_helper"
+		id = "activation_helper"
 	}
 	debug := false
 	app := cli.NewApp()
@@ -262,12 +261,12 @@ OPTIONS:
 			return errors.New("no command specified")
 		}
 		if iAmActivationHelper {
-		    activationOpt, err := createActivationOpts(clicontext)
-		    if err != nil {
-		      return err
-		    }
-            return activation.ActivationHelper(activationOpt)
-        }
+			activationOpt, err := createActivationOpts(clicontext)
+			if err != nil {
+				return err
+			}
+			return activation.ActivationHelper(activationOpt)
+		}
 		if iAmChild {
 			childOpt, err := createChildOpt(clicontext)
 			if err != nil {
@@ -323,19 +322,19 @@ func parseCIDR(s string) (*net.IPNet, error) {
 func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 	var err error
 	opt := parent.Opt{
-		PipeFDEnvKey:     pipeFDEnvKey,
-		StateDirEnvKey:   stateDirEnvKey,
+		PipeFDEnvKey:             pipeFDEnvKey,
+		StateDirEnvKey:           stateDirEnvKey,
 		ChildUseActivationEnvKey: childUseActivationEnvKey,
-		CreatePIDNS:      clicontext.Bool("pidns"),
-		CreateCgroupNS:   clicontext.Bool("cgroupns"),
-		CreateUTSNS:      clicontext.Bool("utsns"),
-		CreateIPCNS:      clicontext.Bool("ipcns"),
-		DetachNetNS:      clicontext.Bool("detach-netns"),
-		ParentEUIDEnvKey: parentEUIDEnvKey,
-		ParentEGIDEnvKey: parentEGIDEnvKey,
-		Propagation:      clicontext.String("propagation"),
-		EvacuateCgroup2:  clicontext.String("evacuate-cgroup2"),
-		SubidSource:      parent.SubidSource(clicontext.String("subid-source")),
+		CreatePIDNS:              clicontext.Bool("pidns"),
+		CreateCgroupNS:           clicontext.Bool("cgroupns"),
+		CreateUTSNS:              clicontext.Bool("utsns"),
+		CreateIPCNS:              clicontext.Bool("ipcns"),
+		DetachNetNS:              clicontext.Bool("detach-netns"),
+		ParentEUIDEnvKey:         parentEUIDEnvKey,
+		ParentEGIDEnvKey:         parentEGIDEnvKey,
+		Propagation:              clicontext.String("propagation"),
+		EvacuateCgroup2:          clicontext.String("evacuate-cgroup2"),
+		SubidSource:              parent.SubidSource(clicontext.String("subid-source")),
 	}
 	if opt.EvacuateCgroup2 != "" {
 		if !opt.CreateCgroupNS {
@@ -595,15 +594,15 @@ func createChildOpt(clicontext *cli.Context) (child.Opt, error) {
 	pidns := clicontext.Bool("pidns")
 	detachNetNS := clicontext.Bool("detach-netns")
 	opt := child.Opt{
-		PipeFDEnvKey:    pipeFDEnvKey,
+		PipeFDEnvKey:              pipeFDEnvKey,
 		RunActivationHelperEnvKey: runActivationHelperEnvKey,
-		ChildUseActivationEnvKey: childUseActivationEnvKey,
-		StateDirEnvKey:  stateDirEnvKey,
-		TargetCmd:       clicontext.Args().Slice(),
-		MountProcfs:     pidns,
-		DetachNetNS:     detachNetNS,
-		Propagation:     clicontext.String("propagation"),
-		EvacuateCgroup2: clicontext.String("evacuate-cgroup2") != "",
+		ChildUseActivationEnvKey:  childUseActivationEnvKey,
+		StateDirEnvKey:            stateDirEnvKey,
+		TargetCmd:                 clicontext.Args().Slice(),
+		MountProcfs:               pidns,
+		DetachNetNS:               detachNetNS,
+		Propagation:               clicontext.String("propagation"),
+		EvacuateCgroup2:           clicontext.String("evacuate-cgroup2") != "",
 	}
 	switch reaperStr := clicontext.String("reaper"); reaperStr {
 	case "auto":
@@ -684,21 +683,21 @@ func unameM() string {
 }
 
 func checkActivationHelper() bool {
-    envValue, envSet := os.LookupEnv(runActivationHelperEnvKey)
-    if !envSet {
-        return false
-    }
+	envValue, envSet := os.LookupEnv(runActivationHelperEnvKey)
+	if !envSet {
+		return false
+	}
 	activationHelperValue, err := strconv.ParseBool(envValue)
 	if err != nil {
-	    panic(fmt.Sprintf("Env variable [%s] is set to [%s] and cannot be parsed", runActivationHelperEnvKey, envValue))
+		panic(fmt.Sprintf("Env variable [%s] is set to [%s] and cannot be parsed", runActivationHelperEnvKey, envValue))
 	}
 	return activationHelperValue
 }
 
 func createActivationOpts(clicontext *cli.Context) (activation.Opt, error) {
-  opt := activation.Opt {
-      RunActivationHelperEnvKey: runActivationHelperEnvKey,
-      TargetCmd:                 clicontext.Args().Slice(),
-  }
-  return opt, nil
+	opt := activation.Opt{
+		RunActivationHelperEnvKey: runActivationHelperEnvKey,
+		TargetCmd:                 clicontext.Args().Slice(),
+	}
+	return opt, nil
 }

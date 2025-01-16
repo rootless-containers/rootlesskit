@@ -338,7 +338,7 @@ type childDriver struct {
 }
 
 func (d *childDriver) ChildDriverInfo() (*network.ChildDriverInfo, error) {
-	return &network.ChildDriverInfo {
+	return &network.ChildDriverInfo{
 		ConfiguresInterface: false,
 	}, nil
 }

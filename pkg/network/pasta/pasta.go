@@ -152,8 +152,8 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		exitErr := &exec.ExitError{}
 		if errors.As(err, &exitErr) {
 			return nil, common.Seq(cleanups),
-			       fmt.Errorf("pasta failed with exit code %d:\n%s",
-					  exitErr.ExitCode(), string(out))
+				fmt.Errorf("pasta failed with exit code %d:\n%s",
+					exitErr.ExitCode(), string(out))
 		}
 		return nil, common.Seq(cleanups), fmt.Errorf("executing %v: %w", cmd, err)
 	}
@@ -188,7 +188,7 @@ type childDriver struct {
 }
 
 func (d *childDriver) ChildDriverInfo() (*network.ChildDriverInfo, error) {
-	return &network.ChildDriverInfo {
+	return &network.ChildDriverInfo{
 		ConfiguresInterface: true,
 	}, nil
 }
