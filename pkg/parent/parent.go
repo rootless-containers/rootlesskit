@@ -29,23 +29,23 @@ import (
 )
 
 type Opt struct {
-	PipeFDEnvKey     string               // needs to be set
-	ChildUseActivationEnvKey string       // needs to be set
-	StateDir         string               // directory needs to be precreated
-	StateDirEnvKey   string               // optional env key to propagate StateDir value
-	NetworkDriver    network.ParentDriver // nil for HostNetwork
-	PortDriver       port.ParentDriver    // nil for --port-driver=none
-	PublishPorts     []port.Spec
-	CreatePIDNS      bool
-	CreateCgroupNS   bool
-	CreateUTSNS      bool
-	CreateIPCNS      bool
-	DetachNetNS      bool
-	ParentEUIDEnvKey string // optional env key to propagate geteuid() value
-	ParentEGIDEnvKey string // optional env key to propagate getegid() value
-	Propagation      string
-	EvacuateCgroup2  string // e.g. "rootlesskit_evacuation"
-	SubidSource      SubidSource
+	PipeFDEnvKey             string               // needs to be set
+	ChildUseActivationEnvKey string               // needs to be set
+	StateDir                 string               // directory needs to be precreated
+	StateDirEnvKey           string               // optional env key to propagate StateDir value
+	NetworkDriver            network.ParentDriver // nil for HostNetwork
+	PortDriver               port.ParentDriver    // nil for --port-driver=none
+	PublishPorts             []port.Spec
+	CreatePIDNS              bool
+	CreateCgroupNS           bool
+	CreateUTSNS              bool
+	CreateIPCNS              bool
+	DetachNetNS              bool
+	ParentEUIDEnvKey         string // optional env key to propagate geteuid() value
+	ParentEGIDEnvKey         string // optional env key to propagate getegid() value
+	Propagation              string
+	EvacuateCgroup2          string // e.g. "rootlesskit_evacuation"
+	SubidSource              SubidSource
 }
 
 type SubidSource string
@@ -133,18 +133,18 @@ func setupFilesAndEnv(readPipe *os.File, writePipe *os.File, opt Opt) ([]*os.Fil
 	listenFds, listenFdsErr := strconv.Atoi(os.Getenv("LISTEN_FDS"))
 	useSystemdSocketFDs := listenPidErr == nil && listenFdsErr == nil && listenFds > 0
 	if !useSystemdSocketFDs {
-	  listenFds = 0
+		listenFds = 0
 	}
-	extraFiles := make([]*os.File, listenFds + 2)
-	for i, fd := 0, listenFdsStart; i < listenFds; i, fd = i + 1, fd + 1 {
-      name := "LISTEN_FD_" + strconv.Itoa(fd)
-      extraFiles[i] = os.NewFile(uintptr(fd), name)
+	extraFiles := make([]*os.File, listenFds+2)
+	for i, fd := 0, listenFdsStart; i < listenFds; i, fd = i+1, fd+1 {
+		name := "LISTEN_FD_" + strconv.Itoa(fd)
+		extraFiles[i] = os.NewFile(uintptr(fd), name)
 	}
 	extraFiles[listenFds] = readPipe
-	extraFiles[listenFds + 1] = writePipe
+	extraFiles[listenFds+1] = writePipe
 	cmdEnv := os.Environ()
-	cmdEnv = append(cmdEnv, opt.PipeFDEnvKey + "=" + strconv.Itoa(listenFdsStart + listenFds) + "," + strconv.Itoa(listenFdsStart + listenFds + 1))
-	cmdEnv = append(cmdEnv, opt.ChildUseActivationEnvKey + "=" + strconv.FormatBool(listenPid == os.Getpid()))
+	cmdEnv = append(cmdEnv, opt.PipeFDEnvKey+"="+strconv.Itoa(listenFdsStart+listenFds)+","+strconv.Itoa(listenFdsStart+listenFds+1))
+	cmdEnv = append(cmdEnv, opt.ChildUseActivationEnvKey+"="+strconv.FormatBool(listenPid == os.Getpid()))
 	return extraFiles, cmdEnv
 }
 
