@@ -186,6 +186,12 @@ jobs:
   test-integration-docker:
     name: "Integration test (Docker)"
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # The design of the proxy was changed in Docker v28.
+        # rootlesskit-docker-proxy is no longer used since Docker v28.
+        docker_version: [27.5.1, 28.0.1]
     steps:
     - name: "Set up AppArmor"
       run: |
@@ -201,7 +207,9 @@ jobs:
     - name: "Check out"
       uses: actions/checkout@v4
     - name: "Build integration test image"
-      run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker .
+      run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker --build-arg DOCKER_VERSION .
+      env:
+        DOCKER_VERSION: ${{ matrix.docker_version }}
     - name: "Create a custom network to avoid IP confusion"
       run: docker network create custom
     - name: "Docker Integration test: net=slirp4netns, port-driver=builtin"

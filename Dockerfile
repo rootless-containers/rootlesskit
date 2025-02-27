@@ -4,7 +4,7 @@ ARG SHADOW_VERSION=4.16.0
 ARG SLIRP4NETNS_VERSION=v1.3.1
 ARG VPNKIT_VERSION=0.5.0
 ARG PASST_VERSION=2024_12_11.09478d5
-ARG DOCKER_VERSION=27.5.0
+ARG DOCKER_VERSION=28.0.1
 ARG DOCKER_CHANNEL=stable
 
 FROM golang:${GO_VERSION}-alpine AS build
@@ -92,12 +92,18 @@ ENV LD_LIBRARY_PATH=/home/user/lib
 WORKDIR /home/user/hack
 
 FROM test-integration AS test-integration-docker
-COPY --from=artifact /rootlesskit-docker-proxy /home/user/bin/
 ARG DOCKER_VERSION
 ARG DOCKER_CHANNEL
 RUN curl -fsSL https://download.docker.com/linux/static/${DOCKER_CHANNEL}/x86_64/docker-${DOCKER_VERSION}.tgz | tar xz --strip-components=1 -C /home/user/bin/
 RUN curl -fsSL -o /home/user/bin/dockerd-rootless.sh https://raw.githubusercontent.com/moby/moby/v${DOCKER_VERSION}/contrib/dockerd-rootless.sh && \
   chmod +x /home/user/bin/dockerd-rootless.sh
+# rootlesskit-docker-proxy is no longer needed since Docker v28
+RUN --mount=source=/rootlesskit-docker-proxy,target=/tmp/rootlesskit-docker-proxy,from=artifact <<EOT
+  set -ex
+  if [ "$(echo ${DOCKER_VERSION} | cut -d . -f 1)" -lt "28" ]; then
+    cp -a /tmp/rootlesskit-docker-proxy /home/user/bin
+  fi
+EOT
 ENV DOCKERD_ROOTLESS_ROOTLESSKIT_NET=slirp4netns
 ENV DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=builtin
 ENV DOCKER_HOST=unix:///run/user/2000/docker.sock
