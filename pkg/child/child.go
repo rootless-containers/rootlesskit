@@ -599,8 +599,12 @@ func NewNetNsWithPathWithoutEnter(p string) error {
 	if err := os.WriteFile(p, nil, 0400); err != nil {
 		return err
 	}
-	// this is hard (not impossible though) to reimplement in Go: https://github.com/cloudflare/slirpnetstack/commit/d7766a8a77f0093d3cb7a94bd0ccbe3f67d411ba
-	cmd := exec.Command("unshare", "-n", "mount", "--bind", "/proc/self/ns/net", p)
+	// this is hard (not impossible though) to reimplement in Go without re-execing: https://github.com/cloudflare/slirpnetstack/commit/d7766a8a77f0093d3cb7a94bd0ccbe3f67d411ba
+	selfExe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(selfExe, "--userns=false", "--net=none", "--", "mount", "--bind", "/proc/self/ns/net", p)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to execute %v: %w (out=%q)", cmd.Args, err, string(out))
