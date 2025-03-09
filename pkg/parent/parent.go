@@ -36,6 +36,7 @@ type Opt struct {
 	NetworkDriver            network.ParentDriver // nil for HostNetwork
 	PortDriver               port.ParentDriver    // nil for --port-driver=none
 	PublishPorts             []port.Spec
+	NoCreateUserNS           bool
 	CreatePIDNS              bool
 	CreateCgroupNS           bool
 	CreateUTSNS              bool
@@ -78,7 +79,7 @@ func checkPreflight(opt Opt) error {
 		return fmt.Errorf("state dir is inaccessible: %w", err)
 	}
 
-	if os.Geteuid() == 0 {
+	if os.Geteuid() == 0 && !opt.NoCreateUserNS {
 		logrus.Warn("Running RootlessKit as the root user is unsupported.")
 	}
 
@@ -176,7 +177,11 @@ func Parent(opt Opt) error {
 	cmd := exec.Command("/proc/self/exe", os.Args[1:]...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig:  syscall.SIGKILL,
-		Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS,
+		Cloneflags: syscall.CLONE_NEWNS,
+	}
+
+	if !opt.NoCreateUserNS {
+		cmd.SysProcAttr.Cloneflags |= syscall.CLONE_NEWUSER
 	}
 
 	if opt.NetworkDriver != nil {
@@ -228,19 +233,21 @@ func Parent(opt Opt) error {
 		return err
 	}
 
-	if err := setupUIDGIDMap(cmd.Process.Pid, opt.SubidSource); err != nil {
-		return fmt.Errorf("failed to setup UID/GID map: %w", err)
-	}
-	msgParentInitIdmapCompleted := &messages.Message{
-		U: messages.U{
-			ParentInitIdmapCompleted: &messages.ParentInitIdmapCompleted{},
-		},
-	}
-	if err := messages.Send(pipeW, msgParentInitIdmapCompleted); err != nil {
-		return err
-	}
-	if _, err := messages.WaitFor(pipe2R, messages.Name(messages.ChildInitUserNSCompleted{})); err != nil {
-		return err
+	if !opt.NoCreateUserNS {
+		if err := setupUIDGIDMap(cmd.Process.Pid, opt.SubidSource); err != nil {
+			return fmt.Errorf("failed to setup UID/GID map: %w", err)
+		}
+		msgParentInitIdmapCompleted := &messages.Message{
+			U: messages.U{
+				ParentInitIdmapCompleted: &messages.ParentInitIdmapCompleted{},
+			},
+		}
+		if err := messages.Send(pipeW, msgParentInitIdmapCompleted); err != nil {
+			return err
+		}
+		if _, err := messages.WaitFor(pipe2R, messages.Name(messages.ChildInitUserNSCompleted{})); err != nil {
+			return err
+		}
 	}
 
 	sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)

@@ -284,6 +284,7 @@ type Opt struct {
 	Propagation               string // mount propagation type
 	Reaper                    bool
 	EvacuateCgroup2           bool // needs to correspond to parent.Opt.EvacuateCgroup2 is set
+	NoCreateUserNS            bool
 }
 
 // statPIDNS is from https://github.com/containerd/containerd/blob/v1.7.2/services/introspection/pidns_linux.go#L25-L36
@@ -378,14 +379,11 @@ func Child(opt Opt) error {
 		msg *messages.Message
 		err error
 	)
-	if ok, err := hasCaps(); err != nil {
-		return err
-	} else if !ok {
+	if opt.NoCreateUserNS {
 		msg, err = messages.WaitFor(pipeR, messages.Name(messages.ParentHello{}))
 		if err != nil {
 			return err
 		}
-
 		msgChildHello := &messages.Message{
 			U: messages.U{
 				ChildHello: &messages.ChildHello{},
@@ -394,14 +392,32 @@ func Child(opt Opt) error {
 		if err := messages.Send(pipe2W, msgChildHello); err != nil {
 			return err
 		}
-
-		msg, err = messages.WaitFor(pipeR, messages.Name(messages.ParentInitIdmapCompleted{}))
-		if err != nil {
+	} else {
+		if ok, err := hasCaps(); err != nil {
 			return err
-		}
+		} else if !ok {
+			msg, err = messages.WaitFor(pipeR, messages.Name(messages.ParentHello{}))
+			if err != nil {
+				return err
+			}
 
-		if err := gainCaps(); err != nil {
-			return fmt.Errorf("failed to gain the caps inside the user namespace: %w", err)
+			msgChildHello := &messages.Message{
+				U: messages.U{
+					ChildHello: &messages.ChildHello{},
+				},
+			}
+			if err := messages.Send(pipe2W, msgChildHello); err != nil {
+				return err
+			}
+
+			msg, err = messages.WaitFor(pipeR, messages.Name(messages.ParentInitIdmapCompleted{}))
+			if err != nil {
+				return err
+			}
+
+			if err := gainCaps(); err != nil {
+				return fmt.Errorf("failed to gain the caps inside the user namespace: %w", err)
+			}
 		}
 	}
 

@@ -171,6 +171,11 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 			Usage:   "publish ports. e.g. \"127.0.0.1:8080:80/tcp\"",
 		}, CategoryPort),
 		Categorize(&cli.BoolFlag{
+			Name:  "userns",
+			Usage: "create a User namespace (Usually this should be always set to true)",
+			Value: true,
+		}, CategoryProcess),
+		Categorize(&cli.BoolFlag{
 			Name:  "pidns",
 			Usage: "create a PID namespace",
 		}, CategoryProcess),
@@ -325,6 +330,7 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 		PipeFDEnvKey:             pipeFDEnvKey,
 		StateDirEnvKey:           stateDirEnvKey,
 		ChildUseActivationEnvKey: childUseActivationEnvKey,
+		NoCreateUserNS:           !clicontext.Bool("userns"),
 		CreatePIDNS:              clicontext.Bool("pidns"),
 		CreateCgroupNS:           clicontext.Bool("cgroupns"),
 		CreateUTSNS:              clicontext.Bool("utsns"),
@@ -603,6 +609,7 @@ func createChildOpt(clicontext *cli.Context) (child.Opt, error) {
 		DetachNetNS:               detachNetNS,
 		Propagation:               clicontext.String("propagation"),
 		EvacuateCgroup2:           clicontext.String("evacuate-cgroup2") != "",
+		NoCreateUserNS:            !clicontext.Bool("userns"),
 	}
 	switch reaperStr := clicontext.String("reaper"); reaperStr {
 	case "auto":

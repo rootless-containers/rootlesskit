@@ -20,6 +20,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/parentutils"
 	"github.com/sirupsen/logrus"
 )
 
@@ -70,6 +71,14 @@ func (d *parentDriver) MTU() int {
 }
 
 func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPath string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
+	sameUserNSAsCurrent, err := parentutils.SameUserNSAsCurrent(childPID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if sameUserNSAsCurrent {
+		return nil, nil, fmt.Errorf("driver %q needs userns", DriverName)
+	}
+
 	if detachedNetNSPath != "" {
 		cmd := exec.Command("nsenter", "-t", strconv.Itoa(childPID), "-n"+detachedNetNSPath, "--no-fork", "-m", "-U", "--preserve-credentials", "sleep", "infinity")
 		cmd.SysProcAttr = &syscall.SysProcAttr{
