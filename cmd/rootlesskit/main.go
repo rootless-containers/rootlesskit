@@ -15,6 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
+	"github.com/rootless-containers/rootlesskit/v2/cmd/rootlesskit/unshare"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/child"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/copyup/tmpfssymlink"
@@ -41,6 +42,10 @@ const (
 )
 
 func main() {
+	if checkUnshareHelper() {
+		unshare.Main()
+		return
+	}
 	iAmActivationHelper := checkActivationHelper()
 	iAmChild := os.Getenv(pipeFDEnvKey) != ""
 	id := "parent"
@@ -700,4 +705,8 @@ func createActivationOpts(clicontext *cli.Context) (activation.Opt, error) {
 		TargetCmd:                 clicontext.Args().Slice(),
 	}
 	return opt, nil
+}
+
+func checkUnshareHelper() bool {
+	return filepath.Base(os.Args[0]) == "unshare"
 }
