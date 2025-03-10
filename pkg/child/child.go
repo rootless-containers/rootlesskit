@@ -583,19 +583,13 @@ func NewNetNsWithPathWithoutEnter(p string) error {
 	if err := os.WriteFile(p, nil, 0400); err != nil {
 		return err
 	}
-	selfExe, err := os.Executable()
+	tempNS, err := ns.TempNetNS()
 	if err != nil {
 		return err
 	}
-	// this is hard (not impossible though) to reimplement in Go: https://github.com/cloudflare/slirpnetstack/commit/d7766a8a77f0093d3cb7a94bd0ccbe3f67d411ba
-	cmd := exec.Command("unshare", "-n", "mount", "--bind", "/proc/self/ns/net", p)
-	// Use our own implementation of unshare that is embedded in RootlessKit, so as to
-	// avoid /etc/apparmor.d/unshare-userns-restrict on Ubuntu 25.04.
-	// https://github.com/rootless-containers/rootlesskit/issues/494
-	cmd.Path = selfExe
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("failed to execute %v: %w (out=%q)", cmd.Args, err, string(out))
-	}
-	return nil
+	defer tempNS.Close()
+	tempNSPath := tempNS.Path()
+	return ns.WithNetNSPath(tempNSPath, func(_ ns.NetNS) error {
+		return unix.Mount(tempNSPath, p, "", unix.MS_BIND, "")
+	})
 }
