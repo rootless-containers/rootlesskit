@@ -77,7 +77,7 @@ RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \
 COPY --from=artifact /rootlesskit /home/user/bin/
 COPY --from=artifact /rootlessctl /home/user/bin/
 ARG SLIRP4NETNS_VERSION
-RUN curl -sSL -o /home/user/bin/slirp4netns https://github.com/rootless-containers/slirp4netns/releases/download/${SLIRP4NETNS_VERSION}/slirp4netns-x86_64 && \
+RUN curl -sSL -o /home/user/bin/slirp4netns https://github.com/rootless-containers/slirp4netns/releases/download/${SLIRP4NETNS_VERSION}/slirp4netns-$(uname -m) && \
   chmod +x /home/user/bin/slirp4netns
 COPY --from=vpnkit /vpnkit /home/user/bin/vpnkit
 COPY --from=passt /usr/local /usr/local
@@ -94,7 +94,7 @@ WORKDIR /home/user/hack
 FROM test-integration AS test-integration-docker
 ARG DOCKER_VERSION
 ARG DOCKER_CHANNEL
-RUN curl -fsSL https://download.docker.com/linux/static/${DOCKER_CHANNEL}/x86_64/docker-${DOCKER_VERSION}.tgz | tar xz --strip-components=1 -C /home/user/bin/
+RUN curl -fsSL https://download.docker.com/linux/static/${DOCKER_CHANNEL}/$(uname -m)/docker-${DOCKER_VERSION}.tgz | tar xz --strip-components=1 -C /home/user/bin/
 RUN curl -fsSL -o /home/user/bin/dockerd-rootless.sh https://raw.githubusercontent.com/moby/moby/v${DOCKER_VERSION}/contrib/dockerd-rootless.sh && \
   chmod +x /home/user/bin/dockerd-rootless.sh
 # rootlesskit-docker-proxy is no longer needed since Docker v28
