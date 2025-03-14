@@ -217,6 +217,8 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 			detachedNetNSPath)
 	}
 	opts = append(opts, tap)
+
+	logrus.Debugf("start %v with args: %v", d.binary, opts)
 	cmd := exec.Command(d.binary, opts...)
 	// FIXME: Stdout doen't seem captured
 	cmd.Stdout = d.logWriter
@@ -242,9 +244,11 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		return nil, common.Seq(cleanups), fmt.Errorf("waiting for ready fd (%v): %w", cmd, err)
 	}
 	netmsg := messages.ParentInitNetworkDriverCompleted{
-		Dev: tap,
-		DNS: make([]string, 0, 2),
-		MTU: d.mtu,
+		Dev:      tap,
+		IPs:      make([]messages.NetworkDriverIP, 0, 2),
+		DNS:      make([]string, 0, 2),
+		Gateways: make([]string, 0, 2),
+		MTU:      d.mtu,
 	}
 	if d.ipnet != nil {
 		// TODO: get the actual configuration via slirp4netns API?
@@ -252,22 +256,23 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		if err != nil {
 			return nil, common.Seq(cleanups), err
 		}
-		netmsg.IP = x.String()
-		netmsg.Netmask, _ = d.ipnet.Mask.Size()
+
+		netmask, _ := d.ipnet.Mask.Size()
+
+		netmsg.IPs = append(netmsg.IPs, messages.NetworkDriverIP{IP: x.String(), PrefixLen: netmask})
 		x, err = iputils.AddIPInt(d.ipnet.IP, 2)
 		if err != nil {
 			return nil, common.Seq(cleanups), err
 		}
-		netmsg.Gateway = x.String()
+		netmsg.Gateways = append(netmsg.Gateways, x.String())
 		x, err = iputils.AddIPInt(d.ipnet.IP, 3)
 		if err != nil {
 			return nil, common.Seq(cleanups), err
 		}
 		netmsg.DNS = append(netmsg.DNS, x.String())
 	} else {
-		netmsg.IP = "10.0.2.100"
-		netmsg.Netmask = 24
-		netmsg.Gateway = "10.0.2.2"
+		netmsg.IPs = append(netmsg.IPs, messages.NetworkDriverIP{IP: "10.0.2.100", PrefixLen: 24})
+		netmsg.Gateways = append(netmsg.Gateways, "10.0.2.2")
 		netmsg.DNS = append(netmsg.DNS, "10.0.2.3")
 	}
 
@@ -275,6 +280,11 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		// for now slirp4netns only supports fd00::3 as v6 nameserver
 		// https://github.com/rootless-containers/slirp4netns/blob/ee1542e1532e6a7f266b8b6118973ab3b10a8bb5/slirp4netns.c#L272
 		netmsg.DNS = append(netmsg.DNS, "fd00::3")
+
+		// TODO(aperevalov --cidr option of slirp4netns now supports only ipv4 address
+		// add ipv6 gateway
+		netmsg.Gateways = append(netmsg.Gateways, "fd00::2")
+		netmsg.IPs = append(netmsg.IPs, messages.NetworkDriverIP{IP: "fd00::1", PrefixLen: 64})
 	}
 
 	apiDNS := make([]net.IP, 0, cap(netmsg.DNS))
@@ -287,7 +297,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		return &api.NetworkDriverInfo{
 			Driver:         DriverName,
 			DNS:            apiDNS,
-			ChildIP:        net.ParseIP(netmsg.IP),
+			ChildIP:        net.ParseIP(netmsg.IPs[0].IP),
 			DynamicChildIP: false,
 		}
 	}

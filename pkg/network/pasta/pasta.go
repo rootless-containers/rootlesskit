@@ -208,9 +208,13 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		Dev: tap,
 		MTU: d.mtu,
 	}
-	netmsg.IP = address.String()
-	netmsg.Netmask = netmask
-	netmsg.Gateway = gateway.String()
+	netmsg.IPs = []messages.NetworkDriverIP{
+		messages.NetworkDriverIP{
+			IP:        address.String(),
+			PrefixLen: netmask,
+		},
+	}
+	netmsg.Gateways = []string{gateway.String()}
 	netmsg.DNS = []string{dns.String()}
 
 	d.infoMu.Lock()
@@ -218,7 +222,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		return &api.NetworkDriverInfo{
 			Driver:         DriverName,
 			DNS:            []net.IP{net.ParseIP(netmsg.DNS[0])},
-			ChildIP:        net.ParseIP(netmsg.IP),
+			ChildIP:        net.ParseIP(netmsg.IPs[0].IP),
 			DynamicChildIP: false,
 		}
 	}

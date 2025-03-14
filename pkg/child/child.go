@@ -152,12 +152,18 @@ func activateLoopback() error {
 	return nil
 }
 
-func activateDev(dev, ip string, netmask int, gateway string, mtu int) error {
+func activateDev(dev string, ips []messages.NetworkDriverIP, gateway []string, mtu int) error {
 	cmds := [][]string{
 		{"ip", "link", "set", dev, "up"},
 		{"ip", "link", "set", "dev", dev, "mtu", strconv.Itoa(mtu)},
-		{"ip", "addr", "add", ip + "/" + strconv.Itoa(netmask), "dev", dev},
-		{"ip", "route", "add", "default", "via", gateway, "dev", dev},
+	}
+
+	for _, ip := range ips {
+		cmds = append(cmds, []string{"ip", "addr", "add", ip.IP + "/" + strconv.Itoa(ip.PrefixLen), "dev", dev})
+	}
+
+	for _, gw := range gateway {
+		cmds = append(cmds, []string{"ip", "route", "add", "default", "via", gw, "dev", dev})
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
 		return fmt.Errorf("executing %v: %w", cmds, err)
@@ -216,7 +222,7 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 		}
 		Info, _ := driver.ChildDriverInfo()
 		if !Info.ConfiguresInterface {
-			if err := activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU); err != nil {
+			if err := activateDev(dev, msg.IPs, msg.Gateways, msg.MTU); err != nil {
 				return err
 			}
 		}
@@ -259,7 +265,7 @@ func setupNet(stateDir string, msg *messages.ParentInitNetworkDriverCompleted, e
 		if err := ns.WithNetNSPath(detachedNetNSPath, func(_ ns.NetNS) error {
 			Info, _ := driver.ChildDriverInfo()
 			if !Info.ConfiguresInterface {
-				return activateDev(dev, msg.IP, msg.Netmask, msg.Gateway, msg.MTU)
+				return activateDev(dev, msg.IPs, msg.Gateways, msg.MTU)
 			}
 			return nil
 		}); err != nil {

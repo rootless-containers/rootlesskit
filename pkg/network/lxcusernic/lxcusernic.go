@@ -186,10 +186,10 @@ func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDr
 	if len(p.DNS()) == 0 {
 		return "", errors.New("got no DNS")
 	}
-	netmsg.IP = p.YourIPAddr.To4().String()
+
 	netmask, _ := p.SubnetMask().Size()
-	netmsg.Netmask = netmask
-	netmsg.Gateway = p.Router()[0].To4().String()
+	netmsg.IPs = []messages.NetworkDriverIP{messages.NetworkDriverIP{IP: p.YourIPAddr.To4().String(), PrefixLen: netmask}}
+	netmsg.Gateways = []string{p.Router()[0].To4().String()}
 	netmsg.DNS = []string{p.DNS()[0].To4().String()}
 	go dhcpRenewRoutine(c, dev, p.YourIPAddr.To4(), p.IPAddressLeaseTime(time.Hour), detachedNetNSPath)
 	return dev, nil
