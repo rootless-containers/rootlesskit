@@ -10,10 +10,10 @@ clean:
 	$(RM) -r bin/ _artifact/
 
 bin/rootlesskit: $(GO_FILES)
-	$(GO) build -o $@ -v ./cmd/rootlesskit
+	$(GO) build -mod=vendor -o $@ -v ./cmd/rootlesskit
 
 bin/rootlessctl: $(GO_FILES)
-	$(GO) build -o $@ -v ./cmd/rootlessctl
+	$(GO) build -mod=vendor -o $@ -v ./cmd/rootlessctl
 
 bin/rootlesskit-docker-proxy: $(GO_FILES)
 	@echo "NOTE: rootlesskit-docker-proxy is required only if you use Docker prior to v28."
@@ -30,3 +30,9 @@ install:
 	install -D -m 755 $(CURDIR)/bin/rootlesskit $(DESTDIR)$(BINDIR)/rootlesskit
 	install -D -m 755 $(CURDIR)/bin/rootlessctl $(DESTDIR)$(BINDIR)/rootlessctl
 	install -D -m 755 $(CURDIR)/bin/rootlesskit-docker-proxy $(DESTDIR)$(BINDIR)/rootlesskit-docker-proxy
+
+.PHONY: vendor
+vendor:
+	$(GO) mod tidy
+	$(GO) mod vendor
+	$(GO) mod verify
