@@ -36,3 +36,9 @@ vendor:
 	$(GO) mod tidy
 	$(GO) mod vendor
 	$(GO) mod verify
+
+.PHONY: verify-dependencies
+verify-dependencies: vendor
+	@test -z "$$(git status --porcelain -- go.mod go.sum vendor/)" \
+		|| (echo -e "git status:\n $$(git status -- go.mod go.sum vendor/)\nerror: vendor/, go.mod and/or go.sum not up to date. Run \"make vendor\" to update"; exit 1) \
+		&& echo "all vendor files are up to date."
