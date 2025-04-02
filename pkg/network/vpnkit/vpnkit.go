@@ -123,12 +123,13 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	logrus.Debugf("connected to VPNKit vmnet")
 	// TODO: support configuration
 	netmsg := messages.ParentInitNetworkDriverCompleted{
-		Dev:     d.ifname,
-		IP:      vif.IP.String(),
-		Netmask: 24,
-		Gateway: "192.168.65.1",
-		DNS:     []string{"192.168.65.1"},
-		MTU:     d.mtu,
+		Dev: d.ifname,
+		IPs: []messages.NetworkDriverIP{
+			messages.NetworkDriverIP{IP: vif.IP.String(), PrefixLen: 24},
+		},
+		Gateways: []string{"192.168.65.1"},
+		DNS:      []string{"192.168.65.1"},
+		MTU:      d.mtu,
 		NetworkDriverOpaque: map[string]string{
 			opaqueMAC:    vif.ClientMAC.String(),
 			opaqueSocket: vpnkitSocket,
@@ -140,7 +141,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		return &api.NetworkDriverInfo{
 			Driver:         DriverName,
 			DNS:            []net.IP{net.ParseIP(netmsg.DNS[0])},
-			ChildIP:        net.ParseIP(netmsg.IP),
+			ChildIP:        net.ParseIP(netmsg.IPs[0].IP),
 			DynamicChildIP: false,
 		}
 	}
