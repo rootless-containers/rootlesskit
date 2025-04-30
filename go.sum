@@ -27,8 +27,8 @@ github.com/insomniacslk/dhcp v0.0.0-20250109001534-8abf58130905 h1:q3OEI9RaN/wwc
 github.com/insomniacslk/dhcp v0.0.0-20250109001534-8abf58130905/go.mod h1:VvGYjkZoJyKqlmT1yzakUs4mfKMNB0XdODP0+rdml6k=
 github.com/moby/sys/mountinfo v0.7.2 h1:1shs6aH5s4o5H2zQLn796ADW1wMrIwHsyJ2v9KouLrg=
 github.com/moby/sys/mountinfo v0.7.2/go.mod h1:1YOa8w8Ih7uW0wALDUgT1dTTSBrZ+HiBLGws92L2RU4=
-github.com/moby/vpnkit v0.5.0 h1:VcDpS9y+PmT9itf+mH5Qdh9GME7ungLMt9yjf9o4REY=
-github.com/moby/vpnkit v0.5.0/go.mod h1:KyjUrL9cb6ZSNNAUwZfqRjhwwgJ3BJN+kXh0t43WTUQ=
+github.com/moby/vpnkit v0.6.0 h1:HEh3iQ57oigvPNbR89R14pw3difgPyFOMMD3JAoqPoY=
+github.com/moby/vpnkit v0.6.0/go.mod h1:CNuEpfSK4ZY/NKFWD5M79GUZcYFydh81XQ2GZnT44cQ=
 github.com/onsi/ginkgo/v2 v2.23.4 h1:ktYTpKJAVZnDT4VjxSbiBenUjmlL/5QkBEocaWXiQus=
 github.com/onsi/ginkgo/v2 v2.23.4/go.mod h1:Bt66ApGPBFzHyR+JO10Zbt0Gsp4uWxu5mIOTusL46e8=
 github.com/onsi/gomega v1.37.0 h1:CdEG8g0S133B4OswTDC/5XPSzE1OeP29QOioj2PID2Y=

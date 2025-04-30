@@ -10,7 +10,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/insomniacslk/dhcp v0.0.0-20250109001534-8abf58130905
 	github.com/moby/sys/mountinfo v0.7.2
-	github.com/moby/vpnkit v0.5.0
+	github.com/moby/vpnkit v0.6.0
 	github.com/sirupsen/logrus v1.9.3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.27.6
