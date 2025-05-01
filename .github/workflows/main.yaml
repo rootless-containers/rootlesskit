@@ -240,3 +240,14 @@ jobs:
         docker exec test docker info
         docker exec test ./integration-docker.sh
         docker rm -f test
+  deps:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - name: install go
+      uses: actions/setup-go@v5
+      with:
+        go-version: "1.24"
+        check-latest: true
+    - name: verify deps
+      run: make verify-dependencies
