@@ -1,10 +1,10 @@
 ARG GO_VERSION=1.24
 ARG UBUNTU_VERSION=24.04
-ARG SHADOW_VERSION=4.16.0
+ARG SHADOW_VERSION=4.17.4
 ARG SLIRP4NETNS_VERSION=v1.3.2
-ARG VPNKIT_VERSION=0.5.0
-ARG PASST_VERSION=2025_02_17.a1e48a0
-ARG DOCKER_VERSION=28.0.1
+ARG VPNKIT_VERSION=0.6.0
+ARG PASST_VERSION=2025_04_15.2340bbf
+ARG DOCKER_VERSION=28.1.1
 ARG DOCKER_CHANNEL=stable
 
 FROM golang:${GO_VERSION}-alpine AS build
@@ -44,7 +44,7 @@ RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux -
   make && \
   cp src/newuidmap src/newgidmap /usr/bin
 
-FROM djs55/vpnkit:${VPNKIT_VERSION} AS vpnkit
+FROM moby/vpnkit-bin:${VPNKIT_VERSION} AS vpnkit
 
 FROM ubuntu:${UBUNTU_VERSION} AS passt
 ENV DEBIAN_FRONTEND=noninteractive
