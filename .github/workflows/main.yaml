@@ -191,7 +191,7 @@ jobs:
       matrix:
         # The design of the proxy was changed in Docker v28.
         # rootlesskit-docker-proxy is no longer used since Docker v28.
-        docker_version: [27.5.1, 28.0.1]
+        docker_version: [27.5.1, 28.1.1]
     steps:
     - name: "Set up AppArmor"
       run: |
