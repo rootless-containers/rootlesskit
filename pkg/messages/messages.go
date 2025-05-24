@@ -53,14 +53,18 @@ type ParentInitIdmapCompleted struct {
 type ChildInitUserNSCompleted struct {
 }
 
+type NetworkDriverIP struct {
+	IP        string
+	PrefixLen int
+}
+
 type ParentInitNetworkDriverCompleted struct {
 	// Fields are empty for HostNetwork.
-	Dev     string
-	IP      string
-	Netmask int
-	Gateway string
-	DNS     []string
-	MTU     int
+	Dev      string
+	IPs      []NetworkDriverIP
+	Gateways []string
+	DNS      []string
+	MTU      int
 	// NetworkDriverOpaque strings are specific to driver
 	NetworkDriverOpaque map[string]string
 }
