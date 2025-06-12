@@ -442,12 +442,6 @@ func Child(opt Opt) error {
 
 	// The parent calls child with Pdeathsig, but it is cleared when newuidmap SUID binary is called
 	// https://github.com/rootless-containers/rootlesskit/issues/65#issuecomment-492343646
-	runtime.LockOSThread()
-	err = unix.Prctl(unix.PR_SET_PDEATHSIG, uintptr(unix.SIGKILL), 0, 0, 0)
-	runtime.UnlockOSThread()
-	if err != nil {
-		return err
-	}
 	os.Unsetenv(opt.PipeFDEnvKey)
 	if err := pipeR.Close(); err != nil {
 		return fmt.Errorf("failed to close fd %d: %w", pipeFD, err)
@@ -483,17 +477,50 @@ func Child(opt Opt) error {
 	if err != nil {
 		return err
 	}
+
+	// Create a channel to receive errors from the goroutine
+	cmdErrCh := make(chan error, 1)
+
 	if opt.Reaper {
-		if err := runAndReap(cmd); err != nil {
+		// Launch a goroutine to execute the command with Pdeathsig
+		go func() {
+			// Lock the goroutine to the OS thread
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+
+			// Set the parent death signal
+			if err := unix.Prctl(unix.PR_SET_PDEATHSIG, uintptr(unix.SIGKILL), 0, 0, 0); err != nil {
+				cmdErrCh <- err
+				return
+			}
+
+			// Run the command
+			cmdErrCh <- runAndReap(cmd)
+		}()
+
+		// Wait for the command to complete
+		if err := <-cmdErrCh; err != nil {
 			return fmt.Errorf("command %v exited: %w", opt.TargetCmd, err)
 		}
 	} else {
-		if err := cmd.Start(); err != nil {
-			return fmt.Errorf("command %v exited: %w", opt.TargetCmd, err)
-		}
-		sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)
-		defer sigproxysignal.StopCatch(sigc)
-		if err := cmd.Wait(); err != nil {
+		// Launch a goroutine to execute the command with Pdeathsig
+		go func() {
+			// Lock the goroutine to the OS thread
+			runtime.LockOSThread()
+			defer runtime.UnlockOSThread()
+
+			// Set the parent death signal
+			if err := unix.Prctl(unix.PR_SET_PDEATHSIG, uintptr(unix.SIGKILL), 0, 0, 0); err != nil {
+				cmdErrCh <- err
+				return
+			}
+
+			// Run the command without reaping
+			cmdErrCh <- runWithoutReap(cmd)
+		}()
+
+		// Wait for the command to complete
+		if err := <-cmdErrCh; err != nil {
 			return fmt.Errorf("command %v exited: %w", opt.TargetCmd, err)
 		}
 	}
@@ -512,6 +539,16 @@ func setMountPropagation(propagation string) error {
 		}
 	}
 	return nil
+}
+
+func runWithoutReap(cmd *exec.Cmd) error {
+	cmd.SysProcAttr.Setsid = true
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	sigc := sigproxy.ForwardAllSignals(context.TODO(), cmd.Process.Pid)
+	defer sigproxysignal.StopCatch(sigc)
+	return cmd.Wait()
 }
 
 func runAndReap(cmd *exec.Cmd) error {
