@@ -48,6 +48,22 @@ function benchmark::iperf3::lxc-user-nic() {
 	set +x
 }
 
+function benchmark::iperf3::gvisor-tap-vsock() {
+	INFO "[benchmark:iperf3] gvisor-tap-vsock ($@)"
+	statedir=$(mktemp -d)
+	if echo "$@" | grep -q -- --detach-netns; then
+		IPERF3C="nsenter -n${statedir}/netns $IPERF3C"
+	fi
+	set -x
+	ip=$(ip -4 -o addr show $dev | awk '{print $4}' | cut -d "/" -f 1)
+	# NAT from gateway to the host loopback address is not yet available, so we are testing with the child loopback address.
+  # This will be enabled in the next versions of rootlesskit.
+  # See: https://github.com/containers/gvisor-tap-vsock/blob/main/pkg/types/configuration.go#L39
+  function benchmark::iperf3::gvisor-tap-vsock() {
+	$ROOTLESSKIT --state-dir=$statedir --net=gvisor-tap-vsock $@ -- $IPERF3C $ip
+	set +x
+}
+
 function benchmark::iperf3::rootful_veth() {
 	INFO "[benchmark:iperf3] rootful_veth ($@) for reference"
 	# only --mtu=MTU is supposed as $@
