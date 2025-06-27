@@ -18,4 +18,8 @@ if [ "${net}" = "lxc-user-nic" ]; then
 	# ignore "lxc-net is already running" error
 	sudo /usr/lib/$(uname -m)-linux-gnu/lxc/lxc-net start || sudo /etc/init.d/lxc-net start || true
 fi
-$ROOTLESSKIT --net=${net} --copy-up=/etc --copy-up=/run --disable-host-loopback ${flags} -- nslookup example.com
+if [ "${net}" = "gvisor-tap-vsock" ]; then
+	$ROOTLESSKIT --net=${net} --copy-up=/etc --copy-up=/run --disable-host-loopback ${flags} -- nslookup google.com
+else
+	$ROOTLESSKIT --net=${net} --copy-up=/etc --copy-up=/run --disable-host-loopback ${flags} -- nslookup example.com
+fi
