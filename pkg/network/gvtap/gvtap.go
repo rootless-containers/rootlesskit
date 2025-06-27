@@ -24,7 +24,10 @@ import (
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/parentutils"
 )
 
-const DriverName = "gvisor-tap-vsock"
+const (
+	DriverName = "gvisor-tap-vsock"
+	gatewayIp  = "10.0.2.1"
+)
 
 // NewParentDriver instantiates a new parent driver
 func NewParentDriver(logWriter io.Writer, mtu int, ipnet *net.IPNet, ifname string, disableHostLoopback bool, enableIPv6 bool) (network.ParentDriver, error) {
@@ -110,48 +113,20 @@ func (d *parentDriver) setupNetworkConfig() (ip string, gateway string, netmask 
 	} else {
 		// Use default network
 		ip = "10.0.2.100"
-		gateway = "10.0.2.1"
+		gateway = gatewayIp
 		netmask = 24
 	}
 	return ip, gateway, netmask, nil
 }
 
-// setupDNSZone creates and configures the DNS zone
-func (d *parentDriver) setupDNSZone() (*types.Zone, error) {
-	dnsZone := &types.Zone{
-		Name: "dns",
-	}
-
-	if d.ipnet != nil {
-		dnsIP, err := iputils.AddIPInt(d.ipnet.IP, 3)
-		if err != nil {
-			return nil, err
-		}
-		dnsZone.DefaultIP = dnsIP
-	} else {
-		dnsZone.DefaultIP = net.ParseIP("10.0.2.3")
-	}
-
-	return dnsZone, nil
-}
-
 // setupVirtualNetwork creates and configures the virtual network
-func (d *parentDriver) setupVirtualNetwork(gateway string) (*virtualnetwork.VirtualNetwork, *types.Zone, error) {
-	// Configure the DNS zone
-	dnsZone, err := d.setupDNSZone()
-	if err != nil {
-		return nil, nil, err
-	}
-
+func (d *parentDriver) setupVirtualNetwork(gateway string) (*virtualnetwork.VirtualNetwork, error) {
 	// Create network configuration
 	config := &types.Configuration{
-		Debug:             true,
-		CaptureFile:       "rootlesskit-network-capture.pcap",
 		MTU:               d.mtu,
 		Subnet:            "10.0.2.0/24",
 		GatewayIP:         gateway,
 		GatewayMacAddress: "5a:94:ef:e4:0c:dd",
-		DNS:               []types.Zone{*dnsZone},
 		DHCPStaticLeases:  map[string]string{},
 	}
 
@@ -163,10 +138,10 @@ func (d *parentDriver) setupVirtualNetwork(gateway string) (*virtualnetwork.Virt
 	// Create the virtual network
 	vn, err := virtualnetwork.New(config)
 	if err != nil {
-		return nil, nil, fmt.Errorf("creating virtual network: %w", err)
+		return nil, fmt.Errorf("creating virtual network: %w", err)
 	}
 
-	return vn, dnsZone, nil
+	return vn, nil
 }
 
 // setupDNSServers configures the DNS servers for the network
@@ -181,7 +156,7 @@ func (d *parentDriver) setupDNSServers() ([]string, error) {
 		}
 		dns = append(dns, dnsIP.String())
 	} else {
-		dns = append(dns, "10.0.2.3")
+		dns = append(dns, gatewayIp)
 	}
 
 	// Add IPv6 DNS server if enabled
@@ -193,7 +168,7 @@ func (d *parentDriver) setupDNSServers() ([]string, error) {
 }
 
 // prepareNetworkMessage creates the network message with all configuration details
-func (d *parentDriver) prepareNetworkMessage(tap string, ip string, netmask int, gateway string, dnsZone *types.Zone) (*messages.ParentInitNetworkDriverCompleted, error) {
+func (d *parentDriver) prepareNetworkMessage(tap string, ip string, netmask int, gateway string) (*messages.ParentInitNetworkDriverCompleted, error) {
 	// Set up DNS servers
 	dnsServers, err := d.setupDNSServers()
 	if err != nil {
@@ -358,7 +333,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	}
 
 	// Set up virtual network
-	vn, dnsZone, err := d.setupVirtualNetwork(gateway)
+	vn, err := d.setupVirtualNetwork(gateway)
 	if err != nil {
 		return nil, common.Seq(cleanups), err
 	}
@@ -372,7 +347,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	cleanups = append(cleanups, d.createCleanupFunc(vn))
 
 	// Prepare network message
-	netmsg, err := d.prepareNetworkMessage(tap, ip, netmask, gateway, dnsZone)
+	netmsg, err := d.prepareNetworkMessage(tap, ip, netmask, gateway)
 	if err != nil {
 		return nil, common.Seq(cleanups), err
 	}
