@@ -19,6 +19,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/v2/pkg/child"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/copyup/tmpfssymlink"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/gvtap"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/lxcusernic"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/none"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/pasta"
@@ -97,7 +98,7 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 		}, CategoryState),
 		Categorize(&cli.StringFlag{
 			Name:  "net",
-			Usage: "network driver [host, none, pasta(experimental), slirp4netns, vpnkit, lxc-user-nic(experimental)]",
+			Usage: "network driver [host, none, pasta(experimental), slirp4netns, vpnkit, lxc-user-nic(experimental), gvisor-tap-vsock]",
 			Value: "host",
 		}, CategoryNetwork),
 		Categorize(&cli.StringFlag{
@@ -536,6 +537,12 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 		if err != nil {
 			return opt, err
 		}
+	case "gvisor-tap-vsock":
+		logrus.Info("Using gvisor-tap-vsock network driver")
+		opt.NetworkDriver, err = gvtap.NewParentDriver(&logrusDebugWriter{label: "network/gvisor-tap-vsock"}, mtu, ipnet, ifname, disableHostLoopback, ipv6)
+		if err != nil {
+			return opt, err
+		}
 	default:
 		return opt, fmt.Errorf("unknown network mode: %s", s)
 	}
@@ -635,6 +642,8 @@ func createChildOpt(clicontext *cli.Context) (child.Opt, error) {
 		opt.NetworkDriver = vpnkit.NewChildDriver()
 	case "lxc-user-nic":
 		opt.NetworkDriver = lxcusernic.NewChildDriver()
+	case "gvisor-tap-vsock":
+		opt.NetworkDriver = gvtap.NewChildDriver()
 	default:
 		return opt, fmt.Errorf("unknown network mode: %s", s)
 	}

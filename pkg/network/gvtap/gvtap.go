@@ -1,0 +1,492 @@
+package gvtap
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"net"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"github.com/containernetworking/plugins/pkg/ns"
+	"github.com/containers/gvisor-tap-vsock/pkg/tap"
+	"github.com/containers/gvisor-tap-vsock/pkg/types"
+	"github.com/containers/gvisor-tap-vsock/pkg/virtualnetwork"
+	"github.com/sirupsen/logrus"
+	"github.com/songgao/water"
+
+	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/messages"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/iputils"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/parentutils"
+)
+
+const (
+	DriverName = "gvisor-tap-vsock"
+	gatewayIp  = "10.0.2.1"
+)
+
+// NewParentDriver instantiates a new parent driver
+func NewParentDriver(logWriter io.Writer, mtu int, ipnet *net.IPNet, ifname string, disableHostLoopback bool, enableIPv6 bool) (network.ParentDriver, error) {
+	if mtu < 0 {
+		return nil, errors.New("got negative mtu")
+	}
+	if mtu == 0 {
+		mtu = 65520
+	}
+
+	if ifname == "" {
+		ifname = "tap0"
+	}
+
+	return &parentDriver{
+		logWriter:           logWriter,
+		mtu:                 mtu,
+		ipnet:               ipnet,
+		ifname:              ifname,
+		disableHostLoopback: disableHostLoopback,
+		enableIPv6:          enableIPv6,
+	}, nil
+}
+
+type parentDriver struct {
+	logWriter           io.Writer
+	mtu                 int
+	ipnet               *net.IPNet
+	ifname              string
+	disableHostLoopback bool
+	enableIPv6          bool
+	infoMu              sync.RWMutex
+	info                func() *api.NetworkDriverInfo
+
+	// Store the virtual network and its network switch for later use
+	vn            *virtualnetwork.VirtualNetwork
+	networkSwitch *tap.Switch
+	vnMu          sync.RWMutex
+
+	// Socket for communication with the child namespace
+	socketPath string
+	listener   net.Listener
+	ctx        context.Context
+	cancel     context.CancelFunc
+}
+
+func (d *parentDriver) Info(ctx context.Context) (*api.NetworkDriverInfo, error) {
+	d.infoMu.RLock()
+	infoFn := d.info
+	d.infoMu.RUnlock()
+	if infoFn == nil {
+		return &api.NetworkDriverInfo{
+			Driver: DriverName,
+		}, nil
+	}
+
+	return infoFn(), nil
+}
+
+func (d *parentDriver) MTU() int {
+	return d.mtu
+}
+
+// setupNetworkConfig sets up the basic network configuration
+func (d *parentDriver) setupNetworkConfig() (ip string, gateway string, netmask int, err error) {
+	if d.ipnet != nil {
+		// Use provided CIDR
+		var ipAddr net.IP
+		var gw net.IP
+
+		ipAddr, err = iputils.AddIPInt(d.ipnet.IP, 100)
+		if err != nil {
+			return "", "", 0, err
+		}
+		ip = ipAddr.String()
+
+		gw, err = iputils.AddIPInt(d.ipnet.IP, 1)
+		if err != nil {
+			return "", "", 0, err
+		}
+		gateway = gw.String()
+		netmask, _ = d.ipnet.Mask.Size()
+	} else {
+		// Use default network
+		ip = "10.0.2.100"
+		gateway = gatewayIp
+		netmask = 24
+	}
+	return ip, gateway, netmask, nil
+}
+
+// setupVirtualNetwork creates and configures the virtual network
+func (d *parentDriver) setupVirtualNetwork(gateway string) (*virtualnetwork.VirtualNetwork, error) {
+	// Create network configuration
+	config := &types.Configuration{
+		MTU:               d.mtu,
+		Subnet:            "10.0.2.0/24",
+		GatewayIP:         gateway,
+		GatewayMacAddress: "5a:94:ef:e4:0c:dd",
+		DHCPStaticLeases:  map[string]string{},
+	}
+
+	// If custom CIDR is provided, use it
+	if d.ipnet != nil {
+		config.Subnet = d.ipnet.String()
+	}
+
+	// Create the virtual network
+	vn, err := virtualnetwork.New(config)
+	if err != nil {
+		return nil, fmt.Errorf("creating virtual network: %w", err)
+	}
+
+	return vn, nil
+}
+
+// setupDNSServers configures the DNS servers for the network
+func (d *parentDriver) setupDNSServers() ([]string, error) {
+	dns := make([]string, 0, 2)
+
+	// Add IPv4 DNS server
+	if d.ipnet != nil {
+		dnsIP, err := iputils.AddIPInt(d.ipnet.IP, 3)
+		if err != nil {
+			return nil, err
+		}
+		dns = append(dns, dnsIP.String())
+	} else {
+		dns = append(dns, gatewayIp)
+	}
+
+	// Add IPv6 DNS server if enabled
+	if d.enableIPv6 {
+		dns = append(dns, "fd00::3")
+	}
+
+	return dns, nil
+}
+
+// prepareNetworkMessage creates the network message with all configuration details
+func (d *parentDriver) prepareNetworkMessage(tap string, ip string, netmask int, gateway string) (*messages.ParentInitNetworkDriverCompleted, error) {
+	// Set up DNS servers
+	dnsServers, err := d.setupDNSServers()
+	if err != nil {
+		return nil, err
+	}
+
+	// Prepare the network message
+	netmsg := messages.ParentInitNetworkDriverCompleted{
+		Dev:     tap,
+		DNS:     dnsServers,
+		MTU:     d.mtu,
+		IP:      ip,
+		Netmask: netmask,
+		Gateway: gateway,
+	}
+
+	return &netmsg, nil
+}
+
+// updateDriverInfo updates the driver info with network configuration
+func (d *parentDriver) updateDriverInfo(netmsg *messages.ParentInitNetworkDriverCompleted) {
+	// Prepare API DNS info
+	apiDNS := make([]net.IP, 0, len(netmsg.DNS))
+	for _, nameserver := range netmsg.DNS {
+		apiDNS = append(apiDNS, net.ParseIP(nameserver))
+	}
+
+	// Update driver info
+	d.infoMu.Lock()
+	d.info = func() *api.NetworkDriverInfo {
+		return &api.NetworkDriverInfo{
+			Driver:         DriverName,
+			DNS:            apiDNS,
+			ChildIP:        net.ParseIP(netmsg.IP),
+			DynamicChildIP: false,
+		}
+	}
+	d.infoMu.Unlock()
+}
+
+// setupGvisorDir creates the directory for gvisor-tap-vsock files
+func (d *parentDriver) setupGvisorDir(stateDir string) (string, error) {
+	gvtapDir := filepath.Join(stateDir, "gvtap")
+	if err := os.MkdirAll(gvtapDir, 0755); err != nil {
+		return "", fmt.Errorf("creating gvtap directory: %w", err)
+	}
+	return gvtapDir, nil
+}
+
+// setupSocket creates a Unix socket for communication with the child namespace
+func (d *parentDriver) setupSocket(gvtapDir string) error {
+	d.socketPath = filepath.Join(gvtapDir, "tap.sock")
+
+	// Remove the socket if it already exists
+	if err := os.RemoveAll(d.socketPath); err != nil {
+		return fmt.Errorf("removing existing socket: %w", err)
+	}
+
+	// Create a new listener
+	listener, err := net.Listen("unix", d.socketPath)
+	if err != nil {
+		return fmt.Errorf("creating unix socket: %w", err)
+	}
+
+	d.listener = listener
+	d.ctx, d.cancel = context.WithCancel(context.Background())
+
+	// Start accepting connections
+	go d.acceptConnections()
+
+	return nil
+}
+
+// acceptConnections accepts connections from the child namespace
+func (d *parentDriver) acceptConnections() {
+	for {
+		select {
+		case <-d.ctx.Done():
+			return
+		default:
+			conn, err := d.listener.Accept()
+			if err != nil {
+				// Check if the error is due to the listener being closed, which is expected during cleanup
+				if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "use of closed network connection") {
+					logrus.Debugf("listener closed, stopping accept loop")
+					return
+				}
+				logrus.Errorf("accepting connection: %v", err)
+				continue
+			}
+
+			// Handle the connection
+			go d.handleConnection(conn)
+		}
+	}
+}
+
+// handleConnection handles a connection from the child namespace
+func (d *parentDriver) handleConnection(conn net.Conn) {
+	defer conn.Close()
+
+	// Get the virtual network
+	d.vnMu.RLock()
+	vn := d.vn
+	d.vnMu.RUnlock()
+
+	if vn == nil {
+		logrus.Error("virtual network not initialized")
+		return
+	}
+
+	// Use the AcceptVfkit function to forward packets between the Unix socket and the virtual network
+	// This will handle the connection and forward packets in both directions
+	logrus.Debugf("forwarding packets between Unix socket and virtual network using VfkitProtocol")
+	if err := vn.AcceptVfkit(d.ctx, conn); err != nil {
+		if errors.Is(err, io.EOF) {
+			// This is expected when the child process exits
+			logrus.Debugf("child process exited, connection closed: %v", err)
+		} else {
+			logrus.Errorf("accepting connection with VfkitProtocol: %v", err)
+		}
+	}
+}
+
+// createCleanupFunc creates a cleanup function for the virtual network
+func (d *parentDriver) createCleanupFunc(vn *virtualnetwork.VirtualNetwork) func() error {
+	return func() error {
+		logrus.Debugf("closing gvisor-tap-vsock virtual network")
+		// The VirtualNetwork struct doesn't have an explicit Close method,
+		// but we'll keep a reference to it to prevent garbage collection
+		_ = vn
+
+		// Close the socket
+		if d.cancel != nil {
+			d.cancel()
+		}
+		if d.listener != nil {
+			if err := d.listener.Close(); err != nil {
+				logrus.Errorf("closing listener: %v", err)
+			}
+		}
+
+		logrus.Debugf("closed gvisor-tap-vsock virtual network")
+		return nil
+	}
+}
+
+func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPath string) (*messages.ParentInitNetworkDriverCompleted, func() error, error) {
+	tap := d.ifname
+	var cleanups []func() error
+
+	// Set up the tap device
+	if err := parentutils.PrepareTap(childPID, detachedNetNSPath, tap); err != nil {
+		return nil, common.Seq(cleanups), fmt.Errorf("setting up tap %s: %w", tap, err)
+	}
+
+	// Set up network configuration
+	ip, gateway, netmask, err := d.setupNetworkConfig()
+	if err != nil {
+		return nil, common.Seq(cleanups), err
+	}
+
+	// Create a directory for the gvisor-tap-vsock files
+	gvtapDir, err := d.setupGvisorDir(stateDir)
+	if err != nil {
+		return nil, common.Seq(cleanups), err
+	}
+
+	// Set up the Unix socket
+	if err := d.setupSocket(gvtapDir); err != nil {
+		return nil, common.Seq(cleanups), fmt.Errorf("setting up socket: %w", err)
+	}
+
+	// Set up virtual network
+	vn, err := d.setupVirtualNetwork(gateway)
+	if err != nil {
+		return nil, common.Seq(cleanups), err
+	}
+
+	// Store the virtual network for later use
+	d.vnMu.Lock()
+	d.vn = vn
+	d.vnMu.Unlock()
+
+	// Add cleanup function
+	cleanups = append(cleanups, d.createCleanupFunc(vn))
+
+	// Prepare network message
+	netmsg, err := d.prepareNetworkMessage(tap, ip, netmask, gateway)
+	if err != nil {
+		return nil, common.Seq(cleanups), err
+	}
+
+	// Add the socket path to the network driver opaque
+	if netmsg.NetworkDriverOpaque == nil {
+		netmsg.NetworkDriverOpaque = make(map[string]string)
+	}
+	netmsg.NetworkDriverOpaque["socketPath"] = d.socketPath
+
+	// Update driver info
+	d.updateDriverInfo(netmsg)
+
+	return netmsg, common.Seq(cleanups), nil
+}
+
+func NewChildDriver() network.ChildDriver {
+	return &childDriver{}
+}
+
+// Remove unused function
+
+type childDriver struct {
+	tap        *water.Interface
+	conn       net.Conn
+	socketPath string
+}
+
+func (d *childDriver) ChildDriverInfo() (*network.ChildDriverInfo, error) {
+	return &network.ChildDriverInfo{
+		ConfiguresInterface: false,
+	}, nil
+}
+
+func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDriverCompleted, detachedNetNSPath string) (string, error) {
+	tapName := netmsg.Dev
+	if tapName == "" {
+		return "", errors.New("could not determine the preconfigured tap")
+	}
+
+	// Get the socket path from the network driver opaque
+	d.socketPath = netmsg.NetworkDriverOpaque["socketPath"]
+	if d.socketPath == "" {
+		return "", errors.New("socket path not provided")
+	}
+
+	fn := func(_ ns.NetNS) error {
+		// Open the tap device
+		var err error
+		d.tap, err = water.New(water.Config{
+			DeviceType: water.TAP,
+			PlatformSpecificParams: water.PlatformSpecificParams{
+				Name: tapName,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("opening tap device %s: %w", tapName, err)
+		}
+
+		// Connect to the Unix socket
+		var conn net.Conn
+		conn, err = net.Dial("unix", d.socketPath)
+		if err != nil {
+			return fmt.Errorf("connecting to socket %s: %w", d.socketPath, err)
+		}
+		d.conn = conn
+
+		// Start forwarding packets
+		go d.forwardTapToSocket()
+		go d.forwardSocketToTap()
+
+		return nil
+	}
+	if detachedNetNSPath == "" {
+		if err := fn(nil); err != nil {
+			return "", err
+		}
+	} else {
+		if err := ns.WithNetNSPath(detachedNetNSPath, fn); err != nil {
+			return "", err
+		}
+	}
+
+	// tap is created, opened, and "up".
+	// IP stuff and MTU are not configured by the parent here,
+	// and they are up to the child.
+	return tapName, nil
+}
+
+// forwardTapToSocket forwards packets from the tap device to the Unix socket
+func (d *childDriver) forwardTapToSocket() {
+	buf := make([]byte, 65536)
+	for {
+		n, err := d.tap.Read(buf)
+		if err != nil {
+			if err != io.EOF {
+				logrus.Errorf("reading from tap: %v", err)
+			}
+			return
+		}
+
+		if _, err := d.conn.Write(buf[:n]); err != nil {
+			if err != io.EOF {
+				logrus.Errorf("writing to socket: %v", err)
+			}
+			return
+		}
+	}
+}
+
+// forwardSocketToTap forwards packets from the Unix socket to the tap device
+func (d *childDriver) forwardSocketToTap() {
+	buf := make([]byte, 65536)
+	for {
+		n, err := d.conn.Read(buf)
+		if err != nil {
+			if err != io.EOF {
+				logrus.Errorf("reading from socket: %v", err)
+			}
+			return
+		}
+
+		if _, err := d.tap.Write(buf[:n]); err != nil {
+			if err != io.EOF {
+				logrus.Errorf("writing to tap: %v", err)
+			}
+			return
+		}
+	}
+}
