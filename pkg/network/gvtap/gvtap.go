@@ -8,8 +8,10 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
+	"github.com/containernetworking/plugins/pkg/ns"
 	"github.com/containers/gvisor-tap-vsock/pkg/tap"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	"github.com/containers/gvisor-tap-vsock/pkg/virtualnetwork"
@@ -251,6 +253,11 @@ func (d *parentDriver) acceptConnections() {
 		default:
 			conn, err := d.listener.Accept()
 			if err != nil {
+				// Check if the error is due to the listener being closed, which is expected during cleanup
+				if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "use of closed network connection") {
+					logrus.Debugf("listener closed, stopping accept loop")
+					return
+				}
 				logrus.Errorf("accepting connection: %v", err)
 				continue
 			}
@@ -279,7 +286,12 @@ func (d *parentDriver) handleConnection(conn net.Conn) {
 	// This will handle the connection and forward packets in both directions
 	logrus.Debugf("forwarding packets between Unix socket and virtual network using VfkitProtocol")
 	if err := vn.AcceptVfkit(d.ctx, conn); err != nil {
-		logrus.Errorf("accepting connection with VfkitProtocol: %v", err)
+		if errors.Is(err, io.EOF) {
+			// This is expected when the child process exits
+			logrus.Debugf("child process exited, connection closed: %v", err)
+		} else {
+			logrus.Errorf("accepting connection with VfkitProtocol: %v", err)
+		}
 	}
 }
 
@@ -388,35 +400,48 @@ func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDr
 		return "", errors.New("could not determine the preconfigured tap")
 	}
 
-	// Open the tap device
-	var err error
-	d.tap, err = water.New(water.Config{
-		DeviceType: water.TAP,
-		PlatformSpecificParams: water.PlatformSpecificParams{
-			Name: tapName,
-		},
-	})
-	if err != nil {
-		return "", fmt.Errorf("opening tap device %s: %w", tapName, err)
-	}
-
 	// Get the socket path from the network driver opaque
 	d.socketPath = netmsg.NetworkDriverOpaque["socketPath"]
 	if d.socketPath == "" {
 		return "", errors.New("socket path not provided")
 	}
 
-	// Connect to the Unix socket
-	var conn net.Conn
-	conn, err = net.Dial("unix", d.socketPath)
-	if err != nil {
-		return "", fmt.Errorf("connecting to socket %s: %w", d.socketPath, err)
-	}
-	d.conn = conn
+	fn := func(_ ns.NetNS) error {
+		// Open the tap device
+		var err error
+		d.tap, err = water.New(water.Config{
+			DeviceType: water.TAP,
+			PlatformSpecificParams: water.PlatformSpecificParams{
+				Name: tapName,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("opening tap device %s: %w", tapName, err)
+		}
 
-	// Start forwarding packets
-	go d.forwardTapToSocket()
-	go d.forwardSocketToTap()
+		// Connect to the Unix socket
+		var conn net.Conn
+		conn, err = net.Dial("unix", d.socketPath)
+		if err != nil {
+			return fmt.Errorf("connecting to socket %s: %w", d.socketPath, err)
+		}
+		d.conn = conn
+
+		// Start forwarding packets
+		go d.forwardTapToSocket()
+		go d.forwardSocketToTap()
+
+		return nil
+	}
+	if detachedNetNSPath == "" {
+		if err := fn(nil); err != nil {
+			return "", err
+		}
+	} else {
+		if err := ns.WithNetNSPath(detachedNetNSPath, fn); err != nil {
+			return "", err
+		}
+	}
 
 	// tap is created, opened, and "up".
 	// IP stuff and MTU are not configured by the parent here,
