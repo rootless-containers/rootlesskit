@@ -7,6 +7,7 @@ RootlessKit provides several drivers for providing network connectivity:
 * `--net=slirp4netns`: use [slirp4netns](https://github.com/rootless-containers/slirp4netns) (recommended)
 * `--net=vpnkit`: use [VPNKit](https://github.com/moby/vpnkit)
 * `--net=lxc-user-nic`: use `lxc-user-nic` (experimental)
+* `--net=gvisor-tap-vsock`: use [gvisor-tap-vsock](https://github.com/containers/gvisor-tap-vsock) (experimental)
 
 [Benchmark: iperf3 from the child to the parent (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728):
 
@@ -206,6 +207,53 @@ If you start and stop RootlessKit too frequently, you might use up all available
 You might need to reset `/var/lib/misc/dnsmasq.lxcbr0.leases` and restart the `lxc-net` service.
 
 Currently, the MAC address is always set to a random address.
+
+### `--net=gvisor-tap-vsock` (experimental)
+
+`--net=gvisor-tap-vsock` isolates the network namespace from the host and uses [gvisor-tap-vsock](https://github.com/containers/gvisor-tap-vsock) for providing usermode networking.
+
+Pros:
+* Possible to perform network-namespaced operations, e.g. creating iptables rules, running `tcpdump`
+* Supports ICMP Echo (`ping`) when `/proc/sys/net/ipv4/ping_group_range` is configured
+
+Cons:
+* Supports only TCP, UDP, and ICMP Echo packets
+* Does not support IPv6 routing (`--ipv6`)
+
+The network is configured as follows by default:
+* IP: 10.0.2.100/24
+* Gateway: 10.0.2.1
+* DNS: 10.0.2.1
+
+The network configuration can be changed by specifying custom CIDR, e.g. `--cidr=10.0.3.0/24`.
+
+As in `--net=slirp4netns`, specifying `--copy-up=/etc` is highly recommended unless `/etc/resolv.conf` on the host is statically configured. It is also highly recommended to specify `--disable-host-loopback`. Otherwise ports listening on 127.0.0.1 in the host are accessible as 10.0.2.1 in the RootlessKit's network namespace.
+
+Example session:
+
+```console
+$ rootlesskit --net=gvisor-tap-vsock --copy-up=/etc --disable-host-loopback bash
+rootlesskit$ ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host 
+       valid_lft forever preferred_lft forever
+2: tap0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 65520 qdisc fq_codel state UP group default qlen 1000
+    link/ether 1a:25:a3:a5:1d:03 brd ff:ff:ff:ff:ff:ff
+    inet 10.0.2.100/24 scope global tap0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::1825:a3ff:fea5:1d03/64 scope link 
+       valid_lft forever preferred_lft forever
+rootlesskit$ ip r
+default via 10.0.2.1 dev tap0
+10.0.2.0/24 dev tap0 proto kernel scope link src 10.0.2.100
+rootlesskit$ cat /etc/resolv.conf 
+nameserver 10.0.2.1
+rootlesskit$ curl https://www.google.com
+<!doctype html><html ...>...</html>
+```
 
 ## IPv6
 
