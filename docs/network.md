@@ -217,7 +217,6 @@ Pros:
 * Supports ICMP Echo (`ping`) when `/proc/sys/net/ipv4/ping_group_range` is configured
 
 Cons:
-* Extra performance overhead
 * Supports only TCP, UDP, and ICMP Echo packets
 * Does not support IPv6 routing (`--ipv6`)
 
@@ -228,12 +227,12 @@ The network is configured as follows by default:
 
 The network configuration can be changed by specifying custom CIDR, e.g. `--cidr=10.0.3.0/24`.
 
-As in `--net=slirp4netns`, specifying `--copy-up=/etc` is highly recommended unless `/etc/resolv.conf` on the host is statically configured.
+As in `--net=slirp4netns`, specifying `--copy-up=/etc` is highly recommended unless `/etc/resolv.conf` on the host is statically configured. It is also highly recommended to specify `--disable-host-loopback`. Otherwise ports listening on 127.0.0.1 in the host are accessible as 10.0.2.1 in the RootlessKit's network namespace.
 
 Example session:
 
 ```console
-$ rootlesskit --net=gvisor-tap-vsock --copy-up=/etc bash
+$ rootlesskit --net=gvisor-tap-vsock --copy-up=/etc --disable-host-loopback bash
 rootlesskit$ ip a
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00

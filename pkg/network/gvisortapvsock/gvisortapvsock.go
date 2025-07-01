@@ -130,6 +130,14 @@ func (d *parentDriver) setupVirtualNetwork(gateway string) (*virtualnetwork.Virt
 		DHCPStaticLeases:  map[string]string{},
 	}
 
+	if !d.disableHostLoopback {
+		// Configure NAT to allow access to host's localhost (127.0.0.1)
+		// Map 10.0.2.1 (default gateway) to host's 127.0.0.1
+		config.NAT = map[string]string{
+			"10.0.2.1": "127.0.0.1",
+		}
+	}
+
 	// Create the virtual network
 	vn, err := virtualnetwork.New(config)
 	if err != nil {
@@ -370,8 +378,6 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 func NewChildDriver() network.ChildDriver {
 	return &childDriver{}
 }
-
-// Remove unused function
 
 type childDriver struct {
 	tap        *water.Interface
