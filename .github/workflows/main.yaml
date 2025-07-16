@@ -70,6 +70,10 @@ jobs:
       run: |
         docker run --rm --privileged rootlesskit:test-integration ./integration-net.sh pasta
         docker run --rm --privileged rootlesskit:test-integration ./integration-net.sh pasta --detach-netns
+    - name: "Integration test: Network (network driver=gvisor-tap-vsock)"
+      run: |
+        docker run --rm --privileged rootlesskit:test-integration ./integration-net.sh gvisor-tap-vsock
+        docker run --rm --privileged rootlesskit:test-integration ./integration-net.sh gvisor-tap-vsock --detach-netns
 # ===== Benchmark: Network (MTU=1500) =====
     - name: "Benchmark: Network (MTU=1500, network driver=slirp4netns)"
       run: |
@@ -101,6 +105,14 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-net.sh pasta 1500 --detach-netns
+    - name: "Benchmark: Network (MTU=1500, network driver=gvisor-tap-vsock)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh gvisor-tap-vsock 1500
+    - name: "Benchmark: Network (MTU=1500, network driver=gvisor-tap-vsock) with detach-netns"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh gvisor-tap-vsock 1500 --detach-netns
     - name: "Benchmark: Network (MTU=1500, network driver=lxc-user-nic)"
       run: |
           docker run --rm --privileged \
@@ -126,6 +138,10 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-net.sh pasta 65520
+    - name: "Benchmark: Network (MTU=65520, network driver=gvisor-tap-vsock)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-net.sh gvisor-tap-vsock 65520
     - name: "Benchmark: Network (MTU=65520, network driver=lxc-user-nic)"
       run: |
           docker run --rm --privileged \
@@ -238,6 +254,13 @@ jobs:
     - name: "Docker Integration test: net=pasta, port-driver=implicit"
       run: |
         docker run -d --name test --network custom --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=pasta       -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=implicit rootlesskit:test-integration-docker
+        sleep 2
+        docker exec test docker info
+        docker exec test ./integration-docker.sh
+        docker rm -f test
+    - name: "Docker Integration test: net=gvisor-tap-vsock, port-driver=builtin"
+      run: |
+        docker run -d --name test --network custom --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=gvisor-tap-vsock -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=builtin rootlesskit:test-integration-docker
         sleep 2
         docker exec test docker info
         docker exec test ./integration-docker.sh

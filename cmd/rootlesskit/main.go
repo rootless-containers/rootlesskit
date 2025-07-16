@@ -19,6 +19,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/v2/pkg/child"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/copyup/tmpfssymlink"
+	"github.com/rootless-containers/rootlesskit/v2/pkg/network/gvisortapvsock"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/lxcusernic"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/none"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/pasta"
@@ -97,7 +98,7 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 		}, CategoryState),
 		Categorize(&cli.StringFlag{
 			Name:  "net",
-			Usage: "network driver [host, none, pasta(experimental), slirp4netns, vpnkit, lxc-user-nic(experimental)]",
+			Usage: "network driver [host, none, pasta(experimental), slirp4netns, vpnkit, lxc-user-nic(experimental), gvisor-tap-vsock(experimental)]",
 			Value: "host",
 		}, CategoryNetwork),
 		Categorize(&cli.StringFlag{
@@ -142,7 +143,7 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 		}, CategoryNetwork),
 		Categorize(&cli.StringFlag{
 			Name:  "cidr",
-			Usage: "CIDR for pasta and slirp4netns networks (default: 10.0.2.0/24)",
+			Usage: "CIDR for pasta, slirp4netns and gvisor-tap-vsock networks (default: 10.0.2.0/24)",
 		}, CategoryNetwork),
 		Categorize(&cli.StringFlag{
 			Name:  "ifname",
@@ -536,6 +537,35 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 		if err != nil {
 			return opt, err
 		}
+	case "gvisor-tap-vsock":
+		logrus.Warn("\"gvisor-tap-vsock\" network driver is experimental")
+		if disableHostLoopback {
+			logrus.Warn("\"--disable-host-loopback\" is not yet supported for gvisor-tap-vsock")
+		}
+
+		if clicontext.String("cidr") != "" {
+			ipnet, err = parseCIDR(clicontext.String("cidr"))
+			if err != nil {
+				return opt, err
+			}
+		} else {
+			// Default CIDR for the virtual network
+			_, ipnet, err = net.ParseCIDR("10.0.2.0/24")
+			if err != nil {
+				return opt, err
+			}
+		}
+
+		if clicontext.Bool("ipv6") {
+			// virtual network does not support IPv6 yet
+			// see https://github.com/containers/gvisor-tap-vsock/blob/v0.8.6/pkg/virtualnetwork/virtualnetwork.go#L102
+			return opt, errors.New("--ipv6 is not supported for gvisor-tap-vsock")
+		}
+
+		opt.NetworkDriver, err = gvisortapvsock.NewParentDriver(&logrusDebugWriter{label: "network/gvisor-tap-vsock"}, mtu, ipnet, ifname, disableHostLoopback, ipv6)
+		if err != nil {
+			return opt, err
+		}
 	default:
 		return opt, fmt.Errorf("unknown network mode: %s", s)
 	}
@@ -635,6 +665,8 @@ func createChildOpt(clicontext *cli.Context) (child.Opt, error) {
 		opt.NetworkDriver = vpnkit.NewChildDriver()
 	case "lxc-user-nic":
 		opt.NetworkDriver = lxcusernic.NewChildDriver()
+	case "gvisor-tap-vsock":
+		opt.NetworkDriver = gvisortapvsock.NewChildDriver()
 	default:
 		return opt, fmt.Errorf("unknown network mode: %s", s)
 	}

@@ -48,6 +48,17 @@ function benchmark::iperf3::lxc-user-nic() {
 	set +x
 }
 
+function benchmark::iperf3::gvisor-tap-vsock() {
+	INFO "[benchmark:iperf3] gvisor-tap-vsock ($@)"
+	statedir=$(mktemp -d)
+	if echo "$@" | grep -q -- --detach-netns; then
+		IPERF3C="nsenter -n${statedir}/netns $IPERF3C"
+	fi
+	set -x
+	$ROOTLESSKIT --state-dir=$statedir --net=gvisor-tap-vsock $@ -- $IPERF3C 10.0.2.1
+	set +x
+}
+
 function benchmark::iperf3::rootful_veth() {
 	INFO "[benchmark:iperf3] rootful_veth ($@) for reference"
 	# only --mtu=MTU is supposed as $@
