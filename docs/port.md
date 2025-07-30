@@ -9,12 +9,15 @@ The default value is `none` (do not expose ports).
 | `slirp4netns`        | 6.89 Gbps   | Propagated
 | `socat` (Deprecated) | 7.80 Gbps   | Always 127.0.0.1
 | `builtin`            | 30.0 Gbps   | Always 127.0.0.1
+| `gvisor-tap-vsock`   | N/A         | Propagated
 
 ([Benchmark: iperf3 from the parent to the child (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728))
 
 The `builtin` driver is fast, but be aware that the source IP is not propagated and always set to 127.0.0.1.
 
 For [`pasta`](./network.md) networks, the `implicit` port driver is the best choice.
+
+For [`gVisor TAP/vsock`](https://github.com/containers/gvisor-tap-vsock) based networks, use the `gvisor-tap-vsock` port driver.
 
 * To be documented: [`bypass4netns`](https://github.com/rootless-containers/bypass4netns) for native performance.
 

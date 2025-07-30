@@ -175,6 +175,14 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-port.sh implicit --net=pasta --detach-netns
+    - name: "Benchmark: TCP Ports (network driver=gvisor-tap-vsock, port driver=gvisor-tap-vsock)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port.sh gvisor-tap-vsock --net=gvisor-tap-vsock
+    - name: "Benchmark: TCP Ports (network driver=gvisor-tap-vsock, port driver=gvisor-tap-vsock) with detach-netns"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port.sh gvisor-tap-vsock --net=gvisor-tap-vsock --detach-netns
 # ===== Benchmark: UDP Ports =====
     - name: "Benchmark: UDP Ports (port driver=slirp4netns)"
       run: |
@@ -200,6 +208,14 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh builtin --detach-netns
+    - name: "Benchmark: UDP Ports (network driver=gvisor-tap-vsock, port driver=gvisor-tap-vsock)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh gvisor-tap-vsock --net=gvisor-tap-vsock
+    - name: "Benchmark: UDP Ports (network driver=gvisor-tap-vsock, port driver=gvisor-tap-vsock) with detach-netns"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh gvisor-tap-vsock --net=gvisor-tap-vsock --detach-netns
 
   test-integration-docker:
     name: "Integration test (Docker)"
