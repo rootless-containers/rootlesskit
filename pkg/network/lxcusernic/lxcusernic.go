@@ -1,3 +1,6 @@
+//go:build !no_lxcusernic
+// +build !no_lxcusernic
+
 package lxcusernic
 
 import (
@@ -214,3 +217,6 @@ func dhcpRenewRoutine(c *client4.Client, dev string, initialIP net.IP, lease tim
 		lease = p.IPAddressLeaseTime(lease)
 	}
 }
+
+// Available indicates whether this driver is compiled in (used for generating help text)
+const Available = true

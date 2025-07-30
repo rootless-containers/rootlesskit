@@ -83,6 +83,33 @@ Examples:
 Note: RootlessKit requires /etc/subuid and /etc/subgid to be configured by the real root user.
 See https://rootlesscontaine.rs/getting-started/common/ .
 `
+	// Build the list of available network drivers for help text
+	// Only compiled-in drivers will be shown here, so omitted drivers don't appear in --help.
+	drivers := []string{"host", "none", "pasta(experimental)"}
+	if slirp4netns.Available {
+		drivers = append(drivers, "slirp4netns")
+	}
+	if vpnkit.Available {
+		drivers = append(drivers, "vpnkit")
+	}
+	if lxcusernic.Available {
+		drivers = append(drivers, "lxc-user-nic(experimental)")
+	}
+	if gvisortapvsock.Available {
+		drivers = append(drivers, "gvisor-tap-vsock(experimental)")
+	}
+	netDriversHelp := strings.Join(drivers, ", ")
+
+	// Build the list of available port drivers for help text
+	portDrivers := []string{"none", "implicit (for pasta)", "builtin"}
+	if slirp4netns_port.Available {
+		portDrivers = append(portDrivers, "slirp4netns")
+	}
+	if gvisortapvsock_port.Available {
+		portDrivers = append(portDrivers, "gvisor-tap-vsock(experimental)")
+	}
+	portDriversHelp := strings.Join(portDrivers, ", ")
+
 	app.Flags = []cli.Flag{
 		Categorize(&cli.BoolFlag{
 			Name:        "debug",
@@ -99,7 +126,7 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 		}, CategoryState),
 		Categorize(&cli.StringFlag{
 			Name:  "net",
-			Usage: "network driver [host, none, pasta(experimental), slirp4netns, vpnkit, lxc-user-nic(experimental), gvisor-tap-vsock(experimental)]",
+			Usage: fmt.Sprintf("network driver [%s]", netDriversHelp),
 			Value: "host",
 		}, CategoryNetwork),
 		Categorize(&cli.StringFlag{
@@ -169,7 +196,7 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 		}, CategoryMount),
 		Categorize(&cli.StringFlag{
 			Name:  "port-driver",
-			Usage: "port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns, gvisor-tap-vsock]",
+			Usage: fmt.Sprintf("port driver for non-host network. [%s]", portDriversHelp),
 			Value: "none",
 		}, CategoryPort),
 		Categorize(&cli.StringSliceFlag{

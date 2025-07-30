@@ -281,3 +281,18 @@ jobs:
         docker exec test docker info
         docker exec test ./integration-docker.sh
         docker rm -f test
+
+  build-tags:
+    name: "Build with disabled drivers tags"
+    runs-on: ubuntu-24.04
+    steps:
+    - name: "Check out"
+      uses: actions/checkout@v5
+    - name: "Set up Go"
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+    - name: "Build with -tags no_gvisortapvsock"
+      run: go build -v -tags no_gvisortapvsock ./cmd/rootlesskit
+    - name: "Build with -tags 'no_slirp4netns no_lxcusernic no_gvisortapvsock'"
+      run: go build -v -tags "no_slirp4netns no_lxcusernic no_gvisortapvsock" ./cmd/rootlesskit
