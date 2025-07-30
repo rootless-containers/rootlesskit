@@ -4,17 +4,22 @@ To the ports in the network namespace to the host network namespace, `--port-dri
 
 The default value is `none` (do not expose ports).
 
-| `--port-driver`      |  Throughput | Source IP
-|----------------------|-------------|----------
-| `slirp4netns`        | 6.89 Gbps   | Propagated
-| `socat` (Deprecated) | 7.80 Gbps   | Always 127.0.0.1
-| `builtin`            | 30.0 Gbps   | Always 127.0.0.1
+| `--port-driver`      |  Throughput | Source IP | Notes
+|----------------------|-------------|----------|-------
+| `slirp4netns`        | 2.51 Gbps   | Propagated | 
+| `socat` (Deprecated) | 7.80 Gbps   | Always 127.0.0.1 | 
+| `builtin`            | 32.6 Gbps   | Always 127.0.0.1 | 
+| `gvisor-tap-vsock` (Experimental) | 2.26 Gbps | Propagated | Throughput is currently limited; see issue link below for improvement ideas.
 
 ([Benchmark: iperf3 from the parent to the child (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728))
 
 The `builtin` driver is fast, but be aware that the source IP is not propagated and always set to 127.0.0.1.
 
 For [`pasta`](./network.md) networks, the `implicit` port driver is the best choice.
+
+For [`gVisor TAP/vsock`](https://github.com/containers/gvisor-tap-vsock) based networks, use the `gvisor-tap-vsock` port driver.
+
+> Note: The `gvisor-tap-vsock` port driver is experimental. Current throughput is known to be slower than other drivers. We are tracking ideas for improving throughput here: https://github.com/rootless-containers/rootlesskit/issues/529
 
 * To be documented: [`bypass4netns`](https://github.com/rootless-containers/bypass4netns) for native performance.
 

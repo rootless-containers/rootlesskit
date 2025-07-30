@@ -27,6 +27,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/vpnkit"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/parent"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/port/builtin"
+	gvisortapvsock_port "github.com/rootless-containers/rootlesskit/v2/pkg/port/gvisortapvsock"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/port/portutil"
 	slirp4netns_port "github.com/rootless-containers/rootlesskit/v2/pkg/port/slirp4netns"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/systemd/activation"
@@ -168,7 +169,7 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 		}, CategoryMount),
 		Categorize(&cli.StringFlag{
 			Name:  "port-driver",
-			Usage: "port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns]",
+			Usage: "port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns, gvisor-tap-vsock]",
 			Value: "none",
 		}, CategoryPort),
 		Categorize(&cli.StringSliceFlag{
@@ -558,7 +559,7 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 
 		if clicontext.Bool("ipv6") {
 			// virtual network does not support IPv6 yet
-			// see https://github.com/containers/gvisor-tap-vsock/blob/v0.8.6/pkg/virtualnetwork/virtualnetwork.go#L102
+			// see https://github.com/containers/gvisor-tap-vsock/blob/v0.8.7/pkg/virtualnetwork/virtualnetwork.go#L102
 			return opt, errors.New("--ipv6 is not supported for gvisor-tap-vsock")
 		}
 
@@ -593,6 +594,15 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 			return opt, errors.New("port driver requires non-host network")
 		}
 		opt.PortDriver, err = builtin.NewParentDriver(&logrusDebugWriter{label: "port/builtin"}, opt.StateDir)
+		if err != nil {
+			return opt, err
+		}
+	case "gvisor-tap-vsock":
+		logrus.Warn("\"gvisor-tap-vsock\" port driver is experimental")
+		if opt.NetworkDriver == nil {
+			return opt, errors.New("port driver requires non-host network")
+		}
+		opt.PortDriver, err = gvisortapvsock_port.NewParentDriver(&logrusDebugWriter{label: "port/gvisor-tap-vsock"}, opt.StateDir)
 		if err != nil {
 			return opt, err
 		}
@@ -687,6 +697,8 @@ func createChildOpt(clicontext *cli.Context) (child.Opt, error) {
 		opt.PortDriver = slirp4netns_port.NewChildDriver()
 	case "builtin":
 		opt.PortDriver = builtin.NewChildDriver(&logrusDebugWriter{label: "port/builtin"})
+	case "gvisor-tap-vsock":
+		opt.PortDriver = gvisortapvsock_port.NewChildDriver()
 	default:
 		return opt, fmt.Errorf("unknown port driver: %s", s)
 	}

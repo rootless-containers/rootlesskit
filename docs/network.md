@@ -212,6 +212,8 @@ Currently, the MAC address is always set to a random address.
 
 `--net=gvisor-tap-vsock` isolates the network namespace from the host and uses [gvisor-tap-vsock](https://github.com/containers/gvisor-tap-vsock) for providing usermode networking.
 
+> Note: When used together with the `gvisor-tap-vsock` port driver, port-forward throughput is currently slower than other drivers. The port driver is experimental. Ideas for improving throughput are being tracked here: https://github.com/rootless-containers/rootlesskit/issues/529
+
 Pros:
 * Possible to perform network-namespaced operations, e.g. creating iptables rules, running `tcpdump`
 * Supports ICMP Echo (`ping`) when `/proc/sys/net/ipv4/ping_group_range` is configured
