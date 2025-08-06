@@ -27,6 +27,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/v2/pkg/network/vpnkit"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/parent"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/port/builtin"
+	gvisortapvsock_port "github.com/rootless-containers/rootlesskit/v2/pkg/port/gvisortapvsock"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/port/portutil"
 	slirp4netns_port "github.com/rootless-containers/rootlesskit/v2/pkg/port/slirp4netns"
 	"github.com/rootless-containers/rootlesskit/v2/pkg/systemd/activation"
@@ -168,7 +169,7 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 		}, CategoryMount),
 		Categorize(&cli.StringFlag{
 			Name:  "port-driver",
-			Usage: "port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns]",
+			Usage: "port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns, gvisortapvsock]",
 			Value: "none",
 		}, CategoryPort),
 		Categorize(&cli.StringSliceFlag{
@@ -596,6 +597,14 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 		if err != nil {
 			return opt, err
 		}
+	case "gvisortapvsock":
+		if opt.NetworkDriver == nil {
+			return opt, errors.New("port driver requires non-host network")
+		}
+		opt.PortDriver, err = gvisortapvsock_port.NewParentDriver(&logrusDebugWriter{label: "port/gvisortapvsock"}, opt.StateDir)
+		if err != nil {
+			return opt, err
+		}
 	default:
 		return opt, fmt.Errorf("unknown port driver: %s", s)
 	}
@@ -687,6 +696,8 @@ func createChildOpt(clicontext *cli.Context) (child.Opt, error) {
 		opt.PortDriver = slirp4netns_port.NewChildDriver()
 	case "builtin":
 		opt.PortDriver = builtin.NewChildDriver(&logrusDebugWriter{label: "port/builtin"})
+	case "gvisortapvsock":
+		opt.PortDriver = gvisortapvsock_port.NewChildDriver()
 	default:
 		return opt, fmt.Errorf("unknown port driver: %s", s)
 	}

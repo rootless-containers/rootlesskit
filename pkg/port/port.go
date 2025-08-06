@@ -37,6 +37,8 @@ type Manager interface {
 type ChildContext struct {
 	// IP of the tap device
 	IP net.IP
+	// Network is the virtual network object from the network driver
+	Network interface{}
 }
 
 // ParentDriver is a driver for the parent process.
