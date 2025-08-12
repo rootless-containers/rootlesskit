@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
     - name: "Check out"
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: "Build unit test image"
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-unit --target test-unit .
     - name: "Unit test"
@@ -15,7 +15,7 @@ jobs:
     name: "Cross compilation test"
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: "Build binaries"
       run: DOCKER_BUILDKIT=1 docker build -o /tmp/artifact --target cross-artifact .
   test-integration:
@@ -34,7 +34,7 @@ jobs:
         EOT
         sudo systemctl restart apparmor.service
     - name: "Check out"
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: "Build integration test image"
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration --target test-integration .
     - name: "Integration test: exit-code"
@@ -223,7 +223,7 @@ jobs:
         EOT
         sudo systemctl restart apparmor.service
     - name: "Check out"
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
     - name: "Build integration test image"
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration-docker --target test-integration-docker --build-arg DOCKER_VERSION .
       env:
