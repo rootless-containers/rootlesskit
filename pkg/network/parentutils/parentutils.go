@@ -6,9 +6,11 @@ import (
 	"strconv"
 
 	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
+	"github.com/sirupsen/logrus"
 )
 
 func PrepareTap(childPID int, childNetNsPath string, tap string) error {
+	logrus.Debugf("PrepareTap")
 	cmds := [][]string{
 		nsenter(childPID, childNetNsPath, []string{"ip", "tuntap", "add", "name", tap, "mode", "tap"}),
 		nsenter(childPID, childNetNsPath, []string{"ip", "link", "set", tap, "up"}),
