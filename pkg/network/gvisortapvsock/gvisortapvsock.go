@@ -164,13 +164,14 @@ func (d *parentDriver) setupDNSServers() ([]string, error) {
 }
 
 // prepareNetworkMessage creates the network message with all configuration details
-func (d *parentDriver) prepareNetworkMessage(tap string, ip string, netmask int, gateway string) (*messages.ParentInitNetworkDriverCompleted, error) {
+func (d *parentDriver) prepareNetworkMessage(virtualNetwork *virtualnetwork.VirtualNetwork, tap string, ip string, netmask int, gateway string) (*messages.ParentInitNetworkDriverCompleted, error) {
 	dnsServers, err := d.setupDNSServers()
 	if err != nil {
 		return nil, err
 	}
 
 	netmsg := messages.ParentInitNetworkDriverCompleted{
+		Network: virtualNetwork,
 		Dev:     tap,
 		DNS:     dnsServers,
 		MTU:     d.mtu,
@@ -346,7 +347,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	cleanups = append(cleanups, d.createCleanupFunc(vn))
 
 	// Prepare network message
-	netmsg, err := d.prepareNetworkMessage(tap, ip, netmask, gateway)
+	netmsg, err := d.prepareNetworkMessage(vn, tap, ip, netmask, gateway)
 	if err != nil {
 		return nil, common.Seq(cleanups), err
 	}
