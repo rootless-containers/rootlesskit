@@ -1,6 +1,6 @@
 module github.com/rootless-containers/rootlesskit/v2
 
-go 1.23.0
+go 1.24.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
@@ -15,7 +15,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.27.7
-	golang.org/x/sys v0.35.0
+	golang.org/x/sys v0.36.0
 	gotest.tools/v3 v3.5.2
 )
 
