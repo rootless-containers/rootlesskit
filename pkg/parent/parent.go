@@ -289,7 +289,9 @@ func Parent(opt Opt) error {
 	if opt.PortDriver != nil {
 		msgParentInitPortDriverCompleted.U.ParentInitPortDriverCompleted.PortDriverOpaque = opt.PortDriver.OpaqueForChild()
 		cctx := &port.ChildContext{
-			IP: net.ParseIP(msgParentInitNetworkDriverCompleted.U.ParentInitNetworkDriverCompleted.IP).To4(),
+			IP:        net.ParseIP(msgParentInitNetworkDriverCompleted.U.ParentInitNetworkDriverCompleted.IP).To4(),
+			Network:   msgParentInitNetworkDriverCompleted.U.ParentInitNetworkDriverCompleted.Network,
+			GatewayIP: msgParentInitNetworkDriverCompleted.U.ParentInitNetworkDriverCompleted.Gateway,
 		}
 		go func() {
 			portDriverErr <- opt.PortDriver.RunParentDriver(portDriverInitComplete,
