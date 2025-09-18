@@ -24,7 +24,6 @@ x ppc64le ppc64le
 x riscv64 riscv64
 GOARM=7
 export GOARM
-# Skip building for arm due to gvisor-tap-vsock(v0.8.7) incompatibility on 32-bit ARM (see https://github.com/containers/gvisor-tap-vsock/issues/545))
-#x arm armv7l
+x arm armv7l
 
 rm -rf bin
