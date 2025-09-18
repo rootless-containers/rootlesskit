@@ -367,10 +367,10 @@ func getSubIDRanges(u *user.User, subidSource SubidSource) ([]idtools.SubIDRange
 	}
 	switch subidSource {
 	case SubidSourceStatic:
-		logrus.Debugf("subid-source: using the static source")
+		logrus.Debug("subid-source: using the static source")
 		return idtools.GetSubIDRanges(uid, u.Username)
 	case SubidSourceDynamic:
-		logrus.Debugf("subid-source: using the dynamic source")
+		logrus.Debug("subid-source: using the dynamic source")
 		return dynidtools.GetSubIDRanges(uid, u.Username)
 	case "", SubidSourceAuto:
 		subuidRanges, subgidRanges, err := getSubIDRanges(u, SubidSourceDynamic)

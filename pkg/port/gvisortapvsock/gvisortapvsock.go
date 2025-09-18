@@ -193,7 +193,7 @@ func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{
 	// Get the virtual network from the child context
 	if cctx != nil && cctx.Network != nil {
 		d.servicesMux = cctx.Network.Mux()
-		logrus.Debugf("Using services mux from child context")
+		logrus.Debug("Using services mux from child context")
 	}
 
 	if d.servicesMux == nil {
@@ -201,7 +201,7 @@ func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{
 	}
 
 	d.mu.Unlock()
-	logrus.Debugf("Created virtual network")
+	logrus.Debug("Created virtual network")
 
 	// Signal that initialization is complete
 	close(initComplete)

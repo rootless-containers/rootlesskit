@@ -243,7 +243,7 @@ func (d *parentDriver) acceptConnections() {
 			if err != nil {
 				// Check if the error is due to the listener being closed, which is expected during cleanup
 				if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "use of closed network connection") {
-					logrus.Debugf("listener closed, stopping accept loop")
+					logrus.Debug("listener closed, stopping accept loop")
 					return
 				}
 				logrus.Errorf("accepting connection: %v", err)
@@ -271,9 +271,9 @@ func (d *parentDriver) handleConnection(conn net.Conn) {
 
 	// Use the AcceptStdio function to stream packets between the Unix socket and the virtual network
 	// This will handle the connection and forward packets in both directions
-	logrus.Debugf("forwarding packets between Unix socket and virtual network using VfkitProtocol")
+	logrus.Debug("forwarding packets between Unix socket and virtual network using VfkitProtocol")
 	if err := vn.AcceptStdio(d.ctx, conn); err != nil {
-		logrus.Debugf(err.Error())
+		logrus.Debug(err)
 		if errors.Is(err, io.EOF) {
 			// This is expected when the child process exits
 			logrus.Debugf("child process exited, connection closed: %v", err)
@@ -286,7 +286,7 @@ func (d *parentDriver) handleConnection(conn net.Conn) {
 // createCleanupFunc creates a cleanup function for the virtual network
 func (d *parentDriver) createCleanupFunc(vn *virtualnetwork.VirtualNetwork) func() error {
 	return func() error {
-		logrus.Debugf("closing gvisor-tap-vsock virtual network")
+		logrus.Debug("closing gvisor-tap-vsock virtual network")
 		// The VirtualNetwork struct doesn't have an explicit Close method,
 		// but we'll keep a reference to it to prevent garbage collection
 		_ = vn
@@ -301,7 +301,7 @@ func (d *parentDriver) createCleanupFunc(vn *virtualnetwork.VirtualNetwork) func
 			}
 		}
 
-		logrus.Debugf("closed gvisor-tap-vsock virtual network")
+		logrus.Debug("closed gvisor-tap-vsock virtual network")
 		return nil
 	}
 }
