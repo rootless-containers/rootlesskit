@@ -226,7 +226,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	}
 	cmd.ExtraFiles = append(cmd.ExtraFiles, readyW)
 	cleanups = append(cleanups, func() error {
-		logrus.Debugf("killing slirp4netns")
+		logrus.Debug("killing slirp4netns")
 		if cmd.Process != nil {
 			_ = cmd.Process.Kill()
 		}
