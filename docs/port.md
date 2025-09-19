@@ -6,10 +6,9 @@ The default value is `none` (do not expose ports).
 
 | `--port-driver`      |  Throughput | Source IP | Notes
 |----------------------|-------------|----------|-------
-| `slirp4netns`        | 2.51 Gbps   | Propagated | 
-| `socat` (Deprecated) | 7.80 Gbps   | Always 127.0.0.1 | 
-| `builtin`            | 32.6 Gbps   | Always 127.0.0.1 | 
-| `gvisor-tap-vsock` (Experimental) | 2.26 Gbps | Propagated | Throughput is currently limited; see issue link below for improvement ideas.
+| `slirp4netns`        | 9.78 Gbps   | Propagated | 
+| `builtin`            | 35.6 Gbps   | Always 127.0.0.1 | 
+| `gvisor-tap-vsock` (Experimental) | 3.99 Gbps | Propagated | Throughput is currently limited; see issue link below for improvement ideas.
 
 ([Benchmark: iperf3 from the parent to the child (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728))
 
@@ -37,11 +36,6 @@ rootlesskit$ rootlessctl --socket=/run/user/1001/rootlesskit/foo/api.sock remove
 1
 ```
 
-You can also expose ports using `socat` and `nsenter` instead of RootlessKit's port drivers.
-```console
-$ pid=$(cat /run/user/1001/rootlesskit/foo/child_pid)
-$ socat -t -- TCP-LISTEN:8080,reuseaddr,fork EXEC:"nsenter -U -n -t $pid socat -t -- STDIN TCP4\:127.0.0.1\:80"
-```
 
 ### Exposing privileged ports
 To expose privileged ports (< 1024), add `net.ipv4.ip_unprivileged_port_start=0` to `/etc/sysctl.conf` (or `/etc/sysctl.d`) and run `sudo sysctl --system`.

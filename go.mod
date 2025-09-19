@@ -5,7 +5,7 @@ go 1.24.0
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/containernetworking/plugins v1.7.1
-	github.com/containers/gvisor-tap-vsock v0.8.7
+	github.com/containers/gvisor-tap-vsock v0.8.8-0.20250909141233-c4615cdb1462
 	github.com/gofrs/flock v0.12.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -40,6 +40,3 @@ require (
 	golang.org/x/tools v0.36.0 // indirect
 	gvisor.dev/gvisor v0.0.0-20240916094835-a174eb65023f // indirect
 )
-
-// Point to upstream main until the next release to get this fix: https://github.com/containers/gvisor-tap-vsock/commit/c4615cdb1462cb4c9ea5ab770ea11ad03c472c26
-replace github.com/containers/gvisor-tap-vsock => github.com/containers/gvisor-tap-vsock v0.8.8-0.20250909141233-c4615cdb1462
