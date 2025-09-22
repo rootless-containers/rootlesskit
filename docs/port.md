@@ -10,7 +10,7 @@ The default value is `none` (do not expose ports).
 | `builtin`            | 35.6 Gbps   | Always 127.0.0.1 | 
 | `gvisor-tap-vsock` (Experimental) | 3.99 Gbps | Propagated | Throughput is currently limited; see issue link below for improvement ideas.
 
-([Benchmark: iperf3 from the parent to the child (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728))
+Benchmark: iperf3 from the parent to the child is measured on GitHub Actions
 
 The `builtin` driver is fast, but be aware that the source IP is not propagated and always set to 127.0.0.1.
 
