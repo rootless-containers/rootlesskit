@@ -4,17 +4,21 @@ To the ports in the network namespace to the host network namespace, `--port-dri
 
 The default value is `none` (do not expose ports).
 
-| `--port-driver`      |  Throughput | Source IP
-|----------------------|-------------|----------
-| `slirp4netns`        | 6.89 Gbps   | Propagated
-| `socat` (Deprecated) | 7.80 Gbps   | Always 127.0.0.1
-| `builtin`            | 30.0 Gbps   | Always 127.0.0.1
+| `--port-driver`      |  Throughput | Source IP | Notes
+|----------------------|-------------|----------|-------
+| `slirp4netns`        | 9.78 Gbps   | Propagated | 
+| `builtin`            | 35.6 Gbps   | Always 127.0.0.1 | 
+| `gvisor-tap-vsock` (Experimental) | 3.99 Gbps | Propagated | Throughput is currently limited; see issue link below for improvement ideas.
 
-([Benchmark: iperf3 from the parent to the child (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728))
+Benchmark: iperf3 from the parent to the child is measured on GitHub Actions
 
 The `builtin` driver is fast, but be aware that the source IP is not propagated and always set to 127.0.0.1.
 
 For [`pasta`](./network.md) networks, the `implicit` port driver is the best choice.
+
+For [`gVisor TAP/vsock`](https://github.com/containers/gvisor-tap-vsock) based networks, use the `gvisor-tap-vsock` port driver.
+
+> Note: The `gvisor-tap-vsock` port driver is experimental. Current throughput is known to be slower than other drivers. We are tracking ideas for improving throughput here: https://github.com/rootless-containers/rootlesskit/issues/529
 
 * To be documented: [`bypass4netns`](https://github.com/rootless-containers/bypass4netns) for native performance.
 
@@ -32,11 +36,6 @@ rootlesskit$ rootlessctl --socket=/run/user/1001/rootlesskit/foo/api.sock remove
 1
 ```
 
-You can also expose ports using `socat` and `nsenter` instead of RootlessKit's port drivers.
-```console
-$ pid=$(cat /run/user/1001/rootlesskit/foo/child_pid)
-$ socat -t -- TCP-LISTEN:8080,reuseaddr,fork EXEC:"nsenter -U -n -t $pid socat -t -- STDIN TCP4\:127.0.0.1\:80"
-```
 
 ### Exposing privileged ports
 To expose privileged ports (< 1024), add `net.ipv4.ip_unprivileged_port_start=0` to `/etc/sysctl.conf` (or `/etc/sysctl.d`) and run `sudo sysctl --system`.

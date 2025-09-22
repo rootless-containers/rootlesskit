@@ -97,7 +97,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		Pdeathsig: syscall.SIGKILL,
 	}
 	cleanups = append(cleanups, func() error {
-		logrus.Debugf("killing vpnkit")
+		logrus.Debug("killing vpnkit")
 		vpnkitCancel()
 		wErr := vpnkitCmd.Wait()
 		logrus.Debugf("killed vpnkit: %v", wErr)
@@ -120,7 +120,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	if err != nil {
 		return nil, common.Seq(cleanups), fmt.Errorf("connecting to %s with uuid %s: %w", vpnkitSocket, vifUUID, err)
 	}
-	logrus.Debugf("connected to VPNKit vmnet")
+	logrus.Debug("connected to VPNKit vmnet")
 	// TODO: support configuration
 	netmsg := messages.ParentInitNetworkDriverCompleted{
 		Dev:     d.ifname,

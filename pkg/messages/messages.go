@@ -55,6 +55,7 @@ type ChildInitUserNSCompleted struct {
 
 type ParentInitNetworkDriverCompleted struct {
 	// Fields are empty for HostNetwork.
+	Network interface{}
 	Dev     string
 	IP      string
 	Netmask int

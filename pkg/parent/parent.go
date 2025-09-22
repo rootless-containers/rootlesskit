@@ -290,6 +290,13 @@ func Parent(opt Opt) error {
 		msgParentInitPortDriverCompleted.U.ParentInitPortDriverCompleted.PortDriverOpaque = opt.PortDriver.OpaqueForChild()
 		cctx := &port.ChildContext{
 			IP: net.ParseIP(msgParentInitNetworkDriverCompleted.U.ParentInitNetworkDriverCompleted.IP).To4(),
+			Network: func() port.VirtualNetworkProvider {
+				if v, ok := msgParentInitNetworkDriverCompleted.U.ParentInitNetworkDriverCompleted.Network.(port.VirtualNetworkProvider); ok {
+					return v
+				}
+				return nil
+			}(),
+			GatewayIP: net.ParseIP(msgParentInitNetworkDriverCompleted.U.ParentInitNetworkDriverCompleted.Gateway).To4(),
 		}
 		go func() {
 			portDriverErr <- opt.PortDriver.RunParentDriver(portDriverInitComplete,
@@ -360,10 +367,10 @@ func getSubIDRanges(u *user.User, subidSource SubidSource) ([]idtools.SubIDRange
 	}
 	switch subidSource {
 	case SubidSourceStatic:
-		logrus.Debugf("subid-source: using the static source")
+		logrus.Debug("subid-source: using the static source")
 		return idtools.GetSubIDRanges(uid, u.Username)
 	case SubidSourceDynamic:
-		logrus.Debugf("subid-source: using the dynamic source")
+		logrus.Debug("subid-source: using the dynamic source")
 		return dynidtools.GetSubIDRanges(uid, u.Username)
 	case "", SubidSourceAuto:
 		subuidRanges, subgidRanges, err := getSubIDRanges(u, SubidSourceDynamic)
