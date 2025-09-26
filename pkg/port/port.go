@@ -5,7 +5,7 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
 )
 
 type Spec struct {

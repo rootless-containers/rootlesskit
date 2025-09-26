@@ -9,10 +9,10 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/httputil"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/version"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/httputil"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/port"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/version"
 )
 
 // NetworkDriver is implemented by network.ParentDriver

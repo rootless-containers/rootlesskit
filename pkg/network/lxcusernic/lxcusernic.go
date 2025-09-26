@@ -16,10 +16,10 @@ import (
 	"github.com/insomniacslk/dhcp/dhcpv4/client4"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/messages"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/network"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/common"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/messages"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/network"
 	"github.com/sirupsen/logrus"
 )
 

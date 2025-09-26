@@ -24,9 +24,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/api/client"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api/client"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/port"
 	"github.com/sirupsen/logrus"
 )
 

@@ -7,8 +7,8 @@ import (
 	"os/exec"
 	"syscall"
 
-	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/version"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/common"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/version"
 	"github.com/urfave/cli/v2"
 )
 

@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rootless-containers/rootlesskit/v2/pkg/port"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/port"
 )
 
 const (
