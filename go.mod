@@ -1,4 +1,4 @@
-module github.com/rootless-containers/rootlesskit/v2
+module github.com/rootless-containers/rootlesskit/v3
 
 go 1.24.2
 

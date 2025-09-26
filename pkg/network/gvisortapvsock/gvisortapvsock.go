@@ -20,12 +20,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/songgao/water"
 
-	"github.com/rootless-containers/rootlesskit/v2/pkg/api"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/common"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/messages"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/network"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/network/iputils"
-	"github.com/rootless-containers/rootlesskit/v2/pkg/network/parentutils"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/common"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/messages"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/network"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/network/iputils"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/network/parentutils"
 )
 
 const (
