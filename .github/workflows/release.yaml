@@ -24,7 +24,7 @@ jobs:
       id-token: write  # for provenances
       attestations: write  # for provenances
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: "Build binaries"
       run: DOCKER_BUILDKIT=1 docker build -o /tmp/artifact --target cross-artifact .
     - name: "SHA256SUMS"
