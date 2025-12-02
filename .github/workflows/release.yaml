@@ -33,6 +33,7 @@ jobs:
       run: sha256sum /tmp/SHA256SUMS
     - name: "Prepare the release note"
       run: |
+        tag="${GITHUB_REF##*/}"
         shasha=$(sha256sum /tmp/SHA256SUMS | awk '{print $1}')
         cat << EOF | tee /tmp/release-note.txt
         #### Changes
