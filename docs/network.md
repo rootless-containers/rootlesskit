@@ -267,3 +267,8 @@ The `--detach-netns` flag (since v2.0.0) detaches network namespaces into `$ROOT
 and executes the child command in the host's network namespace.
 
 The child command can enter `$ROOTLESSKIT_STATE_DIR/netns` by itself to create nested network namespaces.
+
+
+## Build tags to omit drivers
+
+Build-time driver selection is documented in [BUILDING.md](BUILDING.md).

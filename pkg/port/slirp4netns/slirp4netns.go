@@ -1,3 +1,6 @@
+//go:build !no_slirp4netns
+// +build !no_slirp4netns
+
 package slirp4netns
 
 import (
@@ -206,3 +209,6 @@ func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struc
 	<-quit
 	return nil
 }
+
+// Available indicates whether this port driver is compiled in (used for generating help text)
+const Available = true

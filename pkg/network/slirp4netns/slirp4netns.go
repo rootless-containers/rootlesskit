@@ -1,3 +1,6 @@
+//go:build !no_slirp4netns
+// +build !no_slirp4netns
+
 package slirp4netns
 
 import (
@@ -353,3 +356,6 @@ func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDr
 	// and they are up to the child.
 	return tap, nil
 }
+
+// Available indicates whether this driver is compiled in (used for generating help text)
+const Available = true

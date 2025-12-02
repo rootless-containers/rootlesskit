@@ -1,3 +1,6 @@
+//go:build !no_gvisortapvsock
+// +build !no_gvisortapvsock
+
 package gvisortapvsock
 
 import (
@@ -32,6 +35,8 @@ const (
 	DriverName = "gvisor-tap-vsock"
 	// Default buffer size for packet reading/writing
 	defaultBufferSize = 65536
+	// Available indicates whether this driver is compiled in (used for generating help text)
+	Available = true
 )
 
 // NewParentDriver instantiates a new parent driver

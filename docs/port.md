@@ -59,3 +59,7 @@ To specify IPv6 explicitly, use `tcp6`, e.g., `[::]:8080:80/tcp6`.
 
 The `tcp4` and `tcp6` forms were introduced in RootlessKit v0.14.0.
 The `tcp6` is currently supported only for `builtin` port driver.
+
+## Build tags to omit port drivers
+
+Build-time driver selection is documented in [BUILDING.md](BUILDING.md).

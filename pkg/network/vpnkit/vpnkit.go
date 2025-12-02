@@ -1,3 +1,6 @@
+//go:build !no_vpnkit
+// +build !no_vpnkit
+
 package vpnkit
 
 import (
@@ -288,3 +291,6 @@ func vif2tap(w io.Writer, vif *vmnet.Vif) {
 		}
 	}
 }
+
+// Available indicates whether this driver is compiled in (used for generating help text)
+const Available = true
