@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/containernetworking/plugins v1.8.0
 	github.com/containers/gvisor-tap-vsock v0.8.8-0.20250909141233-c4615cdb1462
-	github.com/gofrs/flock v0.12.1
+	github.com/gofrs/flock v0.13.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/insomniacslk/dhcp v0.0.0-20250919081422-f80a1952f48e
@@ -16,7 +16,7 @@ require (
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.27.7
 	golang.org/x/sync v0.17.0
-	golang.org/x/sys v0.36.0
+	golang.org/x/sys v0.37.0
 	gotest.tools/v3 v3.5.2
 )
 
