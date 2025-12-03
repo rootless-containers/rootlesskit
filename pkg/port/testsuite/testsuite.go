@@ -138,21 +138,10 @@ func TestProto(t *testing.T, proto string, d port.ParentDriver) {
 
 func testProtoWithPID(t *testing.T, proto string, d port.ParentDriver, childPID int) {
 	ensureDeps(t, "nsenter", "ip", "nc")
-	// [child]parent
+
 	pairs := map[int]int{
-		// FIXME: flaky
-		80:   (childPID + 80) % 60000,
-		8080: (childPID + 8080) % 60000,
-	}
-	if proto == "tcp" {
-		for _, parentPort := range pairs {
-			var d net.Dialer
-			d.Timeout = 50 * time.Millisecond
-			_, err := d.Dial(proto, fmt.Sprintf("127.0.0.1:%d", parentPort))
-			if err == nil {
-				t.Fatalf("port %d is already used?", parentPort)
-			}
-		}
+		80:   0,
+		8080: 0,
 	}
 
 	t.Logf("namespace pid: %d", childPID)
