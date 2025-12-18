@@ -1,10 +1,10 @@
 module github.com/rootless-containers/rootlesskit/v2
 
-go 1.23.0
+go 1.24.2
 
 require (
-	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/containernetworking/plugins v1.7.1
+	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/containernetworking/plugins v1.9.0
 	github.com/gofrs/flock v0.12.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -14,7 +14,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.27.6
-	golang.org/x/sys v0.32.0
+	golang.org/x/sys v0.35.0
 	gotest.tools/v3 v3.5.2
 )
 
@@ -25,5 +25,5 @@ require (
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/u-root/uio v0.0.0-20240224005618-d2acac8f3701 // indirect
 	github.com/xrash/smetrics v0.0.0-20240521201337-686a1a2994c1 // indirect
-	golang.org/x/net v0.38.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
 )
