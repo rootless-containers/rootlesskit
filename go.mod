@@ -12,7 +12,7 @@ require (
 	github.com/insomniacslk/dhcp v0.0.0-20250919081422-f80a1952f48e
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/moby/vpnkit v0.6.0
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.9.4
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
 	github.com/urfave/cli/v2 v2.27.7
 	golang.org/x/sync v0.19.0
