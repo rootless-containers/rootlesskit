@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -139,20 +140,13 @@ func TestProto(t *testing.T, proto string, d port.ParentDriver) {
 func testProtoWithPID(t *testing.T, proto string, d port.ParentDriver, childPID int) {
 	ensureDeps(t, "nsenter", "ip", "nc")
 	// [child]parent
-	pairs := map[int]int{
-		// FIXME: flaky
-		80:   (childPID + 80) % 60000,
-		8080: (childPID + 8080) % 60000,
-	}
-	if proto == "tcp" {
-		for _, parentPort := range pairs {
-			var d net.Dialer
-			d.Timeout = 50 * time.Millisecond
-			_, err := d.Dial(proto, fmt.Sprintf("127.0.0.1:%d", parentPort))
-			if err == nil {
-				t.Fatalf("port %d is already used?", parentPort)
-			}
+	pairs := make(map[int]int, 2)
+	for _, childPort := range []int{80, 8080} {
+		parentPort, err := allocateAvailablePort(proto)
+		if err != nil {
+			t.Fatalf("failed to allocate parent port for %s: %v", proto, err)
 		}
+		pairs[childPort] = parentPort
 	}
 
 	t.Logf("namespace pid: %d", childPID)
@@ -222,16 +216,43 @@ func testProtoRoutine(t *testing.T, proto string, d port.ParentDriver, childPID,
 		panic(err)
 	}
 	defer cmd.Process.Kill()
-	portStatus, err := d.AddPort(context.TODO(),
-		port.Spec{
-			Proto:      proto,
-			ParentIP:   "127.0.0.1",
-			ParentPort: parentP,
-			ChildPort:  childP,
-		})
-	if err != nil {
-		panic(err)
+
+	const maxAttempts = 10
+	var (
+		currentParent = parentP
+		portStatus    *port.Status
+		err           error
+	)
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		portStatus, err = d.AddPort(context.TODO(),
+			port.Spec{
+				Proto:      proto,
+				ParentIP:   "127.0.0.1",
+				ParentPort: currentParent,
+				ChildPort:  childP,
+			})
+		if err == nil {
+			parentP = currentParent
+			break
+		}
+		if attempt == maxAttempts-1 || !isAddrInUse(err) {
+			panic(err)
+		}
+		currentParent, err = allocateAvailablePort(proto)
+		if err != nil {
+			panic(err)
+		}
 	}
+	if portStatus == nil {
+		panic("AddPort never succeeded")
+	}
+	defer func(id int) {
+		if err := d.RemovePort(context.TODO(), id); err != nil {
+			panic(err)
+		}
+		t.Logf("closed port ID %d", portStatus.ID)
+	}(portStatus.ID)
+
 	t.Logf("opened port: %+v", portStatus)
 	if proto == "udp" || proto == "udp4" {
 		// Dial does not return an error for UDP even if the port is not exposed yet
@@ -281,10 +302,6 @@ func testProtoRoutine(t *testing.T, proto string, d port.ParentDriver, childPID,
 		// nc -u does not exit automatically
 		syscall.Kill(cmd.Process.Pid, syscall.SIGKILL)
 	}
-	if err := d.RemovePort(context.TODO(), portStatus.ID); err != nil {
-		panic(err)
-	}
-	t.Logf("closed port ID %d", portStatus.ID)
 }
 
 func ensureDeps(t testing.TB, deps ...string) {
@@ -307,4 +324,39 @@ type tLogWriter struct {
 func (w *tLogWriter) Write(p []byte) (int, error) {
 	w.t.Logf("%s: %s", w.s, strings.TrimSuffix(string(p), "\n"))
 	return len(p), nil
+}
+
+func allocateAvailablePort(proto string) (int, error) {
+	const loopback = "127.0.0.1:0"
+	switch proto {
+	case "tcp", "tcp4":
+		ln, err := net.Listen(proto, loopback)
+		if err != nil {
+			return 0, err
+		}
+		defer ln.Close()
+		return ln.Addr().(*net.TCPAddr).Port, nil
+	case "udp", "udp4":
+		addr, err := net.ResolveUDPAddr(proto, loopback)
+		if err != nil {
+			return 0, err
+		}
+		conn, err := net.ListenUDP(proto, addr)
+		if err != nil {
+			return 0, err
+		}
+		defer conn.Close()
+		return conn.LocalAddr().(*net.UDPAddr).Port, nil
+	default:
+		return 0, fmt.Errorf("unsupported proto %q", proto)
+	}
+}
+
+func isAddrInUse(err error) bool {
+	if errors.Is(err, syscall.EADDRINUSE) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "address already in use") ||
+		strings.Contains(msg, "port is busy")
 }
