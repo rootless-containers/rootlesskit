@@ -21,7 +21,7 @@ func TestBuiltIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
-	d, err := NewParentDriver(os.Stderr, tmpDir)
+	d, err := NewParentDriver(os.Stderr, tmpDir, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,4 +29,5 @@ func TestBuiltIn(t *testing.T) {
 		return d
 	}
 	testsuite.Run(t, pf)
+	testsuite.RunTCPTransparent(t, pf)
 }

@@ -25,6 +25,8 @@ type Request struct {
 	Port          int
 	ParentIP      string
 	HostGatewayIP string
+	SourceIP      string `json:",omitempty"` // real client IP for IP_TRANSPARENT
+	SourcePort    int    `json:",omitempty"` // real client port for IP_TRANSPARENT
 }
 
 // Reply may contain FD as OOB
@@ -69,7 +71,9 @@ func hostGatewayIP() string {
 
 // ConnectToChild connects to the child UNIX socket, and obtains TCP or UDP socket FD
 // that corresponds to the port spec.
-func ConnectToChild(c *net.UnixConn, spec port.Spec) (int, error) {
+// sourceAddr is the real client address (e.g., from net.Conn.RemoteAddr()) for IP_TRANSPARENT support.
+// Pass nil to skip source IP preservation.
+func ConnectToChild(c *net.UnixConn, spec port.Spec, sourceAddr net.Addr) (int, error) {
 	req := Request{
 		Type:          RequestTypeConnect,
 		Proto:         spec.Proto,
@@ -77,6 +81,10 @@ func ConnectToChild(c *net.UnixConn, spec port.Spec) (int, error) {
 		IP:            spec.ChildIP,
 		ParentIP:      spec.ParentIP,
 		HostGatewayIP: hostGatewayIP(),
+	}
+	if tcpAddr, ok := sourceAddr.(*net.TCPAddr); ok && tcpAddr != nil {
+		req.SourceIP = tcpAddr.IP.String()
+		req.SourcePort = tcpAddr.Port
 	}
 	if _, err := lowlevelmsgutil.MarshalToWriter(c, &req); err != nil {
 		return 0, err
@@ -114,7 +122,7 @@ func ConnectToChild(c *net.UnixConn, spec port.Spec) (int, error) {
 }
 
 // ConnectToChildWithSocketPath wraps ConnectToChild
-func ConnectToChildWithSocketPath(socketPath string, spec port.Spec) (int, error) {
+func ConnectToChildWithSocketPath(socketPath string, spec port.Spec, sourceAddr net.Addr) (int, error) {
 	var dialer net.Dialer
 	conn, err := dialer.Dial("unix", socketPath)
 	if err != nil {
@@ -122,13 +130,13 @@ func ConnectToChildWithSocketPath(socketPath string, spec port.Spec) (int, error
 	}
 	defer conn.Close()
 	c := conn.(*net.UnixConn)
-	return ConnectToChild(c, spec)
+	return ConnectToChild(c, spec, sourceAddr)
 }
 
 // ConnectToChildWithRetry retries ConnectToChild every (i*5) milliseconds.
-func ConnectToChildWithRetry(socketPath string, spec port.Spec, retries int) (int, error) {
+func ConnectToChildWithRetry(socketPath string, spec port.Spec, retries int, sourceAddr net.Addr) (int, error) {
 	for i := 0; i < retries; i++ {
-		fd, err := ConnectToChildWithSocketPath(socketPath, spec)
+		fd, err := ConnectToChildWithSocketPath(socketPath, spec, sourceAddr)
 		if i == retries-1 && err != nil {
 			return 0, err
 		}

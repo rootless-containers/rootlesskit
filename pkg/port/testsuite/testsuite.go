@@ -1,6 +1,7 @@
 package testsuite
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -21,9 +22,10 @@ import (
 )
 
 const (
-	reexecKeyMode   = "rootlesskit-port-testsuite.mode"
-	reexecKeyOpaque = "rootlesskit-port-testsuite.opaque"
-	reexecKeyQuitFD = "rootlesskit-port-testsuite.quitfd"
+	reexecKeyMode     = "rootlesskit-port-testsuite.mode"
+	reexecKeyOpaque   = "rootlesskit-port-testsuite.opaque"
+	reexecKeyQuitFD   = "rootlesskit-port-testsuite.quitfd"
+	reexecKeyEchoPort = "rootlesskit-port-testsuite.echoport"
 )
 
 func Main(m *testing.M, cf func() port.ChildDriver) {
@@ -31,6 +33,9 @@ func Main(m *testing.M, cf func() port.ChildDriver) {
 	case "":
 		os.Exit(m.Run())
 	case "child":
+	case "echoserver":
+		runEchoServer()
+		os.Exit(0)
 	default:
 		panic(fmt.Errorf("unknown mode: %q", mode))
 	}
@@ -359,4 +364,242 @@ func isAddrInUse(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "address already in use") ||
 		strings.Contains(msg, "port is busy")
+}
+
+// runEchoServer is a re-exec mode that runs a minimal TCP server.
+// It listens on 127.0.0.1:<port>, signals readiness by closing fd 3,
+// accepts one connection, writes the remote address to stdout, and drains input.
+func runEchoServer() {
+	portStr := os.Getenv(reexecKeyEchoPort)
+	if portStr == "" {
+		panic("echoserver: missing " + reexecKeyEchoPort)
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:"+portStr)
+	if err != nil {
+		panic(fmt.Errorf("echoserver: listen: %w", err))
+	}
+	defer ln.Close()
+	// Signal readiness by closing fd 3
+	readyW := os.NewFile(3, "ready")
+	readyW.Close()
+
+	conn, err := ln.Accept()
+	if err != nil {
+		panic(fmt.Errorf("echoserver: accept: %w", err))
+	}
+	defer conn.Close()
+	fmt.Fprintln(os.Stdout, conn.RemoteAddr().String())
+	io.Copy(io.Discard, conn)
+}
+
+func RunTCPTransparent(t *testing.T, pf func() port.ParentDriver) {
+	t.Run("TestTCPTransparent", func(t *testing.T) { TestTCPTransparent(t, pf()) })
+}
+
+func TestTCPTransparent(t *testing.T, d port.ParentDriver) {
+	ensureDeps(t, "nsenter")
+	t.Logf("creating USER+NET namespace")
+	opaque := d.OpaqueForChild()
+	opaqueJSON, err := json.Marshal(opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("/proc/self/exe")
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	cmd.Env = append([]string{
+		reexecKeyMode + "=child",
+		reexecKeyOpaque + "=" + string(opaqueJSON),
+		reexecKeyQuitFD + "=3"}, os.Environ()...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig:  syscall.SIGKILL,
+		Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWNET,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Geteuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getegid(),
+				Size:        1,
+			},
+		},
+	}
+	cmd.ExtraFiles = []*os.File{pr}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		pw.Close()
+		cmd.Wait()
+	}()
+	childPID := cmd.Process.Pid
+	if out, err := nsenterExec(childPID, "ip", "link", "set", "lo", "up"); err != nil {
+		t.Fatalf("%v, out=%s", err, string(out))
+	}
+	testTCPTransparentWithPID(t, d, childPID)
+}
+
+func testTCPTransparentWithPID(t *testing.T, d port.ParentDriver, childPID int) {
+	ensureDeps(t, "nsenter")
+	const childPort = 80
+
+	// Start parent driver
+	initComplete := make(chan struct{})
+	quit := make(chan struct{})
+	driverErr := make(chan error)
+	go func() {
+		cctx := &port.ChildContext{
+			IP: nil,
+		}
+		driverErr <- d.RunParentDriver(initComplete, quit, cctx)
+	}()
+	select {
+	case <-initComplete:
+	case err := <-driverErr:
+		t.Fatal(err)
+	}
+
+	// Start echo server inside the child namespace
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Pipe for readiness signaling (fd 3 in the echo server)
+	readyR, readyW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Pipe for capturing stdout (the remote address)
+	stdoutR, stdoutW, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	echoCmd := exec.Command("nsenter", "-U", "--preserve-credential", "-n",
+		"-t", strconv.Itoa(childPID),
+		exe)
+	echoCmd.Env = append([]string{
+		reexecKeyMode + "=echoserver",
+		reexecKeyEchoPort + "=" + strconv.Itoa(childPort),
+	}, os.Environ()...)
+	echoCmd.Stdout = stdoutW
+	echoCmd.Stderr = os.Stderr
+	echoCmd.ExtraFiles = []*os.File{readyW} // fd 3
+	echoCmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig: syscall.SIGKILL,
+	}
+	if err := echoCmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer echoCmd.Process.Kill()
+	readyW.Close()
+
+	// Wait for echo server readiness
+	io.ReadAll(readyR)
+	readyR.Close()
+
+	// Close the write end of stdout pipe in parent so reads see EOF when echo server exits
+	stdoutW.Close()
+
+	// Allocate a parent port and add port forwarding
+	parentPort, err := allocateAvailablePort("tcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var portStatus *port.Status
+	const maxAttempts = 10
+	for attempt := 0; attempt < maxAttempts; attempt++ {
+		portStatus, err = d.AddPort(context.TODO(),
+			port.Spec{
+				Proto:      "tcp",
+				ParentIP:   "127.0.0.1",
+				ParentPort: parentPort,
+				ChildPort:  childPort,
+			})
+		if err == nil {
+			break
+		}
+		if attempt == maxAttempts-1 || !isAddrInUse(err) {
+			t.Fatal(err)
+		}
+		parentPort, err = allocateAvailablePort("tcp")
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Logf("opened port: %+v", portStatus)
+
+	// Dial the parent port
+	var conn net.Conn
+	for i := 0; i < 5; i++ {
+		var dialer net.Dialer
+		conn, err = dialer.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", parentPort))
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Duration(i*5) * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clientAddr := conn.LocalAddr().String()
+	t.Logf("client local address: %s", clientAddr)
+
+	// Send data and close write side
+	if _, err := conn.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.(*net.TCPConn).CloseWrite(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Read the remote address the echo server saw
+	scanner := bufio.NewScanner(stdoutR)
+	if !scanner.Scan() {
+		t.Fatal("failed to read remote address from echo server")
+	}
+	serverSawAddr := scanner.Text()
+	t.Logf("server saw remote address: %s", serverSawAddr)
+
+	conn.Close()
+	echoCmd.Wait()
+
+	// Parse and verify: the echo server should see the client's IP.
+	// Port preservation only works with non-loopback source IPs (via IP_TRANSPARENT),
+	// so we only verify the IP here. With loopback, transparent dial is skipped
+	// (martian filtering blocks 127.0.0.1 arriving on non-loopback interfaces).
+	clientHost, _, err := net.SplitHostPort(clientAddr)
+	if err != nil {
+		t.Fatalf("failed to parse client address %q: %v", clientAddr, err)
+	}
+	serverHost, _, err := net.SplitHostPort(serverSawAddr)
+	if err != nil {
+		t.Fatalf("failed to parse server-seen address %q: %v", serverSawAddr, err)
+	}
+
+	if clientHost != serverHost {
+		t.Errorf("IP mismatch: client=%s, server saw=%s", clientHost, serverHost)
+	}
+
+	// Cleanup
+	if err := d.RemovePort(context.TODO(), portStatus.ID); err != nil {
+		t.Fatal(err)
+	}
+	quit <- struct{}{}
+	if err := <-driverErr; err != nil {
+		t.Fatal(err)
+	}
 }

@@ -205,6 +205,11 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 			Usage:   "publish ports. e.g. \"127.0.0.1:8080:80/tcp\"",
 		}, CategoryPort),
 		Categorize(&cli.BoolFlag{
+			Name:  "source-ip-transparent",
+			Usage: "preserve real client source IP using IP_TRANSPARENT (builtin port driver)",
+			Value: true,
+		}, CategoryPort),
+		Categorize(&cli.BoolFlag{
 			Name:  "pidns",
 			Usage: "create a PID namespace",
 		}, CategoryProcess),
@@ -620,7 +625,7 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 		if opt.NetworkDriver == nil {
 			return opt, errors.New("port driver requires non-host network")
 		}
-		opt.PortDriver, err = builtin.NewParentDriver(&logrusDebugWriter{label: "port/builtin"}, opt.StateDir)
+		opt.PortDriver, err = builtin.NewParentDriver(&logrusDebugWriter{label: "port/builtin"}, opt.StateDir, clicontext.Bool("source-ip-transparent"))
 		if err != nil {
 			return opt, err
 		}
