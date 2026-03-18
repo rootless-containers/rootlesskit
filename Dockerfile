@@ -3,7 +3,6 @@ ARG UBUNTU_VERSION=24.04
 ARG SHADOW_VERSION=4.17.4
 ARG SLIRP4NETNS_VERSION=v1.3.2
 ARG VPNKIT_VERSION=0.6.0
-ARG PASST_VERSION=2025_04_15.2340bbf
 ARG DOCKER_VERSION=28.1.1
 ARG DOCKER_CHANNEL=stable
 
@@ -46,15 +45,6 @@ RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux -
 
 FROM moby/vpnkit-bin:${VPNKIT_VERSION} AS vpnkit
 
-FROM ubuntu:${UBUNTU_VERSION} AS passt
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y git gcc libtool make
-RUN git clone https://passt.top/passt
-WORKDIR /passt
-ARG PASST_VERSION
-RUN git pull && git checkout $PASST_VERSION
-RUN make && make install
-
 FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # iproute2: for `ip` command that rootlesskit needs to exec
 # liblxc-common and lxc-utils: for `lxc-user-nic` binary required for --net=lxc-user-nic
@@ -65,7 +55,8 @@ FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # bind9-dnsutils: for `nslookup` command used by integration-net.sh
 # systemd and uuid-runtime: for systemd-socket-activate used by integration-systemd-socket.sh
 # iptables: for Docker
-RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl bind9-dnsutils systemd uuid-runtime iptables
+# passt: for pasta
+RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl bind9-dnsutils systemd uuid-runtime iptables passt
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \
@@ -80,7 +71,6 @@ ARG SLIRP4NETNS_VERSION
 RUN curl -sSL -o /home/user/bin/slirp4netns https://github.com/rootless-containers/slirp4netns/releases/download/${SLIRP4NETNS_VERSION}/slirp4netns-$(uname -m) && \
   chmod +x /home/user/bin/slirp4netns
 COPY --from=vpnkit /vpnkit /home/user/bin/vpnkit
-COPY --from=passt /usr/local /usr/local
 ADD ./hack /home/user/hack
 RUN chown -R user:user /run/user/2000 /home/user
 USER user
