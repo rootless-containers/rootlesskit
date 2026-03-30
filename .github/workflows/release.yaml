@@ -51,7 +51,7 @@ jobs:
         https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         The sha256sum of the SHA256SUMS file itself is ${shasha} .
         EOF
-    - uses: actions/attest-build-provenance@v3
+    - uses: actions/attest-build-provenance@v4
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
       with:
         subject-path: |
