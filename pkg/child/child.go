@@ -542,7 +542,6 @@ func setMountPropagation(propagation string) error {
 }
 
 func runWithoutReap(cmd *exec.Cmd) error {
-	cmd.SysProcAttr.Setsid = true
 	if err := cmd.Start(); err != nil {
 		return err
 	}

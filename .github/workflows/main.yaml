@@ -54,6 +54,8 @@ jobs:
       run: docker run --rm --net=none --privileged rootlesskit:test-integration ./integration-systemd-socket.sh
     - name: "Integration test: pdeathsig"
       run: docker run --rm --privileged rootlesskit:test-integration ./integration-pdeathsig.sh
+    - name: "Integration test: runWithoutReap"
+      run: docker run --rm --privileged rootlesskit:test-integration ./integration-run-without-reap.sh
     - name: "Integration test: Network (network driver=slirp4netns)"
       run: |
         docker run --rm --privileged rootlesskit:test-integration ./integration-net.sh slirp4netns
