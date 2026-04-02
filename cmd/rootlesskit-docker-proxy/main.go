@@ -6,7 +6,7 @@
 //
 // https://github.com/moby/moby/pull/48132/commits/dac7ffa3404138a4f291c16586e5a2c68dad4151
 //
-// rootlesskit-docker-proxy will be removed in RootlessKit v3.
+// rootlesskit-docker-proxy will be removed in RootlessKit v4.
 package main
 
 import (

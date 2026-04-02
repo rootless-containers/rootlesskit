@@ -17,7 +17,7 @@ bin/rootlessctl: $(GO_FILES)
 
 bin/rootlesskit-docker-proxy: $(GO_FILES)
 	@echo "NOTE: rootlesskit-docker-proxy is required only if you use Docker prior to v28."
-	@echo "NOTE: rootlesskit-docker-proxy is DEPRECATED and will be removed in RootlessKit v3."
+	@echo "NOTE: rootlesskit-docker-proxy is DEPRECATED and will be removed in RootlessKit v4."
 	$(GO) build -o $@ -v ./cmd/rootlesskit-docker-proxy
 
 .PHONY: cross
