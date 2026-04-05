@@ -169,6 +169,10 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-port.sh builtin --detach-netns
+    - name: "Benchmark: TCP Ports (network driver=slirp4netns, port driver=builtin) with source-ip-transparent=false"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port.sh builtin --source-ip-transparent=false
     - name: "Benchmark: TCP Ports (network driver=pasta, port driver=implicit)"
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \

@@ -26,7 +26,7 @@ func Run(socketPath string, spec port.Spec, stopCh <-chan struct{}, stoppedCh ch
 		Listener:  c,
 		BackendDial: func() (*net.UDPConn, error) {
 			// get fd from the child as an SCM_RIGHTS cmsg
-			fd, err := msg.ConnectToChildWithRetry(socketPath, spec, 10)
+			fd, err := msg.ConnectToChildWithRetry(socketPath, spec, 10, nil)
 			if err != nil {
 				return nil, err
 			}

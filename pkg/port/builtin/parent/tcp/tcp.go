@@ -59,7 +59,7 @@ func Run(socketPath string, spec port.Spec, stopCh <-chan struct{}, stoppedCh ch
 func copyConnToChild(c net.Conn, socketPath string, spec port.Spec, stopCh <-chan struct{}) error {
 	defer c.Close()
 	// get fd from the child as an SCM_RIGHTS cmsg
-	fd, err := msg.ConnectToChildWithRetry(socketPath, spec, 10)
+	fd, err := msg.ConnectToChildWithRetry(socketPath, spec, 10, c.RemoteAddr())
 	if err != nil {
 		return err
 	}

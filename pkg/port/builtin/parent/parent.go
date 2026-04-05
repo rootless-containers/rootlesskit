@@ -24,7 +24,7 @@ import (
 )
 
 // NewDriver for builtin driver.
-func NewDriver(logWriter io.Writer, stateDir string) (port.ParentDriver, error) {
+func NewDriver(logWriter io.Writer, stateDir string, sourceIPTransparent bool) (port.ParentDriver, error) {
 	// TODO: consider using socketpair FD instead of socket file
 	socketPath := filepath.Join(stateDir, ".bp.sock")
 	childReadyPipePath := filepath.Join(stateDir, ".bp-ready.pipe")
@@ -36,24 +36,26 @@ func NewDriver(logWriter io.Writer, stateDir string) (port.ParentDriver, error) 
 		return nil, fmt.Errorf("cannot mkfifo %s: %w", childReadyPipePath, err)
 	}
 	d := driver{
-		logWriter:          logWriter,
-		socketPath:         socketPath,
-		childReadyPipePath: childReadyPipePath,
-		ports:              make(map[int]*port.Status, 0),
-		stoppers:           make(map[int]func(context.Context) error, 0),
-		nextID:             1,
+		logWriter:           logWriter,
+		socketPath:          socketPath,
+		childReadyPipePath:  childReadyPipePath,
+		sourceIPTransparent: sourceIPTransparent,
+		ports:               make(map[int]*port.Status, 0),
+		stoppers:            make(map[int]func(context.Context) error, 0),
+		nextID:              1,
 	}
 	return &d, nil
 }
 
 type driver struct {
-	logWriter          io.Writer
-	socketPath         string
-	childReadyPipePath string
-	mu                 sync.Mutex
-	ports              map[int]*port.Status
-	stoppers           map[int]func(context.Context) error
-	nextID             int
+	logWriter           io.Writer
+	socketPath          string
+	childReadyPipePath  string
+	sourceIPTransparent bool
+	mu                  sync.Mutex
+	ports               map[int]*port.Status
+	stoppers            map[int]func(context.Context) error
+	nextID              int
 }
 
 func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
@@ -66,10 +68,14 @@ func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
 }
 
 func (d *driver) OpaqueForChild() map[string]string {
-	return map[string]string{
+	m := map[string]string{
 		opaque.SocketPath:         d.socketPath,
 		opaque.ChildReadyPipePath: d.childReadyPipePath,
 	}
+	if d.sourceIPTransparent {
+		m[opaque.SourceIPTransparent] = "true"
+	}
+	return m
 }
 
 func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{}, _ *port.ChildContext) error {
