@@ -49,7 +49,7 @@ type connTrackMap map[connTrackKey]*net.UDPConn
 type UDPProxy struct {
 	LogWriter      io.Writer
 	Listener       *net.UDPConn
-	BackendDial    func() (*net.UDPConn, error)
+	BackendDial    func(from *net.UDPAddr) (*net.UDPConn, error)
 	connTrackTable connTrackMap
 	connTrackLock  sync.Mutex
 }
@@ -108,7 +108,7 @@ func (proxy *UDPProxy) Run() {
 		proxy.connTrackLock.Lock()
 		proxyConn, hit := proxy.connTrackTable[*fromKey]
 		if !hit {
-			proxyConn, err = proxy.BackendDial()
+			proxyConn, err = proxy.BackendDial(from)
 			if err != nil {
 				fmt.Fprintf(proxy.LogWriter, "Can't proxy a datagram to udp: %v\n", err)
 				proxy.connTrackLock.Unlock()

@@ -30,4 +30,5 @@ func TestBuiltIn(t *testing.T) {
 	}
 	testsuite.Run(t, pf)
 	testsuite.RunTCPTransparent(t, pf)
+	testsuite.RunUDPTransparent(t, pf)
 }

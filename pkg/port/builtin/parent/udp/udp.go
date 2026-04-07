@@ -24,9 +24,9 @@ func Run(socketPath string, spec port.Spec, stopCh <-chan struct{}, stoppedCh ch
 	udpp := &udpproxy.UDPProxy{
 		LogWriter: logWriter,
 		Listener:  c,
-		BackendDial: func() (*net.UDPConn, error) {
+		BackendDial: func(from *net.UDPAddr) (*net.UDPConn, error) {
 			// get fd from the child as an SCM_RIGHTS cmsg
-			fd, err := msg.ConnectToChildWithRetry(socketPath, spec, 10, nil)
+			fd, err := msg.ConnectToChildWithRetry(socketPath, spec, 10, from)
 			if err != nil {
 				return nil, err
 			}

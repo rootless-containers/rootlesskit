@@ -36,6 +36,9 @@ func Main(m *testing.M, cf func() port.ChildDriver) {
 	case "echoserver":
 		runEchoServer()
 		os.Exit(0)
+	case "udpechoserver":
+		runUDPEchoServer()
+		os.Exit(0)
 	default:
 		panic(fmt.Errorf("unknown mode: %q", mode))
 	}
@@ -504,14 +507,32 @@ func transparentTCPDialAndSend(t *testing.T, parentAddr string) string {
 	return clientAddr
 }
 
+func transparentUDPDialAndSend(t *testing.T, parentAddr string) string {
+	conn, err := net.Dial("udp", parentAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientAddr := conn.LocalAddr().String()
+	if _, err := conn.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	return clientAddr
+}
+
 func testTransparentWithPID(t *testing.T, proto string, d port.ParentDriver, childPID int) {
 	ensureDeps(t, "nsenter")
 	const childPort = 80
 
 	var dialAndSend transparentDialAndSend
+	var echoMode string
 	switch proto {
 	case "tcp":
 		dialAndSend = transparentTCPDialAndSend
+		echoMode = "echoserver"
+	case "udp":
+		dialAndSend = transparentUDPDialAndSend
+		echoMode = "udpechoserver"
 	default:
 		t.Fatalf("unsupported proto for transparent test: %s", proto)
 	}
@@ -560,7 +581,7 @@ func testTransparentWithPID(t *testing.T, proto string, d port.ParentDriver, chi
 		"-t", strconv.Itoa(childPID),
 		exe)
 	echoCmd.Env = append([]string{
-		reexecKeyMode + "=echoserver",
+		reexecKeyMode + "=" + echoMode,
 		reexecKeyEchoPort + "=" + strconv.Itoa(childPort),
 	}, os.Environ()...)
 	echoCmd.Stdout = stdoutW
@@ -611,6 +632,11 @@ func testTransparentWithPID(t *testing.T, proto string, d port.ParentDriver, chi
 	}
 	t.Logf("opened port: %+v", portStatus)
 
+	if proto == "udp" {
+		// UDP dial does not return an error even if the proxy is not ready yet
+		time.Sleep(500 * time.Millisecond)
+	}
+
 	// Dial and send data
 	parentAddr := net.JoinHostPort(parentIP, strconv.Itoa(parentPort))
 	clientAddr := dialAndSend(t, parentAddr)
@@ -649,4 +675,90 @@ func testTransparentWithPID(t *testing.T, proto string, d port.ParentDriver, chi
 	if err := <-driverErr; err != nil {
 		t.Fatal(err)
 	}
+}
+
+// runUDPEchoServer is a re-exec mode that runs a minimal UDP server.
+// It listens on 127.0.0.1:<port>, signals readiness by closing fd 3,
+// receives one datagram, writes the remote address to stdout, and echoes the data back.
+func runUDPEchoServer() {
+	portStr := os.Getenv(reexecKeyEchoPort)
+	if portStr == "" {
+		panic("udpechoserver: missing " + reexecKeyEchoPort)
+	}
+	addr, err := net.ResolveUDPAddr("udp", "127.0.0.1:"+portStr)
+	if err != nil {
+		panic(fmt.Errorf("udpechoserver: resolve: %w", err))
+	}
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		panic(fmt.Errorf("udpechoserver: listen: %w", err))
+	}
+	defer conn.Close()
+	// Signal readiness by closing fd 3
+	readyW := os.NewFile(3, "ready")
+	readyW.Close()
+
+	buf := make([]byte, 65507)
+	n, from, err := conn.ReadFromUDP(buf)
+	if err != nil {
+		panic(fmt.Errorf("udpechoserver: read: %w", err))
+	}
+	fmt.Fprintln(os.Stdout, from.String())
+	conn.WriteToUDP(buf[:n], from)
+}
+
+func RunUDPTransparent(t *testing.T, pf func() port.ParentDriver) {
+	t.Run("TestUDPTransparent", func(t *testing.T) { TestUDPTransparent(t, pf()) })
+}
+
+func TestUDPTransparent(t *testing.T, d port.ParentDriver) {
+	ensureDeps(t, "nsenter")
+	t.Logf("creating USER+NET namespace")
+	opaque := d.OpaqueForChild()
+	opaqueJSON, err := json.Marshal(opaque)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pr, pw, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("/proc/self/exe")
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	cmd.Env = append([]string{
+		reexecKeyMode + "=child",
+		reexecKeyOpaque + "=" + string(opaqueJSON),
+		reexecKeyQuitFD + "=3"}, os.Environ()...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Pdeathsig:  syscall.SIGKILL,
+		Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWNET,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Geteuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getegid(),
+				Size:        1,
+			},
+		},
+	}
+	cmd.ExtraFiles = []*os.File{pr}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		pw.Close()
+		cmd.Wait()
+	}()
+	childPID := cmd.Process.Pid
+	if out, err := nsenterExec(childPID, "ip", "link", "set", "lo", "up"); err != nil {
+		t.Fatalf("%v, out=%s", err, string(out))
+	}
+	testTransparentWithPID(t, "udp", d, childPID)
 }
