@@ -165,8 +165,9 @@ type driver struct {
 func (d *driver) Info(_ context.Context) (*api.PortDriverInfo, error) {
 	return &api.PortDriverInfo{
 		Driver: "gvisor-tap-vsock",
-		// No additional options needed for this driver
-		// as it uses the existing gvisor-tap-vsock network
+		// No IPv6 support yet
+		Protos:                  []string{"tcp", "tcp4", "udp", "udp4"},
+		DisallowLoopbackChildIP: true,
 	}, nil
 }
 
