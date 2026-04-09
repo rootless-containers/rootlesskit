@@ -6,11 +6,12 @@ The default value is `none` (do not expose ports).
 
 | `--port-driver`      |  Throughput | Source IP | Notes
 |----------------------|-------------|----------|-------
-| `slirp4netns`        | 9.78 Gbps   | Propagated | 
-| `builtin`            | 35.6 Gbps   | Propagated (since v3.0) | In the case of Rootless Docker, userland-proxy has to be disabled for propagating the source IP.
-| `gvisor-tap-vsock` (Experimental) | 3.99 Gbps | Not propagated | Throughput is currently limited; see issue link below for improvement ideas.
+| `slirp4netns`        | 8.03 Gbps   | Propagated |
+| `builtin`            | 29.9 Gbps   | Propagated (since v3.0) | In the case of Rootless Docker, userland-proxy has to be disabled for propagating the source IP.
+| `implicit`           | 37.6 Gbps   | Propagated | Requires `pasta` network
+| `gvisor-tap-vsock` (Experimental) | 3.83 Gbps | Not propagated | Throughput is currently limited; see issue link below for improvement ideas.
 
-Benchmark: iperf3 from the parent to the child is measured on GitHub Actions
+Benchmark: iperf3 from the parent to the child is measured on GitHub Actions ([Apr 10, 2026](https://github.com/rootless-containers/rootlesskit/actions/runs/24200485791/job/70642399211))
 
 The `builtin` driver is fast and should be the best choice for most use cases.
 
