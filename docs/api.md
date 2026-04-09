@@ -40,10 +40,10 @@ NAME:
    rootlessctl - RootlessKit API client
 
 USAGE:
-   rootlessctl [global options] command [command options] [arguments...]
+   rootlessctl [global options] command [command options]
 
 VERSION:
-   0.14.0-beta.0
+   3.0.0-rc.0
 
 COMMANDS:
    list-ports    List ports
@@ -55,8 +55,8 @@ COMMANDS:
 GLOBAL OPTIONS:
    --debug         debug mode (default: false)
    --socket value  Path to api.sock (under the "rootlesskit --state-dir" directory), defaults to $ROOTLESSKIT_STATE_DIR/api.sock
-   --help, -h      show help (default: false)
-   --version, -v   print the version (default: false)
+   --help, -h      show help
+   --version, -v   print the version
 ```
 
 e.g., `rootlessctl --socket /foo/bar/sock info --json`

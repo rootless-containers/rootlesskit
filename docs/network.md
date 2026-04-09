@@ -9,15 +9,19 @@ RootlessKit provides several drivers for providing network connectivity:
 * `--net=lxc-user-nic`: use `lxc-user-nic` (experimental)
 * `--net=gvisor-tap-vsock`: use [gvisor-tap-vsock](https://github.com/containers/gvisor-tap-vsock) (experimental)
 
-[Benchmark: iperf3 from the child to the parent (Mar 8, 2020)](https://github.com/rootless-containers/rootlesskit/runs/492498728):
+[Benchmark: iperf3 from the child to the parent (Apr 10, 2026)](https://github.com/rootless-containers/rootlesskit/actions/runs/24200485791/job/70642399211):
 
 |                 Driver                |  MTU=1500  |  MTU=65520
 |---------------------------------------|------------|-------------
-|`slirp4netns`                          |  1.06 Gbps |  7.55 Gbps
-|`slirp4netns` (with sandbox + seccomp) |  1.05 Gbps |  7.21 Gbps
-|`vpnkit`                               |  0.60 Gbps |(Unsupported)
-|`lxc-user-nic`                         |  31.4 Gbps |  30.9 Gbps
-|(rootful veth)                         | (38.7 Gbps)| (40.8 Gbps)
+|`slirp4netns`                          |  0.84 Gbps |  6.17 Gbps
+|`slirp4netns` (with sandbox + seccomp) |  0.80 Gbps |  6.19 Gbps
+|`vpnkit`                               |  0.10 Gbps |(Unsupported)
+|`pasta`                                |  0.87 Gbps |  6.48 Gbps
+|`gvisor-tap-vsock`                     |  1.55 Gbps |  5.40 Gbps
+|`lxc-user-nic`                         |  29.3 Gbps |  30.4 Gbps
+|(rootful veth)                         | (35.0 Gbps)| (36.2 Gbps)
+
+* To be documented: [`bypass4netns`](https://github.com/rootless-containers/bypass4netns) for native performance.
 
 ### `--net=host` (default)
 
@@ -216,11 +220,11 @@ Currently, the MAC address is always set to a random address.
 
 Pros:
 * Possible to perform network-namespaced operations, e.g. creating iptables rules, running `tcpdump`
-* Supports ICMP Echo (`ping`) when `/proc/sys/net/ipv4/ping_group_range` is configured
 
 Cons:
 * Supports only TCP, UDP, and ICMP Echo packets
 * Does not support IPv6 routing (`--ipv6`)
+* ICMP Echo replies are [forged](https://github.com/containers/gvisor-tap-vsock/issues/428)
 
 The network is configured as follows by default:
 * IP: 10.0.2.100/24

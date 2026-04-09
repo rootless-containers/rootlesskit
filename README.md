@@ -2,7 +2,7 @@
 
 RootlessKit is a Linux-native implementation of "fake root" using  [`user_namespaces(7)`](http://man7.org/linux/man-pages/man7/user_namespaces.7.html).
 
-The purpose of RootlessKit is to run [Docker and Kubernetes as an unprivileged user (known as "Rootless mode")](https://github.com/rootless-containers/usernetes), so as to protect the real root on the host from potential container-breakout attacks.
+The purpose of RootlessKit is to run [Docker](https://rootlesscontaine.rs/getting-started/docker/) and [Kubernetes](https://rootlesscontaine.rs/getting-started/kubernetes/) as an unprivileged user (known as "Rootless mode"), so as to protect the real root on the host from potential container-breakout attacks.
 
 <!-- START doctoc generated TOC please keep comment here to allow auto update -->
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
@@ -92,14 +92,14 @@ See also https://rootlesscontaine.rs/getting-started/common/subuid/
 
 ### sysctl
 
-Some distros require setting up sysctl:
+Old distros may require setting up sysctl such as `kernel.unprivileged_userns_clone=1`:
+See <https://rootlesscontaine.rs/getting-started/common/sysctl/>.
 
-- Debian (excluding Ubuntu) and Arch:  `sudo sh -c "echo 1 > /proc/sys/kernel/unprivileged_userns_clone"`
-- RHEL/CentOS 7 (excluding RHEL/CentOS 8): `sudo sh -c "echo 28633 > /proc/sys/user/max_user_namespaces"`
+### AppArmor
 
-To persist sysctl configurations, edit `/etc/sysctl.conf` or add a file under `/etc/sysctl.d`.
-
-See also https://rootlesscontaine.rs/getting-started/common/sysctl/
+On Ubuntu 24.04 or later, the `rootlesskit` binary is expected to be exactly under `/usr/bin`.
+To install `rootlesskit` on other paths such as `/usr/local/bin`, you need to install a custom AppArmor profile.
+See <https://rootlesscontaine.rs/getting-started/common/apparmor/>.
 
 ## Usage
 
@@ -154,7 +154,7 @@ USAGE:
    rootlesskit [global options] [arguments...]
 
 VERSION:
-   2.0.0-alpha.0
+   3.0.0-rc.0
 
 DESCRIPTION:
    RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
@@ -186,13 +186,13 @@ OPTIONS:
                                                              
   Mount:                                                     
     --copy-up value [ --copy-up value ]                      mount a filesystem and copy-up the contents. e.g. "--copy-up=/etc" (typically required for non-host network)
-    --copy-up-mode value                                     copy-up mode [tmpfs+symlink]
-    --propagation value                                      mount propagation [rprivate, rslave]
+    --copy-up-mode value                                     copy-up mode [tmpfs+symlink] (default: "tmpfs+symlink")
+    --propagation value                                      mount propagation [rprivate, rslave] (default: "rprivate")
                                                              
   Network:                                                   
-    --net value                                              network driver [host, pasta(experimental), slirp4netns, vpnkit, lxc-user-nic(experimental)]
+    --net value                                              network driver [host, none, pasta(experimental), slirp4netns, vpnkit, lxc-user-nic(experimental), gvisor-tap-vsock(experimental)] (default: "host")
     --mtu value                                              MTU for non-host network (default: 65520 for pasta and slirp4netns, 1500 for others) (default: 0)
-    --cidr value                                             CIDR for pasta and slirp4netns networks (default: 10.0.2.0/24)
+    --cidr value                                             CIDR for pasta, slirp4netns and gvisor-tap-vsock networks (default: 10.0.2.0/24)
     --ifname value                                           Network interface name (default: tap0 for pasta, slirp4netns, and vpnkit; eth0 for lxc-user-nic)
     --disable-host-loopback                                  prohibit connecting to 127.0.0.1:* on the host namespace (default: false)
     --ipv6                                                   enable IPv6 routing. Unrelated to port forwarding. Only supported for pasta and slirp4netns. (experimental) (default: false)
@@ -200,36 +200,37 @@ OPTIONS:
                                                              
   Network [lxc-user-nic]:                                    
     --lxc-user-nic-binary value                              path of lxc-user-nic binary for --net=lxc-user-nic
-    --lxc-user-nic-bridge value                              lxc-user-nic bridge name
+    --lxc-user-nic-bridge value                              lxc-user-nic bridge name (default: "lxcbr0")
                                                              
   Network [pasta]:                                           
-    --pasta-binary value                                     path of pasta binary for --net=pasta
+    --pasta-binary value                                     path of pasta binary for --net=pasta (default: "pasta")
                                                              
   Network [slirp4netns]:                                     
-    --slirp4netns-binary value                               path of slirp4netns binary for --net=slirp4netns
-    --slirp4netns-sandbox value                              enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be "auto" in future)
-    --slirp4netns-seccomp value                              enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be "auto" in future)
+    --slirp4netns-binary value                               path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
+    --slirp4netns-sandbox value                              enable slirp4netns sandbox (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
+    --slirp4netns-seccomp value                              enable slirp4netns seccomp (experimental) [auto, true, false] (the default is planned to be "auto" in future) (default: "false")
                                                              
   Network [vpnkit]:                                          
-    --vpnkit-binary value                                    path of VPNKit binary for --net=vpnkit
+    --vpnkit-binary value                                    path of VPNKit binary for --net=vpnkit (default: "vpnkit")
                                                              
   Port:                                                      
-    --port-driver value                                      port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns]
+    --port-driver value                                      port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns, gvisor-tap-vsock(experimental)] (default: "none")
     --publish value, -p value [ --publish value, -p value ]  publish ports. e.g. "127.0.0.1:8080:80/tcp"
+    --source-ip-transparent                                  preserve real client source IP using IP_TRANSPARENT (builtin port driver) (default: true)
                                                              
   Process:                                                   
     --pidns                                                  create a PID namespace (default: false)
     --cgroupns                                               create a cgroup namespace (default: false)
     --utsns                                                  create a UTS namespace (default: false)
     --ipcns                                                  create an IPC namespace (default: false)
-    --reaper value                                           enable process reaper. Requires --pidns. [auto,true,false]
+    --reaper value                                           enable process reaper. Requires --pidns. [auto,true,false] (default: "auto")
     --evacuate-cgroup2 value                                 evacuate processes into the specified subgroup. Requires --pidns and --cgroupns
                                                              
   State:                                                     
     --state-dir value                                        state directory
                                                              
   SubID:                                                     
-    --subid-source value                                     the source of the subids. "dynamic" executes /usr/bin/getsubids. "static" reads /etc/{subuid,subgid}. [auto,dynamic,static]
+    --subid-source value                                     the source of the subids. "dynamic" executes /usr/bin/getsubids. "static" reads /etc/{subuid,subgid}. [auto,dynamic,static] (default: "auto")
                                                              
 ```
 
