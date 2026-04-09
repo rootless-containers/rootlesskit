@@ -82,9 +82,17 @@ func ConnectToChild(c *net.UnixConn, spec port.Spec, sourceAddr net.Addr) (int, 
 		ParentIP:      spec.ParentIP,
 		HostGatewayIP: hostGatewayIP(),
 	}
-	if tcpAddr, ok := sourceAddr.(*net.TCPAddr); ok && tcpAddr != nil {
-		req.SourceIP = tcpAddr.IP.String()
-		req.SourcePort = tcpAddr.Port
+	switch a := sourceAddr.(type) {
+	case *net.TCPAddr:
+		if a != nil {
+			req.SourceIP = a.IP.String()
+			req.SourcePort = a.Port
+		}
+	case *net.UDPAddr:
+		if a != nil {
+			req.SourceIP = a.IP.String()
+			req.SourcePort = a.Port
+		}
 	}
 	if _, err := lowlevelmsgutil.MarshalToWriter(c, &req); err != nil {
 		return 0, err

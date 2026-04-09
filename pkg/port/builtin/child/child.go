@@ -147,7 +147,7 @@ func (d *childDriver) handleConnectRequest(c *net.UnixConn, req *msg.Request) er
 
 	var targetConn net.Conn
 	var err error
-	if d.sourceIPTransparent && req.SourceIP != "" && req.SourcePort != 0 && dialProto == "tcp" && !net.ParseIP(req.SourceIP).IsLoopback() {
+	if d.sourceIPTransparent && req.SourceIP != "" && req.SourcePort != 0 && (dialProto == "tcp" || dialProto == "udp") && !net.ParseIP(req.SourceIP).IsLoopback() {
 		d.routingSetup.Do(func() { d.routingReady = d.setupTransparentRouting() })
 		if !d.routingReady {
 			d.routingWarn.Do(func() {
@@ -251,9 +251,16 @@ func (d *childDriver) setupTransparentRouting() bool {
 // transparentDial dials targetAddr using IP_TRANSPARENT, binding to the given
 // source IP and port so the backend service sees the real client address.
 func transparentDial(dialProto, targetAddr, sourceIP string, sourcePort int) (net.Conn, error) {
+	var localAddr net.Addr
+	switch dialProto {
+	case "tcp":
+		localAddr = &net.TCPAddr{IP: net.ParseIP(sourceIP), Port: sourcePort}
+	case "udp":
+		localAddr = &net.UDPAddr{IP: net.ParseIP(sourceIP), Port: sourcePort}
+	}
 	dialer := net.Dialer{
 		Timeout:   time.Second,
-		LocalAddr: &net.TCPAddr{IP: net.ParseIP(sourceIP), Port: sourcePort},
+		LocalAddr: localAddr,
 		Control: func(network, address string, c syscall.RawConn) error {
 			var sockErr error
 			if err := c.Control(func(fd uintptr) {
