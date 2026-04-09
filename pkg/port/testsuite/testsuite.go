@@ -331,6 +331,33 @@ func (w *tLogWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// nonLoopbackIPv4 returns the first non-loopback IPv4 address found on the host.
+func nonLoopbackIPv4() (string, error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			if ip4 := ipNet.IP.To4(); ip4 != nil {
+				return ip4.String(), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no non-loopback IPv4 address found")
+}
+
 func allocateAvailablePort(proto string) (int, error) {
 	const loopback = "127.0.0.1:0"
 	switch proto {
@@ -452,6 +479,12 @@ func testTCPTransparentWithPID(t *testing.T, d port.ParentDriver, childPID int) 
 	ensureDeps(t, "nsenter")
 	const childPort = 80
 
+	parentIP, err := nonLoopbackIPv4()
+	if err != nil {
+		t.Skip("no non-loopback IPv4 address available: ", err)
+	}
+	t.Logf("using non-loopback parent IP: %s", parentIP)
+
 	// Start parent driver
 	initComplete := make(chan struct{})
 	quit := make(chan struct{})
@@ -524,7 +557,7 @@ func testTCPTransparentWithPID(t *testing.T, d port.ParentDriver, childPID int) 
 		portStatus, err = d.AddPort(context.TODO(),
 			port.Spec{
 				Proto:      "tcp",
-				ParentIP:   "127.0.0.1",
+				ParentIP:   parentIP,
 				ParentPort: parentPort,
 				ChildPort:  childPort,
 			})
@@ -545,7 +578,7 @@ func testTCPTransparentWithPID(t *testing.T, d port.ParentDriver, childPID int) 
 	var conn net.Conn
 	for i := 0; i < 5; i++ {
 		var dialer net.Dialer
-		conn, err = dialer.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", parentPort))
+		conn, err = dialer.Dial("tcp", net.JoinHostPort(parentIP, strconv.Itoa(parentPort)))
 		if err == nil {
 			break
 		}
@@ -577,10 +610,8 @@ func testTCPTransparentWithPID(t *testing.T, d port.ParentDriver, childPID int) 
 	conn.Close()
 	echoCmd.Wait()
 
-	// Parse and verify: the echo server should see the client's IP.
-	// Port preservation only works with non-loopback source IPs (via IP_TRANSPARENT),
-	// so we only verify the IP here. With loopback, transparent dial is skipped
-	// (martian filtering blocks 127.0.0.1 arriving on non-loopback interfaces).
+	// Parse and verify: the echo server should see the client's non-loopback IP,
+	// not 127.0.0.1 or a hard-coded router address.
 	clientHost, _, err := net.SplitHostPort(clientAddr)
 	if err != nil {
 		t.Fatalf("failed to parse client address %q: %v", clientAddr, err)
