@@ -472,12 +472,49 @@ func TestTCPTransparent(t *testing.T, d port.ParentDriver) {
 	if out, err := nsenterExec(childPID, "ip", "link", "set", "lo", "up"); err != nil {
 		t.Fatalf("%v, out=%s", err, string(out))
 	}
-	testTCPTransparentWithPID(t, d, childPID)
+	testTransparentWithPID(t, "tcp", d, childPID)
 }
 
-func testTCPTransparentWithPID(t *testing.T, d port.ParentDriver, childPID int) {
+// transparentDialAndSend dials the parent address, sends data, and returns
+// the client's local address. The concrete implementation is protocol-specific.
+type transparentDialAndSend func(t *testing.T, parentAddr string) (clientAddr string)
+
+func transparentTCPDialAndSend(t *testing.T, parentAddr string) string {
+	var conn net.Conn
+	var err error
+	for i := 0; i < 5; i++ {
+		var dialer net.Dialer
+		conn, err = dialer.Dial("tcp", parentAddr)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Duration(i*5) * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	clientAddr := conn.LocalAddr().String()
+	if _, err := conn.Write([]byte("hello")); err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.(*net.TCPConn).CloseWrite(); err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+	return clientAddr
+}
+
+func testTransparentWithPID(t *testing.T, proto string, d port.ParentDriver, childPID int) {
 	ensureDeps(t, "nsenter")
 	const childPort = 80
+
+	var dialAndSend transparentDialAndSend
+	switch proto {
+	case "tcp":
+		dialAndSend = transparentTCPDialAndSend
+	default:
+		t.Fatalf("unsupported proto for transparent test: %s", proto)
+	}
 
 	parentIP, err := nonLoopbackIPv4()
 	if err != nil {
@@ -546,7 +583,7 @@ func testTCPTransparentWithPID(t *testing.T, d port.ParentDriver, childPID int) 
 	stdoutW.Close()
 
 	// Allocate a parent port and add port forwarding
-	parentPort, err := allocateAvailablePort("tcp")
+	parentPort, err := allocateAvailablePort(proto)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -556,7 +593,7 @@ func testTCPTransparentWithPID(t *testing.T, d port.ParentDriver, childPID int) 
 	for attempt := 0; attempt < maxAttempts; attempt++ {
 		portStatus, err = d.AddPort(context.TODO(),
 			port.Spec{
-				Proto:      "tcp",
+				Proto:      proto,
 				ParentIP:   parentIP,
 				ParentPort: parentPort,
 				ChildPort:  childPort,
@@ -567,37 +604,17 @@ func testTCPTransparentWithPID(t *testing.T, d port.ParentDriver, childPID int) 
 		if attempt == maxAttempts-1 || !isAddrInUse(err) {
 			t.Fatal(err)
 		}
-		parentPort, err = allocateAvailablePort("tcp")
+		parentPort, err = allocateAvailablePort(proto)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 	t.Logf("opened port: %+v", portStatus)
 
-	// Dial the parent port
-	var conn net.Conn
-	for i := 0; i < 5; i++ {
-		var dialer net.Dialer
-		conn, err = dialer.Dial("tcp", net.JoinHostPort(parentIP, strconv.Itoa(parentPort)))
-		if err == nil {
-			break
-		}
-		time.Sleep(time.Duration(i*5) * time.Millisecond)
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	clientAddr := conn.LocalAddr().String()
+	// Dial and send data
+	parentAddr := net.JoinHostPort(parentIP, strconv.Itoa(parentPort))
+	clientAddr := dialAndSend(t, parentAddr)
 	t.Logf("client local address: %s", clientAddr)
-
-	// Send data and close write side
-	if _, err := conn.Write([]byte("hello")); err != nil {
-		t.Fatal(err)
-	}
-	if err := conn.(*net.TCPConn).CloseWrite(); err != nil {
-		t.Fatal(err)
-	}
 
 	// Read the remote address the echo server saw
 	scanner := bufio.NewScanner(stdoutR)
@@ -607,7 +624,6 @@ func testTCPTransparentWithPID(t *testing.T, d port.ParentDriver, childPID int) 
 	serverSawAddr := scanner.Text()
 	t.Logf("server saw remote address: %s", serverSawAddr)
 
-	conn.Close()
 	echoCmd.Wait()
 
 	// Parse and verify: the echo server should see the client's non-loopback IP,
