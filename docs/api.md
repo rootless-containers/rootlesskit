@@ -43,7 +43,7 @@ USAGE:
    rootlessctl [global options] command [command options]
 
 VERSION:
-   3.0.0-rc.0
+   3.0.0
 
 COMMANDS:
    list-ports    List ports
