@@ -3,7 +3,7 @@ module github.com/rootless-containers/rootlesskit/v3
 go 1.25.0
 
 require (
-	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/containernetworking/plugins v1.9.1
 	github.com/containers/gvisor-tap-vsock v0.8.8
 	github.com/gofrs/flock v0.13.0
