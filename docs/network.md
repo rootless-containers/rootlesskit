@@ -190,7 +190,6 @@ Cons:
 * Less secure
 * Needs `/etc/lxc/lxc-usernet` configuration
 * No support for IPv6.
-* No support for `--detach-netns`
 
 To use `lxc-user-nic`, you need to install `liblxc-common` package:
 ```console
