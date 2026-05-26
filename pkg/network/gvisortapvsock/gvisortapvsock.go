@@ -134,6 +134,8 @@ func (d *parentDriver) setupVirtualNetwork(gateway string) (*virtualnetwork.Virt
 		// and allows for easier debugging and identification of the gateway interface.
 		GatewayMacAddress: "5a:94:ef:e4:0c:dd",
 		DHCPStaticLeases:  map[string]string{},
+		// Allow 169.254.169.254, as in other network drivers
+		Ec2MetadataAccess: true,
 	}
 
 	if !d.disableHostLoopback {
