@@ -512,11 +512,25 @@ func transparentUDPDialAndSend(t *testing.T, parentAddr string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer conn.Close()
 	clientAddr := conn.LocalAddr().String()
 	if _, err := conn.Write([]byte("hello")); err != nil {
 		t.Fatal(err)
 	}
-	conn.Close()
+	// Verify the return path: the echoed reply must reach the client. This is
+	// the regression assertion for rootless-containers/rootlesskit#592, where
+	// UDP responses were lost for non-loopback clients.
+	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, 64)
+	n, err := conn.Read(buf)
+	if err != nil {
+		t.Fatalf("did not receive UDP echo reply (issue #592 return-path regression): %v", err)
+	}
+	if got := string(buf[:n]); got != "hello" {
+		t.Fatalf("unexpected UDP echo reply: %q", got)
+	}
 	return clientAddr
 }
 
@@ -652,8 +666,6 @@ func testTransparentWithPID(t *testing.T, proto string, d port.ParentDriver, chi
 
 	echoCmd.Wait()
 
-	// Parse and verify: the echo server should see the client's non-loopback IP,
-	// not 127.0.0.1 or a hard-coded router address.
 	clientHost, _, err := net.SplitHostPort(clientAddr)
 	if err != nil {
 		t.Fatalf("failed to parse client address %q: %v", clientAddr, err)
@@ -663,8 +675,23 @@ func testTransparentWithPID(t *testing.T, proto string, d port.ParentDriver, chi
 		t.Fatalf("failed to parse server-seen address %q: %v", serverSawAddr, err)
 	}
 
-	if clientHost != serverHost {
-		t.Errorf("IP mismatch: client=%s, server saw=%s", clientHost, serverHost)
+	switch proto {
+	case "tcp":
+		// TCP preserves the real client source IP via IP_TRANSPARENT: the echo
+		// server must see the client's non-loopback IP, not 127.0.0.1 or a
+		// hard-coded router address.
+		if clientHost != serverHost {
+			t.Errorf("IP mismatch: client=%s, server saw=%s", clientHost, serverHost)
+		}
+	case "udp":
+		// UDP does not preserve the source IP: it falls back to the
+		// non-transparent path (see rootless-containers/rootlesskit#592 and the
+		// comment in pkg/port/builtin/child). The server therefore sees a
+		// loopback source, and the reply still reaches the client (verified by
+		// transparentUDPDialAndSend reading the echo above).
+		if clientHost == serverHost {
+			t.Errorf("expected UDP source IP not to be preserved, but server saw client IP %s", serverHost)
+		}
 	}
 
 	// Cleanup
@@ -707,6 +734,13 @@ func runUDPEchoServer() {
 	conn.WriteToUDP(buf[:n], from)
 }
 
+// RunUDPTransparent exercises the source-ip-transparent code path for UDP. UDP
+// does not actually support IP_TRANSPARENT (it falls back to the non-transparent
+// path), so this is also the regression test for
+// rootless-containers/rootlesskit#592: the client connects from a non-loopback
+// address (which previously triggered the broken path) and the test asserts that
+// the echo reply is delivered back to the client. Source IP preservation is
+// intentionally not expected for UDP.
 func RunUDPTransparent(t *testing.T, pf func() port.ParentDriver) {
 	t.Run("TestUDPTransparent", func(t *testing.T) { TestUDPTransparent(t, pf()) })
 }

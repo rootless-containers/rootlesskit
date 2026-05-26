@@ -206,7 +206,7 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 		}, CategoryPort),
 		Categorize(&cli.BoolFlag{
 			Name:  "source-ip-transparent",
-			Usage: "preserve real client source IP using IP_TRANSPARENT (builtin port driver)",
+			Usage: "preserve real client source IP using IP_TRANSPARENT (builtin port driver, TCP only)",
 			Value: true,
 		}, CategoryPort),
 		Categorize(&cli.BoolFlag{
