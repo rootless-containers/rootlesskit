@@ -147,7 +147,18 @@ func (d *childDriver) handleConnectRequest(c *net.UnixConn, req *msg.Request) er
 
 	var targetConn net.Conn
 	var err error
-	if d.sourceIPTransparent && req.SourceIP != "" && req.SourcePort != 0 && (dialProto == "tcp" || dialProto == "udp") && !net.ParseIP(req.SourceIP).IsLoopback() {
+	// IP_TRANSPARENT source IP preservation is only supported for TCP.
+	//
+	// For UDP it cannot be made to work reliably: the in-netns server replies to
+	// the real (non-local) client address, and unlike TCP there is no per-flow
+	// accepted socket to carry the fwmark (no udp_fwmark_accept), so the reply's
+	// route and source address are selected at send time via the main table. The
+	// reply is therefore sent out the default route (e.g. the slirp4netns TAP)
+	// and never reaches the transparent socket, breaking UDP forwarding entirely
+	// for non-loopback clients (rootless-containers/rootlesskit#592). UDP falls
+	// back to the non-transparent path below, which works for all clients but
+	// does not preserve the client source IP.
+	if d.sourceIPTransparent && req.SourceIP != "" && req.SourcePort != 0 && dialProto == "tcp" && !net.ParseIP(req.SourceIP).IsLoopback() {
 		d.routingSetup.Do(func() { d.routingReady = d.setupTransparentRouting() })
 		if !d.routingReady {
 			d.routingWarn.Do(func() {
@@ -250,17 +261,11 @@ func (d *childDriver) setupTransparentRouting() bool {
 
 // transparentDial dials targetAddr using IP_TRANSPARENT, binding to the given
 // source IP and port so the backend service sees the real client address.
+// Only TCP is supported; see the comment in handleConnectRequest.
 func transparentDial(dialProto, targetAddr, sourceIP string, sourcePort int) (net.Conn, error) {
-	var localAddr net.Addr
-	switch dialProto {
-	case "tcp":
-		localAddr = &net.TCPAddr{IP: net.ParseIP(sourceIP), Port: sourcePort}
-	case "udp":
-		localAddr = &net.UDPAddr{IP: net.ParseIP(sourceIP), Port: sourcePort}
-	}
 	dialer := net.Dialer{
 		Timeout:   time.Second,
-		LocalAddr: localAddr,
+		LocalAddr: &net.TCPAddr{IP: net.ParseIP(sourceIP), Port: sourcePort},
 		Control: func(network, address string, c syscall.RawConn) error {
 			var sockErr error
 			if err := c.Control(func(fd uintptr) {

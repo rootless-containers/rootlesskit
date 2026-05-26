@@ -7,7 +7,7 @@ The default value is `none` (do not expose ports).
 | `--port-driver`      |  Throughput | Source IP | Notes
 |----------------------|-------------|----------|-------
 | `slirp4netns`        | 8.03 Gbps   | Propagated |
-| `builtin`            | 29.9 Gbps   | Propagated (since v3.0) | In the case of Rootless Docker, userland-proxy has to be disabled for propagating the source IP.
+| `builtin`            | 29.9 Gbps   | Propagated for TCP (since v3.0) | Source IP propagation (`--source-ip-transparent`) applies to TCP only; UDP is not propagated. In the case of Rootless Docker, userland-proxy has to be disabled for propagating the source IP.
 | `implicit`           | 37.6 Gbps   | Propagated | Requires `pasta` network
 | `gvisor-tap-vsock` (Experimental) | 3.83 Gbps | Not propagated | Throughput is currently limited; see issue link below for improvement ideas.
 
