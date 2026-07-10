@@ -91,6 +91,7 @@ func (d *parentDriver) Info(ctx context.Context) (*api.NetworkDriverInfo, error)
 	if infoFn == nil {
 		return &api.NetworkDriverInfo{
 			Driver: DriverName,
+			IPv6:   d.enableIPv6,
 		}, nil
 	}
 
@@ -204,6 +205,7 @@ func (d *parentDriver) updateDriverInfo(netmsg *messages.ParentInitNetworkDriver
 			DNS:            apiDNS,
 			ChildIP:        net.ParseIP(netmsg.IP),
 			DynamicChildIP: false,
+			IPv6:           d.enableIPv6,
 		}
 	}
 	d.infoMu.Unlock()
