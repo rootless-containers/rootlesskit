@@ -53,7 +53,7 @@ func DetectFeatures(binary string) (*Features, error) {
 func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPNet, ifname string,
 	disableHostLoopback, enableIPv6, implicitPortForwarding bool) (network.ParentDriver, error) {
 	if binary == "" {
-		return nil, errors.New("got empty slirp4netns binary")
+		return nil, errors.New("got empty pasta binary")
 	}
 	if mtu < 0 {
 		return nil, errors.New("got negative mtu")
