@@ -9,17 +9,17 @@ RootlessKit provides several drivers for providing network connectivity:
 * `--net=lxc-user-nic`: use `lxc-user-nic` (experimental)
 * `--net=gvisor-tap-vsock`: use [gvisor-tap-vsock](https://github.com/containers/gvisor-tap-vsock) (experimental)
 
-[Benchmark: iperf3 from the child to the parent (Apr 10, 2026)](https://github.com/rootless-containers/rootlesskit/actions/runs/24200485791/job/70642399211):
+[Benchmark: iperf3 from the child to the parent (Jul 26, 2026)](https://github.com/rootless-containers/rootlesskit/actions/runs/30191669102/job/89765864664):
 
 |                 Driver                |  MTU=1500  |  MTU=65520
 |---------------------------------------|------------|-------------
-|`slirp4netns`                          |  0.84 Gbps |  6.17 Gbps
-|`slirp4netns` (with sandbox + seccomp) |  0.80 Gbps |  6.19 Gbps
-|`vpnkit`                               |  0.10 Gbps |(Unsupported)
-|`pasta`                                |  0.87 Gbps |  6.48 Gbps
-|`gvisor-tap-vsock`                     |  1.55 Gbps |  5.40 Gbps
-|`lxc-user-nic`                         |  29.3 Gbps |  30.4 Gbps
-|(rootful veth)                         | (35.0 Gbps)| (36.2 Gbps)
+|`slirp4netns`                          |  1.69 Gbps |  8.11 Gbps
+|`slirp4netns` (with sandbox + seccomp) |  1.68 Gbps |  8.32 Gbps
+|`vpnkit`                               |  0.14 Gbps |(Unsupported)
+|`pasta`                                |  0.24 Gbps |  31.9 Gbps
+|`gvisor-tap-vsock`                     |  2.46 Gbps |  8.75 Gbps
+|`lxc-user-nic`                         |  49.1 Gbps |  50.7 Gbps
+|(rootful veth)                         | (49.3 Gbps)| (50.8 Gbps)
 
 * To be documented: [`bypass4netns`](https://github.com/rootless-containers/bypass4netns) for native performance.
 
