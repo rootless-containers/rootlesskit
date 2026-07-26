@@ -155,7 +155,7 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 		"--dns-forward=" + dns.String(),
 	}
 	if d.disableHostLoopback {
-		opts = append(opts, "--no-map-gw")
+		opts = append(opts, "--no-map-gw", "--tcp-ns=none", "--udp-ns=none")
 	}
 	if !d.enableIPv6 {
 		opts = append(opts, "--ipv4-only")
