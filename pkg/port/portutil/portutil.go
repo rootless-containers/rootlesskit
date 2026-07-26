@@ -94,7 +94,7 @@ func ParsePortSpec(portSpec string) (*port.Spec, error) {
 		return nil, fmt.Errorf("unexpected ParentIP in PortSpec string: %q", portSpec)
 	}
 	if parts[childIP] != "" && net.ParseIP(parts[childIP]) == nil {
-		return nil, fmt.Errorf("unexpected ParentIP in PortSpec string: %q", portSpec)
+		return nil, fmt.Errorf("unexpected ChildIP in PortSpec string: %q", portSpec)
 	}
 
 	ps := &port.Spec{
@@ -105,12 +105,12 @@ func ParsePortSpec(portSpec string) (*port.Spec, error) {
 
 	ps.ParentPort, err = strconv.Atoi(parts[parentPort])
 	if err != nil {
-		return nil, fmt.Errorf("unexpected ChildPort in PortSpec string: %q: %w", portSpec, err)
+		return nil, fmt.Errorf("unexpected ParentPort in PortSpec string: %q: %w", portSpec, err)
 	}
 
 	ps.ChildPort, err = strconv.Atoi(parts[childPort])
 	if err != nil {
-		return nil, fmt.Errorf("unexpected ParentPort in PortSpec string: %q: %w", portSpec, err)
+		return nil, fmt.Errorf("unexpected ChildPort in PortSpec string: %q: %w", portSpec, err)
 	}
 
 	return ps, nil
