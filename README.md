@@ -204,6 +204,7 @@ OPTIONS:
                                                              
   Network [pasta]:                                           
     --pasta-binary value                                     path of pasta binary for --net=pasta (default: "pasta")
+    --pesto-binary value                                     path of pesto binary for --port-driver=pesto (default: "pesto")
                                                              
   Network [slirp4netns]:                                     
     --slirp4netns-binary value                               path of slirp4netns binary for --net=slirp4netns (default: "slirp4netns")
@@ -214,7 +215,7 @@ OPTIONS:
     --vpnkit-binary value                                    path of VPNKit binary for --net=vpnkit (default: "vpnkit")
                                                              
   Port:                                                      
-    --port-driver value                                      port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns, gvisor-tap-vsock(experimental)] (default: "none")
+    --port-driver value                                      port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns, gvisor-tap-vsock(experimental), pesto(experimental)] (default: "none")
     --publish value, -p value [ --publish value, -p value ]  publish ports. e.g. "127.0.0.1:8080:80/tcp"
     --source-ip-transparent                                  preserve real client source IP using IP_TRANSPARENT (builtin port driver, TCP only) (default: true)
                                                              

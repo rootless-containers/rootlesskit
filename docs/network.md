@@ -147,7 +147,7 @@ If `--disable-host-loopback` is not specified, ports listening on 127.0.0.1 in t
 ### `--net=pasta` (experimental)
 
 `--net=pasta` (since RootlessKit v2.0, EXPERIMENTAL) uses [pasta (passt)](https://passt.top/passt/).
-`--net=pasta` is expected to be used in conjunction with `--port-driver=implicit`.
+`--net=pasta` is expected to be used in conjunction with `--port-driver=pesto` or `--port-driver=implicit`.
 
 > **Note**
 > `--net=pasta` needs [pasta (passt)](https://passt.top/passt/) `2023_06_25.32660ce` or later.
@@ -170,9 +170,7 @@ Pros:
 * Supports ICMP Echo (`ping`) when `/proc/sys/net/ipv4/ping_group_range` is configured
 * TCP port forwarding (`--port-driver=implicit`) is very fast
 * TCP port forwarding (`--port-driver=implicit`) can retain source IP addresses
-
-Cons:
-* Lacks API for explicit port forwarding (`rootlessctl (list-ports|add-ports|remove-ports)`)
+* Explicit port forwarding via `rootlessctl (list-ports|add-ports|remove-ports)` is supported with `--port-driver=pesto` (experimental, IPv4-only, requires pasta `2026_05_07.1afd4ed` or later)
 
 The network configuration for pasta is similar to slirp4netns.
 As in `--net=slirp4netns`, specifying `--copy-up=/etc` and `--disable-host-loopback` is highly recommended.
