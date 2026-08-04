@@ -181,6 +181,14 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-port.sh implicit --net=pasta --detach-netns
+    - name: "Benchmark: TCP Ports (network driver=pasta, port driver=pesto)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port.sh pesto --net=pasta
+    - name: "Benchmark: TCP Ports (network driver=pasta, port driver=pesto) with detach-netns"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port.sh pesto --net=pasta --detach-netns
     - name: "Benchmark: TCP Ports (network driver=gvisor-tap-vsock, port driver=gvisor-tap-vsock)"
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
@@ -206,6 +214,14 @@ jobs:
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
           rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh implicit --net=pasta --detach-netns
+    - name: "Benchmark: UDP Ports (network driver=pasta, port driver=pesto)"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh pesto --net=pasta
+    - name: "Benchmark: UDP Ports (network driver=pasta, port driver=pesto) with detach-netns"
+      run: |
+          docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
+          rootlesskit:test-integration ./benchmark-iperf3-port-udp.sh pesto --net=pasta --detach-netns
     - name: "Benchmark: UDP Ports (port driver=builtin)"
       run: |
           docker run --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined --device /dev/net/tun \
@@ -278,6 +294,13 @@ jobs:
     - name: "Docker Integration test: net=pasta, port-driver=implicit"
       run: |
         docker run -d --name test --network custom --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=pasta       -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=implicit rootlesskit:test-integration-docker
+        sleep 5
+        docker exec test docker info
+        docker exec test ./integration-docker.sh
+        docker rm -f test
+    - name: "Docker Integration test: net=pasta, port-driver=pesto"
+      run: |
+        docker run -d --name test --network custom --privileged -e DOCKERD_ROOTLESS_ROOTLESSKIT_NET=pasta -e DOCKERD_ROOTLESS_ROOTLESSKIT_PORT_DRIVER=pesto rootlesskit:test-integration-docker
         sleep 5
         docker exec test docker info
         docker exec test ./integration-docker.sh

@@ -28,6 +28,7 @@ import (
 	"github.com/rootless-containers/rootlesskit/v3/pkg/parent"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/port/builtin"
 	gvisortapvsock_port "github.com/rootless-containers/rootlesskit/v3/pkg/port/gvisortapvsock"
+	pasta_port "github.com/rootless-containers/rootlesskit/v3/pkg/port/pasta"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/port/portutil"
 	slirp4netns_port "github.com/rootless-containers/rootlesskit/v3/pkg/port/slirp4netns"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/systemd/activation"
@@ -108,6 +109,9 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 	if gvisortapvsock_port.Available {
 		portDrivers = append(portDrivers, "gvisor-tap-vsock(experimental)")
 	}
+	if pasta_port.Available {
+		portDrivers = append(portDrivers, "pesto(experimental)")
+	}
 	portDriversHelp := strings.Join(portDrivers, ", ")
 
 	app.Flags = []cli.Flag{
@@ -133,6 +137,11 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 			Name:  "pasta-binary",
 			Usage: "path of pasta binary for --net=pasta",
 			Value: "pasta",
+		}, CategoryPasta),
+		Categorize(&cli.StringFlag{
+			Name:  "pesto-binary",
+			Usage: "path of pesto binary for --port-driver=pesto",
+			Value: "pesto",
 		}, CategoryPasta),
 		Categorize(&cli.StringFlag{
 			Name:  "slirp4netns-binary",
@@ -431,6 +440,14 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 	if clicontext.String("port-driver") == "slirp4netns" {
 		slirp4netnsAPISocketPath = filepath.Join(opt.StateDir, ".s4nn.sock")
 	}
+	portDriver := clicontext.String("port-driver")
+	if portDriver == "pasta" {
+		return opt, errors.New(`unknown port driver "pasta": did you mean "pesto"?`)
+	}
+	pestoSocketPath := ""
+	if portDriver == "pesto" {
+		pestoSocketPath = filepath.Join(opt.StateDir, ".pasta.sock")
+	}
 	switch s := clicontext.String("net"); s {
 	case "host":
 		// NOP
@@ -471,14 +488,14 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 		}
 		var implicitPortForward bool
 		switch portDriver := clicontext.String("port-driver"); portDriver {
-		case "none":
+		case "none", "pesto":
 			implicitPortForward = false
 		case "implicit":
 			implicitPortForward = true
 		default:
-			return opt, errors.New("network \"pasta\" requires port driver \"none\" or \"implicit\"")
+			return opt, errors.New("network \"pasta\" requires port driver \"none\" or \"implicit\" or \"pesto\"")
 		}
-		opt.NetworkDriver, err = pasta.NewParentDriver(&logrusDebugWriter{label: "network/pasta"}, binary, mtu, ipnet, ifname, disableHostLoopback, ipv6, implicitPortForward)
+		opt.NetworkDriver, err = pasta.NewParentDriver(&logrusDebugWriter{label: "network/pasta"}, binary, mtu, ipnet, ifname, pestoSocketPath, disableHostLoopback, ipv6, implicitPortForward)
 		if err != nil {
 			return opt, err
 		}
@@ -610,7 +627,7 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 		}
 	case "implicit":
 		if clicontext.String("net") != "pasta" {
-			return opt, errors.New("port driver requires pasta network")
+			return opt, errors.New("port driver \"implicit\" requires --net=pasta")
 		}
 		// NOP
 	case "slirp4netns":
@@ -635,6 +652,18 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 			return opt, errors.New("port driver requires non-host network")
 		}
 		opt.PortDriver, err = gvisortapvsock_port.NewParentDriver(&logrusDebugWriter{label: "port/gvisor-tap-vsock"}, opt.StateDir)
+		if err != nil {
+			return opt, err
+		}
+	case "pesto":
+		if clicontext.String("net") != "pasta" {
+			return opt, errors.New("port driver \"pesto\" requires --net=pasta")
+		}
+		binary := clicontext.String("pesto-binary")
+		if _, err := exec.LookPath(binary); err != nil {
+			return opt, err
+		}
+		opt.PortDriver, err = pasta_port.NewParentDriver(&logrusDebugWriter{label: "port/pesto"}, binary, pestoSocketPath)
 		if err != nil {
 			return opt, err
 		}
@@ -731,6 +760,8 @@ func createChildOpt(clicontext *cli.Context) (child.Opt, error) {
 		opt.PortDriver = builtin.NewChildDriver(&logrusDebugWriter{label: "port/builtin"})
 	case "gvisor-tap-vsock":
 		opt.PortDriver = gvisortapvsock_port.NewChildDriver()
+	case "pesto":
+		opt.PortDriver = pasta_port.NewChildDriver()
 	default:
 		return opt, fmt.Errorf("unknown port driver: %s", s)
 	}

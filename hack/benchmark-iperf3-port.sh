@@ -19,6 +19,8 @@ function benchmark::iperf3::port() {
 		portid=$($rootlessctl add-ports 127.0.0.1:5201:5201/tcp)
 		$rootlessctl list-ports
 	fi
+	# wait for the port to be bound
+	sleep 3
 	$IPERF3C 127.0.0.1
 	if [ $portdriver != "implicit" ]; then
 		$rootlessctl remove-ports $portid

@@ -9,13 +9,20 @@ The default value is `none` (do not expose ports).
 | `slirp4netns`        | 8.03 Gbps   | Propagated |
 | `builtin`            | 29.9 Gbps   | Propagated for TCP (since v3.0) | Source IP propagation (`--source-ip-transparent`) applies to TCP only; UDP is not propagated. In the case of Rootless Docker, userland-proxy has to be disabled for propagating the source IP.
 | `implicit`           | 37.6 Gbps   | Propagated | Requires `pasta` network
+| `pesto` (Experimental) | TBD       | Propagated | Requires `pasta` network and passt `2026_05_07.1afd4ed` or later. Supports explicit port management through `rootlessctl`.
 | `gvisor-tap-vsock` (Experimental) | 3.83 Gbps | Not propagated | Throughput is currently limited; see issue link below for improvement ideas.
 
 Benchmark: iperf3 from the parent to the child is measured on GitHub Actions ([Apr 10, 2026](https://github.com/rootless-containers/rootlesskit/actions/runs/24200485791/job/70642399211))
 
 The `builtin` driver is fast and should be the best choice for most use cases.
 
-For [`pasta`](./network.md) networks, the `implicit` port driver is the best choice.
+For [`pasta`](./network.md) networks, choose the port driver based on how
+ports should be exposed:
+
+* Use `pesto` to expose only explicitly published ports using `rootlessctl list-ports`, `add-ports`, and `remove-ports`.
+* Use `implicit` to automatically expose ports listened on in the network namespace. This may expose ports that were not intended to be reachable from the host.
+
+The `pesto` port driver is experimental and currently supports IPv4 port forwarding only. Both the `pasta` and `pesto` executables must be installed.
 
 > [!NOTE]
 > The `gvisor-tap-vsock` port driver is experimental.

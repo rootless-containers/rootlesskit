@@ -23,6 +23,9 @@ type Features struct {
 	// Has `--host-lo-to-ns-lo` (introduced in passt 2024_10_30.ee7d0b6)
 	// https://passt.top/passt/commit/?id=b4dace8f462b346ae2135af1f8d681a99a849a5f
 	HasHostLoToNsLo bool
+	// Has `--conf-path` (introduced in passt 2026_05_07.1afd4ed)
+	// https://passt.top/passt/commit/?id=f1d893ca1926e58ae5a2bf5602b515a883f3f994
+	HasConfPath bool
 }
 
 func DetectFeatures(binary string) (*Features, error) {
@@ -46,11 +49,15 @@ func DetectFeatures(binary string) (*Features, error) {
 	if cmd.Run() == nil {
 		f.HasHostLoToNsLo = true
 	}
+	cmd = exec.Command(realBinary, "--conf-path=/dev/null", "--version")
+	if cmd.Run() == nil {
+		f.HasConfPath = true
+	}
 	return &f, nil
 }
 
 // NewParentDriver instantiates new parent driver.
-func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPNet, ifname string,
+func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPNet, ifname, apiSocketPath string,
 	disableHostLoopback, enableIPv6, implicitPortForwarding bool) (network.ParentDriver, error) {
 	if binary == "" {
 		return nil, errors.New("got empty pasta binary")
@@ -79,6 +86,10 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 		return nil, err
 	}
 
+	if !feat.HasConfPath && apiSocketPath != "" {
+		return nil, errors.New("port driver \"pesto\" requires pasta with --conf-path support (passt >= 2026_05_07.1afd4ed)")
+	}
+
 	return &parentDriver{
 		logWriter:              logWriter,
 		binary:                 binary,
@@ -87,6 +98,7 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 		disableHostLoopback:    disableHostLoopback,
 		enableIPv6:             enableIPv6,
 		ifname:                 ifname,
+		apiSocketPath:          apiSocketPath,
 		implicitPortForwarding: implicitPortForwarding,
 		feat:                   feat,
 	}, nil
@@ -100,6 +112,7 @@ type parentDriver struct {
 	disableHostLoopback    bool
 	enableIPv6             bool
 	ifname                 string
+	apiSocketPath          string
 	infoMu                 sync.RWMutex
 	implicitPortForwarding bool
 	info                   func() *api.NetworkDriverInfo
@@ -168,13 +181,20 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 			"--udp-ports=none")
 	}
 	if d.feat != nil {
-		if d.feat.HasHostLoToNsLo {
+		// Skipped for the "pesto" port driver: inbound connections must be
+		// forwarded to the child IP, because that is where the listener in the
+		// namespace (e.g. docker-proxy) is bound.
+		if d.feat.HasHostLoToNsLo && d.apiSocketPath == "" {
 			// Needed to keep `docker run -p 127.0.0.1:8080:80` functional with
 			// passt >= 2024_10_30.ee7d0b6
 			//
 			// https://github.com/rootless-containers/rootlesskit/pull/482#issuecomment-2591798590
 			opts = append(opts, "--host-lo-to-ns-lo")
 		}
+	}
+	if d.apiSocketPath != "" {
+		// passt >= 2026_05_07.1afd4ed
+		opts = append(opts, "--conf-path="+d.apiSocketPath)
 	}
 	if detachedNetNSPath == "" {
 		opts = append(opts, strconv.Itoa(childPID))
