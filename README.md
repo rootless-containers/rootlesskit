@@ -154,7 +154,7 @@ USAGE:
    rootlesskit [global options] [arguments...]
 
 VERSION:
-   3.0.0
+   3.1.0
 
 DESCRIPTION:
    RootlessKit is a Linux-native implementation of "fake root" using user_namespaces(7).
@@ -199,7 +199,7 @@ OPTIONS:
     --detach-netns                                           detach network namespaces  (default: false)
                                                              
   Network [lxc-user-nic]:                                    
-    --lxc-user-nic-binary value                              path of lxc-user-nic binary for --net=lxc-user-nic
+    --lxc-user-nic-binary value                              path of lxc-user-nic binary for --net=lxc-user-nic (default: "/usr/libexec/lxc/lxc-user-nic")
     --lxc-user-nic-bridge value                              lxc-user-nic bridge name (default: "lxcbr0")
                                                              
   Network [pasta]:                                           
