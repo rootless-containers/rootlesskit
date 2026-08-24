@@ -398,7 +398,35 @@ func newugidmapArgs(subidSource SubidSource) ([]string, []string, error) {
 	return newugidmapArgsFromSubIDRanges(u, subuidRanges, subgidRanges)
 }
 
+// withoutSelfID removes id from the ranges, and splits a range when necessary.
+// The own ID is already mapped to 0, and newuidmap/newgidmap reject a map that
+// refers to the same host ID twice.
+func withoutSelfID(ranges []idtools.SubIDRange, id int) []idtools.SubIDRange {
+	var res []idtools.SubIDRange
+	for _, f := range ranges {
+		if id < f.Start || id >= f.Start+f.Length {
+			res = append(res, f)
+			continue
+		}
+		if head := id - f.Start; head > 0 {
+			res = append(res, idtools.SubIDRange{Start: f.Start, Length: head})
+		}
+		if tail := f.Start + f.Length - (id + 1); tail > 0 {
+			res = append(res, idtools.SubIDRange{Start: id + 1, Length: tail})
+		}
+	}
+	return res
+}
+
 func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []idtools.SubIDRange) ([]string, []string, error) {
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return nil, nil, err
+	}
+	gid, err := strconv.Atoi(u.Gid)
+	if err != nil {
+		return nil, nil, err
+	}
 	uidMap := []string{
 		"0",
 		u.Uid,
@@ -411,7 +439,7 @@ func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []id
 	}
 
 	uidMapLast := 1
-	for _, f := range subuidRanges {
+	for _, f := range withoutSelfID(subuidRanges, uid) {
 		uidMap = append(uidMap, []string{
 			strconv.Itoa(uidMapLast),
 			strconv.Itoa(f.Start),
@@ -420,7 +448,7 @@ func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []id
 		uidMapLast += f.Length
 	}
 	gidMapLast := 1
-	for _, f := range subgidRanges {
+	for _, f := range withoutSelfID(subgidRanges, gid) {
 		gidMap = append(gidMap, []string{
 			strconv.Itoa(gidMapLast),
 			strconv.Itoa(f.Start),
