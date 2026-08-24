@@ -15,11 +15,17 @@ echo "hello ipv6" >${tmp}/index.html
 busybox httpd -f -p "[${parent_ipv6}]:8080" -h "${tmp}" &
 pid=$!
 
-$ROOTLESSKIT \
-	--net=slirp4netns \
-	--ipv6 \
-	sh -euc "sleep 3; exec curl -fsSL http://[${parent_ipv6}]:8080"
+cleanup() {
+	kill -9 $pid || true
+	sudo ip link del ${parent_dummy} || true
+	rm -rf ${tmp}
+}
+trap cleanup EXIT
 
-kill -9 $pid || true
-sudo ip link del ${parent_dummy}
-rm -rf ${tmp}
+for net in 'slirp4netns' 'pasta'
+do
+	$ROOTLESSKIT \
+		--net=${net} \
+		--ipv6 \
+		sh -euc "sleep 3; exec curl -fsSL http://[${parent_ipv6}]:8080"
+done
