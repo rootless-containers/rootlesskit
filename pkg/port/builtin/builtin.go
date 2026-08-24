@@ -10,7 +10,7 @@ import (
 
 var (
 	NewParentDriver func(logWriter io.Writer, stateDir string, sourceIPTransparent bool) (port.ParentDriver, error) = parent.NewDriver
-	NewChildDriver  func(logWriter io.Writer) port.ChildDriver                                                     = child.NewDriver
+	NewChildDriver  func(logWriter io.Writer) port.ChildDriver                                                      = child.NewDriver
 )
 
 // Available indicates whether this port driver is compiled in (used for generating help text)
