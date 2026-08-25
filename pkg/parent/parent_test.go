@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/rootless-containers/rootlesskit/v3/pkg/parent/idtools"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"golang.org/x/sys/unix"
 	"gotest.tools/v3/assert"
 )
@@ -97,4 +99,52 @@ func TestNewugidmapArgsFromSubIDRangesWithSelfInsideRange(t *testing.T) {
 	}
 	assert.DeepEqual(t, expectedU, newuidmapArgs)
 	assert.DeepEqual(t, expectedG, newgidmapArgs)
+}
+
+func TestWithoutSelfID(t *testing.T) {
+	ranges := []idtools.SubIDRange{
+		{Start: 1001, Length: 1},
+		{Start: 2000, Length: 10},
+		{Start: 3000, Length: 5},
+	}
+	res, removed := withoutSelfID(ranges, 2005)
+	expectedRes := []idtools.SubIDRange{
+		{Start: 1001, Length: 1},
+		{Start: 2000, Length: 5},
+		{Start: 2006, Length: 4},
+		{Start: 3000, Length: 5},
+	}
+	expectedRemoved := []idtools.SubIDRange{
+		{Start: 2000, Length: 10},
+	}
+	assert.DeepEqual(t, expectedRes, res)
+	assert.DeepEqual(t, expectedRemoved, removed)
+
+	// An ID that is not in any range keeps the ranges unmodified.
+	res, removed = withoutSelfID(ranges, 4000)
+	assert.DeepEqual(t, ranges, res)
+	assert.Assert(t, removed == nil)
+}
+
+func TestNewugidmapArgsFromSubIDRangesWarnsAboutSelfID(t *testing.T) {
+	// The warning tells the admin which range of /etc/subuid and /etc/subgid
+	// is misconfigured. It is printed once per range, not once per ID.
+	hook := test.NewGlobal()
+	defer hook.Reset()
+	u := &user.User{Uid: "1001", Gid: "1001"}
+	subuidRanges := []idtools.SubIDRange{
+		{Start: 1000, Length: 10},
+		{Start: 165536, Length: 65536},
+	}
+	subgidRanges := []idtools.SubIDRange{
+		{Start: 1001, Length: 1},
+	}
+	_, _, err := newugidmapArgsFromSubIDRanges(u, subuidRanges, subgidRanges)
+	assert.NilError(t, err)
+	entries := hook.AllEntries()
+	assert.Equal(t, 2, len(entries))
+	assert.Equal(t, logrus.WarnLevel, entries[0].Level)
+	assert.Equal(t, "/etc/subuid: the range 1000:10 contains the own UID 1001, which is already mapped to UID 0 in the user namespace. RootlessKit ignores the UID 1001 in this range. Remove the own UID from /etc/subuid.", entries[0].Message)
+	assert.Equal(t, logrus.WarnLevel, entries[1].Level)
+	assert.Equal(t, "/etc/subgid: the range 1001:1 contains the own GID 1001, which is already mapped to GID 0 in the user namespace. RootlessKit ignores the GID 1001 in this range. Remove the own GID from /etc/subgid.", entries[1].Message)
 }

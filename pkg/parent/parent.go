@@ -401,13 +401,14 @@ func newugidmapArgs(subidSource SubidSource) ([]string, []string, error) {
 // withoutSelfID removes id from the ranges, and splits a range when necessary.
 // The own ID is already mapped to 0, and newuidmap/newgidmap reject a map that
 // refers to the same host ID twice.
-func withoutSelfID(ranges []idtools.SubIDRange, id int) []idtools.SubIDRange {
-	var res []idtools.SubIDRange
+// The second return value contains the original ranges that contained id.
+func withoutSelfID(ranges []idtools.SubIDRange, id int) (res, removed []idtools.SubIDRange) {
 	for _, f := range ranges {
 		if id < f.Start || id >= f.Start+f.Length {
 			res = append(res, f)
 			continue
 		}
+		removed = append(removed, f)
 		if head := id - f.Start; head > 0 {
 			res = append(res, idtools.SubIDRange{Start: f.Start, Length: head})
 		}
@@ -415,7 +416,16 @@ func withoutSelfID(ranges []idtools.SubIDRange, id int) []idtools.SubIDRange {
 			res = append(res, idtools.SubIDRange{Start: id + 1, Length: tail})
 		}
 	}
-	return res
+	return res, removed
+}
+
+// warnSelfIDRanges prints a warning for each range that contained the own ID.
+// kind is "UID" or "GID". file is the subid file that defines the ranges.
+func warnSelfIDRanges(removed []idtools.SubIDRange, id int, kind, file string) {
+	for _, f := range removed {
+		logrus.Warnf("%s: the range %d:%d contains the own %s %d, which is already mapped to %s 0 in the user namespace. RootlessKit ignores the %s %d in this range. Remove the own %s from %s.",
+			file, f.Start, f.Length, kind, id, kind, kind, id, kind, file)
+	}
 }
 
 func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []idtools.SubIDRange) ([]string, []string, error) {
@@ -438,8 +448,13 @@ func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []id
 		"1",
 	}
 
+	subuidRanges, removedSubuidRanges := withoutSelfID(subuidRanges, uid)
+	warnSelfIDRanges(removedSubuidRanges, uid, "UID", "/etc/subuid")
+	subgidRanges, removedSubgidRanges := withoutSelfID(subgidRanges, gid)
+	warnSelfIDRanges(removedSubgidRanges, gid, "GID", "/etc/subgid")
+
 	uidMapLast := 1
-	for _, f := range withoutSelfID(subuidRanges, uid) {
+	for _, f := range subuidRanges {
 		uidMap = append(uidMap, []string{
 			strconv.Itoa(uidMapLast),
 			strconv.Itoa(f.Start),
@@ -448,7 +463,7 @@ func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []id
 		uidMapLast += f.Length
 	}
 	gidMapLast := 1
-	for _, f := range withoutSelfID(subgidRanges, gid) {
+	for _, f := range subgidRanges {
 		gidMap = append(gidMap, []string{
 			strconv.Itoa(gidMapLast),
 			strconv.Itoa(f.Start),
