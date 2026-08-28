@@ -32,24 +32,34 @@ type Request struct {
 // Reply may contain FD as OOB
 type Reply struct {
 	Error string
+	// SourceIPTransparentBackend is set in the reply to an "init" request:
+	// the firewall backend ("nft" or "iptables") that was actually set up
+	// for --source-ip-transparent, resolved eagerly at init time. Empty if
+	// --source-ip-transparent is disabled, or if no backend could be set up.
+	SourceIPTransparentBackend string `json:",omitempty"`
 }
 
-// Initiate sends "init" request to the child UNIX socket.
-func Initiate(c *net.UnixConn) error {
+// Initiate sends "init" request to the child UNIX socket, and returns the
+// child's reply (which reports the resolved source-IP-transparent backend,
+// if any).
+func Initiate(c *net.UnixConn) (*Reply, error) {
 	req := Request{
 		Type: RequestTypeInit,
 	}
 	if _, err := lowlevelmsgutil.MarshalToWriter(c, &req); err != nil {
-		return err
+		return nil, err
 	}
 	if err := c.CloseWrite(); err != nil {
-		return err
+		return nil, err
 	}
 	var rep Reply
 	if _, err := lowlevelmsgutil.UnmarshalFromReader(c, &rep); err != nil {
-		return err
+		return nil, err
 	}
-	return c.CloseRead()
+	if err := c.CloseRead(); err != nil {
+		return nil, err
+	}
+	return &rep, nil
 }
 
 func hostGatewayIP() string {

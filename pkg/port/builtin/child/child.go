@@ -1,6 +1,7 @@
 package child
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +23,10 @@ import (
 	opaquepkg "github.com/rootless-containers/rootlesskit/v3/pkg/port/builtin/opaque"
 )
 
+// probeTimeout bounds every backend-probe subprocess so a stuck or slow
+// nft/iptables invocation can never hang the init handshake indefinitely.
+const probeTimeout = 3 * time.Second
+
 func NewDriver(logWriter io.Writer) port.ChildDriver {
 	return &childDriver{
 		logWriter: logWriter,
@@ -29,15 +34,29 @@ func NewDriver(logWriter io.Writer) port.ChildDriver {
 }
 
 type childDriver struct {
-	logWriter           io.Writer
-	sourceIPTransparent bool
-	routingSetup        sync.Once
-	routingReady        bool
-	routingWarn         sync.Once
+	logWriter                  io.Writer
+	sourceIPTransparent        bool
+	sourceIPTransparentBackend string // "auto" (default), "nft", or "iptables"
+
+	// backendResolved is closed once resolveBackendName finishes (which
+	// runs in a goroutine started during RunChildDriver). Any reader
+	// must wait on this channel before accessing resolvedBackend.
+	backendResolved chan struct{}
+	resolvedBackend string // "nft", "iptables", or "" (none available)
+
+	// routingSetup guards the actual rule installation (ip route/rule,
+	// sysctl, nft/iptables rules). It runs at most once, on the first
+	// real transparent connection.
+	routingSetup sync.Once
+	routingReady bool
 }
 
 func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struct{}, detachedNetNSPath string) error {
 	d.sourceIPTransparent = opaque[opaquepkg.SourceIPTransparent] == "true"
+	d.sourceIPTransparentBackend = opaque[opaquepkg.SourceIPTransparentBackend]
+	if d.sourceIPTransparentBackend == "" {
+		d.sourceIPTransparentBackend = "auto"
+	}
 	socketPath := opaque[opaquepkg.SocketPath]
 	if socketPath == "" {
 		return errors.New("socket path not set")
@@ -56,6 +75,21 @@ func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struc
 	})
 	if err != nil {
 		return err
+	}
+	// Start backend name resolution asynchronously so that it runs in
+	// parallel with the parent's connection setup. The ready pipe is
+	// closed immediately (just like on master), so the parent is not
+	// blocked. handleConnectInit waits on backendResolved before
+	// reading resolvedBackend -- by that point the probe has had the
+	// entire parent-side setup time to complete concurrently.
+	d.backendResolved = make(chan struct{})
+	if d.sourceIPTransparent {
+		go func() {
+			d.resolveBackendName()
+			close(d.backendResolved)
+		}()
+	} else {
+		close(d.backendResolved)
 	}
 	// write nothing, just close
 	if err = childReadyPipeW.Close(); err != nil {
@@ -110,8 +144,61 @@ func (d *childDriver) routine(c *net.UnixConn, detachedNetNSPath string) error {
 	}
 }
 
+// resolveBackendName probes for nft/iptables availability, setting
+// resolvedBackend. This is a cheap, read-only operation (LookPath + a
+// smoke-test command) that does NOT install any firewall rules, routing
+// entries, or sysctls.
+//
+// It is called once from RunChildDriver, before the child signals
+// readiness to the parent, so that by the time the parent sends the init
+// request the backend name is already available -- no external commands
+// need to run in the init handshake path.
+func (d *childDriver) resolveBackendName() {
+	switch d.sourceIPTransparentBackend {
+	case "nft":
+		if probeNFT(d.logWriter) {
+			d.resolvedBackend = "nft"
+		}
+	case "iptables":
+		if probeIPTables(d.logWriter) {
+			d.resolvedBackend = "iptables"
+		}
+	default: // "auto"
+		if probeNFT(d.logWriter) {
+			d.resolvedBackend = "nft"
+		} else if probeIPTables(d.logWriter) {
+			d.resolvedBackend = "iptables"
+		}
+	}
+}
+
+// ensureTransparentRoutingSetup installs the firewall rules, routing
+// entries, and sysctls at most once (via routingSetup), setting
+// routingReady. Called on the first real transparent connection.
+//
+// Every caller must go through this method rather than reading routingReady
+// directly: init and connect requests are each handled in their own
+// goroutine (see the accept loop in RunChildDriver), and it is
+// sync.Once.Do itself -- not just "the setup already ran, earlier" -- that
+// gives every caller a happens-before guarantee on those fields, regardless
+// of which goroutine actually executes the closure.
+func (d *childDriver) ensureTransparentRoutingSetup() {
+	d.routingSetup.Do(func() {
+		d.routingReady = d.setupTransparentRouting()
+		if !d.routingReady {
+			fmt.Fprintf(d.logWriter, "source IP transparent: falling back to non-transparent mode, client source IPs will not be preserved\n")
+		}
+	})
+}
+
+// handleConnectInit handles the "init" request.
 func (d *childDriver) handleConnectInit(c *net.UnixConn, req *msg.Request) error {
-	_, err := lowlevelmsgutil.MarshalToWriter(c, nil)
+	rep := msg.Reply{}
+	if d.sourceIPTransparent {
+		<-d.backendResolved
+		rep.SourceIPTransparentBackend = d.resolvedBackend
+	}
+	_, err := lowlevelmsgutil.MarshalToWriter(c, &rep)
 	return err
 }
 
@@ -159,11 +246,8 @@ func (d *childDriver) handleConnectRequest(c *net.UnixConn, req *msg.Request) er
 	// back to the non-transparent path below, which works for all clients but
 	// does not preserve the client source IP.
 	if d.sourceIPTransparent && req.SourceIP != "" && req.SourcePort != 0 && dialProto == "tcp" && !net.ParseIP(req.SourceIP).IsLoopback() {
-		d.routingSetup.Do(func() { d.routingReady = d.setupTransparentRouting() })
+		d.ensureTransparentRoutingSetup()
 		if !d.routingReady {
-			d.routingWarn.Do(func() {
-				fmt.Fprintf(d.logWriter, "source IP transparent: falling back to non-transparent mode, client source IPs will not be preserved\n")
-			})
 			goto fallback
 		}
 		targetConn, err = transparentDial(dialProto, targetAddr, req.SourceIP, req.SourcePort)
@@ -207,6 +291,9 @@ fallback:
 
 // setupTransparentRouting sets up policy routing so that response packets
 // destined to transparent-bound source IPs are delivered locally.
+// The firewall rules are implemented via nft, falling back to iptables if
+// nft isn't available on the host (see setupTransparentRoutingNFT and
+// setupTransparentRoutingIPTables).
 //
 // Transparent sockets (IP_TRANSPARENT) bind to non-local addresses (the real
 // client IP). Response packets to these addresses must be routed locally instead
@@ -224,17 +311,15 @@ fallback:
 //     SYN-ACK is then routed via the fwmark table (local delivery) instead of
 //     the default route (TAP), allowing it to reach the transparent socket.
 func (d *childDriver) setupTransparentRouting() bool {
-	// Check that iptables is available before proceeding.
-	if _, err := exec.LookPath("iptables"); err != nil {
-		fmt.Fprintf(d.logWriter, "source IP transparent: iptables not found, disabling: %v\n", err)
+	// Wait for the async backend probe (started in RunChildDriver) to
+	// finish before reading resolvedBackend.
+	<-d.backendResolved
+	if d.resolvedBackend == "" {
 		return false
 	}
-	// Verify the connmark module is usable (kernel module might not be loaded).
-	if out, err := exec.Command("iptables", "-t", "mangle", "-L", "-n").CombinedOutput(); err != nil {
-		fmt.Fprintf(d.logWriter, "source IP transparent: iptables mangle table not available, disabling: %v: %s\n", err, out)
-		return false
-	}
-	cmds := [][]string{
+
+	// Common prep, independent of the firewall backend used below.
+	prepCmds := [][]string{
 		// Table 100: treat all addresses as local (for delivery to transparent sockets)
 		{"ip", "route", "add", "local", "default", "dev", "lo", "table", "100"},
 		{"ip", "-6", "route", "add", "local", "default", "dev", "lo", "table", "100"},
@@ -244,6 +329,87 @@ func (d *childDriver) setupTransparentRouting() bool {
 		// Inherit fwmark from SYN to accepted socket (needed for userspace proxies
 		// like docker-proxy, so that SYN-ACK routing uses table 100)
 		{"sysctl", "-w", "net.ipv4.tcp_fwmark_accept=1"},
+	}
+	for _, args := range prepCmds {
+		if out, err := exec.Command(args[0], args[1:]...).CombinedOutput(); err != nil {
+			fmt.Fprintf(d.logWriter, "source IP transparent routing setup: %v: %s\n", err, out)
+		}
+	}
+	switch d.resolvedBackend {
+	case "nft":
+		d.installNFTRules()
+	case "iptables":
+		d.installIPTablesRules()
+	}
+	return true
+}
+
+// probeNFT checks whether nft is available and usable (read-only).
+func probeNFT(logWriter io.Writer) bool {
+	if _, err := exec.LookPath("nft"); err != nil {
+		fmt.Fprintf(logWriter, "source IP transparent (nft): nft not found, disabling: %v\n", err)
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+	defer cancel()
+	if out, err := exec.CommandContext(ctx, "nft", "list", "tables").CombinedOutput(); err != nil {
+		fmt.Fprintf(logWriter, "source IP transparent (nft): nft not available, disabling: %v: %s\n", err, out)
+		return false
+	}
+	return true
+}
+
+// installNFTRules installs the nftables rules for transparent routing.
+// The "inet" family covers both IPv4 and IPv6 in a single ruleset.
+// Must only be called after probeNFT has returned true.
+func (d *childDriver) installNFTRules() {
+	const nftTable = "rootlesskit_transparent"
+	cmds := [][]string{
+		// Create a single nftables table in the "inet" family, which covers both
+		// IPv4 and IPv6, replacing the separate iptables/ip6tables tables used below.
+		{"nft", "add", "table", "inet", nftTable},
+		// Hook into OUTPUT and PREROUTING at the "mangle" priority, matching where
+		// the equivalent rules live in the iptables mangle table.
+		{"nft", "add", "chain", "inet", nftTable, "output",
+			"{", "type", "filter", "hook", "output", "priority", "mangle", ";", "}"},
+		{"nft", "add", "chain", "inet", nftTable, "prerouting",
+			"{", "type", "filter", "hook", "prerouting", "priority", "mangle", ";", "}"},
+		// In OUTPUT: tag transparent connections (non-local source) with a connection
+		// mark. Equivalent to iptables: -m addrtype ! --src-type LOCAL -j CONNMARK --set-mark 100
+		{"nft", "add", "rule", "inet", nftTable, "output",
+			"meta", "l4proto", "tcp", "fib", "saddr", "type", "!=", "local", "ct", "mark", "set", "100"},
+		// In PREROUTING: restore the connmark to the packet mark for routing.
+		// Equivalent to iptables: -m connmark --mark 100 -j MARK --set-mark 100
+		{"nft", "add", "rule", "inet", nftTable, "prerouting",
+			"meta", "l4proto", "tcp", "ct", "mark", "100", "meta", "mark", "set", "100"},
+	}
+	for _, args := range cmds {
+		if out, err := exec.Command(args[0], args[1:]...).CombinedOutput(); err != nil {
+			fmt.Fprintf(d.logWriter, "source IP transparent (nft) routing setup: %v: %s\n", err, out)
+		}
+	}
+}
+
+// probeIPTables checks whether iptables is available and usable (read-only).
+func probeIPTables(logWriter io.Writer) bool {
+	if _, err := exec.LookPath("iptables"); err != nil {
+		fmt.Fprintf(logWriter, "source IP transparent (iptables): iptables not found, disabling: %v\n", err)
+		return false
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+	defer cancel()
+	if out, err := exec.CommandContext(ctx, "iptables", "-t", "mangle", "-L", "-n").CombinedOutput(); err != nil {
+		fmt.Fprintf(logWriter, "source IP transparent (iptables): mangle table not available, disabling: %v: %s\n", err, out)
+		return false
+	}
+	return true
+}
+
+// installIPTablesRules installs iptables/ip6tables rules for transparent
+// routing, kept as a fallback for hosts where nft is unavailable.
+// Must only be called after probeIPTables has returned true.
+func (d *childDriver) installIPTablesRules() {
+	cmds := [][]string{
 		// In OUTPUT: tag transparent connections (non-local source) with CONNMARK
 		{"iptables", "-t", "mangle", "-A", "OUTPUT", "-p", "tcp", "-m", "addrtype", "!", "--src-type", "LOCAL", "-j", "CONNMARK", "--set-mark", "100"},
 		{"ip6tables", "-t", "mangle", "-A", "OUTPUT", "-p", "tcp", "-m", "addrtype", "!", "--src-type", "LOCAL", "-j", "CONNMARK", "--set-mark", "100"},
@@ -253,10 +419,9 @@ func (d *childDriver) setupTransparentRouting() bool {
 	}
 	for _, args := range cmds {
 		if out, err := exec.Command(args[0], args[1:]...).CombinedOutput(); err != nil {
-			fmt.Fprintf(d.logWriter, "source IP transparent routing setup: %v: %s\n", err, out)
+			fmt.Fprintf(d.logWriter, "source IP transparent (iptables) routing setup: %v: %s\n", err, out)
 		}
 	}
-	return true
 }
 
 // transparentDial dials targetAddr using IP_TRANSPARENT, binding to the given
