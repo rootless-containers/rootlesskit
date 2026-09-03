@@ -76,6 +76,10 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 			return nil, err
 		}
 	}
+	_, ipnet6, err := net.ParseCIDR("fd00::/64")
+	if err != nil {
+		return nil, err
+	}
 
 	if ifname == "" {
 		ifname = "tap0"
@@ -95,6 +99,7 @@ func NewParentDriver(logWriter io.Writer, binary string, mtu int, ipnet *net.IPN
 		binary:                 binary,
 		mtu:                    mtu,
 		ipnet:                  ipnet,
+		ipnet6:                 ipnet6,
 		disableHostLoopback:    disableHostLoopback,
 		enableIPv6:             enableIPv6,
 		ifname:                 ifname,
@@ -109,6 +114,7 @@ type parentDriver struct {
 	binary                 string
 	mtu                    int
 	ipnet                  *net.IPNet
+	ipnet6                 *net.IPNet
 	disableHostLoopback    bool
 	enableIPv6             bool
 	ifname                 string
@@ -170,7 +176,23 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	if d.disableHostLoopback {
 		opts = append(opts, "--no-map-gw", "--tcp-ns=none", "--udp-ns=none")
 	}
-	if !d.enableIPv6 {
+	if d.enableIPv6 {
+		// 0x100, so that the address is rendered as fd00::100
+		address, err := iputils.AddIPInt6(d.ipnet6.IP, 0x100)
+		if err != nil {
+			return nil, common.Seq(cleanups), err
+		}
+		gateway, err := iputils.AddIPInt6(d.ipnet6.IP, 2)
+		if err != nil {
+			return nil, common.Seq(cleanups), err
+		}
+		dns, err := iputils.AddIPInt6(d.ipnet6.IP, 3)
+		if err != nil {
+			return nil, common.Seq(cleanups), err
+		}
+		opts = append(opts, "--address="+address.String(), "--gateway="+gateway.String(),
+			"--dns-forward="+dns.String())
+	} else {
 		opts = append(opts, "--ipv4-only")
 	}
 	if d.implicitPortForwarding {
