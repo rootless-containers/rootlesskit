@@ -218,6 +218,7 @@ OPTIONS:
     --port-driver value                                      port driver for non-host network. [none, implicit (for pasta), builtin, slirp4netns, gvisor-tap-vsock(experimental), pesto(experimental)] (default: "none")
     --publish value, -p value [ --publish value, -p value ]  publish ports. e.g. "127.0.0.1:8080:80/tcp"
     --source-ip-transparent                                  preserve real client source IP using IP_TRANSPARENT (builtin port driver, TCP only) (default: true)
+    --source-ip-transparent-backend value                    firewall backend for --source-ip-transparent (builtin port driver) [auto, nft, iptables] (default: "auto")
                                                              
   Process:                                                   
     --pidns                                                  create a PID namespace (default: false)

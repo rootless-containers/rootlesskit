@@ -25,6 +25,16 @@ jobs:
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-unit --target test-unit .
     - name: "Unit test"
       run: docker run --rm --privileged rootlesskit:test-unit
+  test-unit-iptables-fallback:
+    name: "Unit test (source-ip-transparent iptables fallback, no nft)"
+    runs-on: ubuntu-24.04
+    steps:
+    - name: "Check out"
+      uses: actions/checkout@v7
+    - name: "Build unit test image without nft"
+      run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-unit-iptables-fallback --target test-unit --build-arg TEST_UNIT_APT_EXTRA=iptables .
+    - name: "Unit test"
+      run: docker run --rm --privileged rootlesskit:test-unit-iptables-fallback
   test-cross:
     name: "Cross compilation test"
     runs-on: ubuntu-24.04

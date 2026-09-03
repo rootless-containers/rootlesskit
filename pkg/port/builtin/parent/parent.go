@@ -24,7 +24,8 @@ import (
 )
 
 // NewDriver for builtin driver.
-func NewDriver(logWriter io.Writer, stateDir string, sourceIPTransparent bool) (port.ParentDriver, error) {
+// sourceIPTransparentBackend is one of "auto" (default), "nft", or "iptables".
+func NewDriver(logWriter io.Writer, stateDir string, sourceIPTransparent bool, sourceIPTransparentBackend string) (port.ParentDriver, error) {
 	// TODO: consider using socketpair FD instead of socket file
 	socketPath := filepath.Join(stateDir, ".bp.sock")
 	childReadyPipePath := filepath.Join(stateDir, ".bp-ready.pipe")
@@ -35,27 +36,38 @@ func NewDriver(logWriter io.Writer, stateDir string, sourceIPTransparent bool) (
 	if err := syscall.Mkfifo(childReadyPipePath, 0600); err != nil {
 		return nil, fmt.Errorf("cannot mkfifo %s: %w", childReadyPipePath, err)
 	}
+	if sourceIPTransparentBackend == "" {
+		sourceIPTransparentBackend = "auto"
+	}
 	d := driver{
-		logWriter:           logWriter,
-		socketPath:          socketPath,
-		childReadyPipePath:  childReadyPipePath,
-		sourceIPTransparent: sourceIPTransparent,
-		ports:               make(map[int]*port.Status, 0),
-		stoppers:            make(map[int]func(context.Context) error, 0),
-		nextID:              1,
+		logWriter:                  logWriter,
+		socketPath:                 socketPath,
+		childReadyPipePath:         childReadyPipePath,
+		sourceIPTransparent:        sourceIPTransparent,
+		sourceIPTransparentBackend: sourceIPTransparentBackend,
+		ports:                      make(map[int]*port.Status, 0),
+		stoppers:                   make(map[int]func(context.Context) error, 0),
+		nextID:                     1,
 	}
 	return &d, nil
 }
 
 type driver struct {
-	logWriter           io.Writer
-	socketPath          string
-	childReadyPipePath  string
-	sourceIPTransparent bool
-	mu                  sync.Mutex
-	ports               map[int]*port.Status
-	stoppers            map[int]func(context.Context) error
-	nextID              int
+	logWriter                  io.Writer
+	socketPath                 string
+	childReadyPipePath         string
+	sourceIPTransparent        bool
+	sourceIPTransparentBackend string
+	mu                         sync.Mutex
+	ports                      map[int]*port.Status
+	stoppers                   map[int]func(context.Context) error
+	nextID                     int
+	// resolvedSourceIPTransparentBackend is the firewall backend the child
+	// actually set up ("nft" or "iptables"), reported back in the reply to
+	// the init handshake in RunParentDriver. Guarded by mu. Empty until
+	// RunParentDriver has completed its handshake with the child, or if
+	// sourceIPTransparent is disabled, or if no backend could be set up.
+	resolvedSourceIPTransparentBackend string
 }
 
 func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
@@ -63,6 +75,19 @@ func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
 		Driver:                  "builtin",
 		Protos:                  []string{"tcp", "tcp4", "tcp6", "udp", "udp4", "udp6"},
 		DisallowLoopbackChildIP: false,
+	}
+	if d.sourceIPTransparent {
+		d.mu.Lock()
+		backend := d.resolvedSourceIPTransparentBackend
+		d.mu.Unlock()
+		if backend == "" {
+			// Either RunParentDriver hasn't completed its init handshake with
+			// the child yet, or the child couldn't set up any backend.
+			backend = "none"
+		}
+		info.Extra = map[string]string{
+			"sourceIPTransparentBackend": backend,
+		}
 	}
 	return info, nil
 }
@@ -74,6 +99,7 @@ func (d *driver) OpaqueForChild() map[string]string {
 	}
 	if d.sourceIPTransparent {
 		m[opaque.SourceIPTransparent] = "true"
+		m[opaque.SourceIPTransparentBackend] = d.sourceIPTransparentBackend
 	}
 	return m
 }
@@ -92,10 +118,15 @@ func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{
 	if err != nil {
 		return err
 	}
-	err = msg.Initiate(conn.(*net.UnixConn))
+	rep, err := msg.Initiate(conn.(*net.UnixConn))
 	conn.Close()
 	if err != nil {
 		return err
+	}
+	if rep != nil {
+		d.mu.Lock()
+		d.resolvedSourceIPTransparentBackend = rep.SourceIPTransparentBackend
+		d.mu.Unlock()
 	}
 	initComplete <- struct{}{}
 	<-quit
