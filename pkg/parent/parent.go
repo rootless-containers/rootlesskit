@@ -398,7 +398,45 @@ func newugidmapArgs(subidSource SubidSource) ([]string, []string, error) {
 	return newugidmapArgsFromSubIDRanges(u, subuidRanges, subgidRanges)
 }
 
+// withoutSelfID removes id from the ranges, and splits a range when necessary.
+// The own ID is already mapped to 0, and newuidmap/newgidmap reject a map that
+// refers to the same host ID twice.
+// The second return value contains the original ranges that contained id.
+func withoutSelfID(ranges []idtools.SubIDRange, id int) (res, removed []idtools.SubIDRange) {
+	for _, f := range ranges {
+		if id < f.Start || id >= f.Start+f.Length {
+			res = append(res, f)
+			continue
+		}
+		removed = append(removed, f)
+		if head := id - f.Start; head > 0 {
+			res = append(res, idtools.SubIDRange{Start: f.Start, Length: head})
+		}
+		if tail := f.Start + f.Length - (id + 1); tail > 0 {
+			res = append(res, idtools.SubIDRange{Start: id + 1, Length: tail})
+		}
+	}
+	return res, removed
+}
+
+// warnSelfIDRanges prints a warning for each range that contained the own ID.
+// kind is "UID" or "GID". file is the subid file that defines the ranges.
+func warnSelfIDRanges(removed []idtools.SubIDRange, id int, kind, file string) {
+	for _, f := range removed {
+		logrus.Warnf("%s: the range %d:%d contains the own %s %d, which is already mapped to %s 0 in the user namespace. RootlessKit ignores the %s %d in this range. Remove the own %s from %s.",
+			file, f.Start, f.Length, kind, id, kind, kind, id, kind, file)
+	}
+}
+
 func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []idtools.SubIDRange) ([]string, []string, error) {
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return nil, nil, err
+	}
+	gid, err := strconv.Atoi(u.Gid)
+	if err != nil {
+		return nil, nil, err
+	}
 	uidMap := []string{
 		"0",
 		u.Uid,
@@ -409,6 +447,11 @@ func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []id
 		u.Gid,
 		"1",
 	}
+
+	subuidRanges, removedSubuidRanges := withoutSelfID(subuidRanges, uid)
+	warnSelfIDRanges(removedSubuidRanges, uid, "UID", "/etc/subuid")
+	subgidRanges, removedSubgidRanges := withoutSelfID(subgidRanges, gid)
+	warnSelfIDRanges(removedSubgidRanges, gid, "GID", "/etc/subgid")
 
 	uidMapLast := 1
 	for _, f := range subuidRanges {
