@@ -17,7 +17,6 @@ import (
 	"sync"
 
 	"github.com/containernetworking/plugins/pkg/ns"
-	"github.com/containers/gvisor-tap-vsock/pkg/tap"
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	"github.com/containers/gvisor-tap-vsock/pkg/virtualnetwork"
 	"github.com/sirupsen/logrus"
@@ -73,9 +72,8 @@ type parentDriver struct {
 	info                func() *api.NetworkDriverInfo
 
 	// Store the virtual network and its network switch for later use
-	vn            *virtualnetwork.VirtualNetwork
-	networkSwitch *tap.Switch
-	vnMu          sync.RWMutex
+	vn   *virtualnetwork.VirtualNetwork
+	vnMu sync.RWMutex
 
 	// Socket for communication with the child namespace
 	socketPath string
@@ -404,7 +402,8 @@ func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDr
 	// Initialize buffer pool
 	d.bufferPool = &sync.Pool{
 		New: func() interface{} {
-			return make([]byte, defaultBufferSize)
+			buf := make([]byte, defaultBufferSize)
+			return &buf
 		},
 	}
 
@@ -459,12 +458,13 @@ func (d *childDriver) forwardTapToSocket() {
 	for {
 		// Get buffer from pool
 		bufInterface := d.bufferPool.Get()
-		buf := bufInterface.([]byte)
+		bufPtr := bufInterface.(*[]byte)
+		buf := *bufPtr
 
 		n, err := d.tap.Read(buf)
 		if err != nil {
 			// Return buffer to pool before exiting
-			d.bufferPool.Put(buf)
+			d.bufferPool.Put(bufPtr)
 			if err != io.EOF {
 				logrus.Errorf("reading from tap: %v", err)
 			}
@@ -473,7 +473,7 @@ func (d *childDriver) forwardTapToSocket() {
 
 		if n < 0 || n > math.MaxUint16 {
 			// Return buffer to pool and continue
-			d.bufferPool.Put(buf)
+			d.bufferPool.Put(bufPtr)
 			logrus.Errorf("invalid frame length: %d", n)
 			continue
 		}
@@ -484,7 +484,7 @@ func (d *childDriver) forwardTapToSocket() {
 		// Write size+packet to socket
 		if _, err := d.conn.Write(append(size, buf[:n]...)); err != nil {
 			// Return buffer to pool before exiting
-			d.bufferPool.Put(buf)
+			d.bufferPool.Put(bufPtr)
 			if err != io.EOF {
 				logrus.Errorf("writing to socket: %v", err)
 			}
@@ -492,7 +492,7 @@ func (d *childDriver) forwardTapToSocket() {
 		}
 
 		// Return buffer to pool for reuse
-		d.bufferPool.Put(buf)
+		d.bufferPool.Put(bufPtr)
 	}
 }
 
@@ -513,12 +513,13 @@ func (d *childDriver) forwardSocketToTap() {
 
 		// Get buffer from pool
 		bufInterface := d.bufferPool.Get()
-		buf := bufInterface.([]byte)
+		bufPtr := bufInterface.(*[]byte)
+		buf := *bufPtr
 
 		_, err = io.ReadFull(d.conn, buf[:size])
 		if err != nil {
 			// Return buffer to pool before exiting
-			d.bufferPool.Put(buf)
+			d.bufferPool.Put(bufPtr)
 			if err != io.EOF {
 				logrus.Errorf("reading packet from socket: %v", err)
 			}
@@ -527,7 +528,7 @@ func (d *childDriver) forwardSocketToTap() {
 
 		if _, err := d.tap.Write(buf[:size]); err != nil {
 			// Return buffer to pool before exiting
-			d.bufferPool.Put(buf)
+			d.bufferPool.Put(bufPtr)
 			if err != io.EOF {
 				logrus.Errorf("writing to tap: %v", err)
 			}
@@ -535,6 +536,6 @@ func (d *childDriver) forwardSocketToTap() {
 		}
 
 		// Return buffer to pool for reuse
-		d.bufferPool.Put(buf)
+		d.bufferPool.Put(bufPtr)
 	}
 }

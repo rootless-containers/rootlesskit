@@ -296,7 +296,7 @@ func testProtoRoutine(t *testing.T, proto string, d port.ParentDriver, childPID,
 	if _, err := stdoutR.Read(rBytes); err != nil {
 		panic(err)
 	}
-	if bytes.Compare(wBytes, rBytes) != 0 {
+	if !bytes.Equal(wBytes, rBytes) {
 		panic(fmt.Errorf("expected %q, got %q", string(wBytes), string(rBytes)))
 	}
 	if proto == "tcp" || proto == "tcp4" {

@@ -169,7 +169,6 @@ func (d *childDriver) handleConnectRequest(c *net.UnixConn, req *msg.Request) er
 		targetConn, err = transparentDial(dialProto, targetAddr, req.SourceIP, req.SourcePort)
 		if err != nil {
 			fmt.Fprintf(d.logWriter, "transparent dial failed, falling back: %v\n", err)
-			targetConn, err = nil, nil
 		}
 	}
 fallback:

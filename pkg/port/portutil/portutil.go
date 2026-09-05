@@ -81,7 +81,7 @@ func ParsePortSpec(portSpec string) (*port.Spec, error) {
 				// End of IPv6 IP-address
 				delimiter = ':'
 				// Skip the next token, which should be a colon delimiter (:)
-				tok = s.Scan()
+				_ = s.Scan()
 			}
 			index++
 			continue

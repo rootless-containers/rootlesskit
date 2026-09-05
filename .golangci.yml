@@ -14,10 +14,6 @@ linters:
     - staticcheck
     - unused
   settings:
-    govet:
-      # TODO: fix the finding and re-enable.
-      disable:
-        - inline
     staticcheck:
       checks:
         # Below is the default set
@@ -31,31 +27,7 @@ linters:
         # Omit embedded fields from selector expression https://staticcheck.dev/docs/checks#QF1008
         # Usefulness is questionable; disabled permanently (as in lima/nerdctl).
         - "-QF1008"
-        # TODO: fix the existing findings and re-enable these checks.
-        - "-S1000"   # 1 occurrence
-        - "-S1004"   # 1 occurrence
-        - "-SA4006"  # 2 occurrences
-        - "-SA4023"  # 2 occurrences
-        - "-SA6002"  # 3 occurrences
-        - "-ST1005"  # 3 occurrences
-        - "-ST1023"  # 2 occurrences; fix drops QF1011 too
-        - "-QF1011"  # 2 occurrences; duplicate of ST1023
-  exclusions:
-    rules:
-      # TODO: fix the ineffectual assignments and drop this exclusion.
-      - path: (pkg/port/builtin/child/child|pkg/port/portutil/portutil)\.go
-        linters:
-          - ineffassign
-      # TODO: remove the unused func/field and drop this exclusion.
-      - path: (pkg/network/gvisortapvsock|pkg/port/gvisortapvsock)/gvisortapvsock\.go
-        linters:
-          - unused
 
 formatters:
-  settings:
-    gofmt:
-      # Match the previous `go fmt ./...` behavior (no -s).
-      # TODO: enable simplify and fix the redundant slice literal.
-      simplify: false
   enable:
     - gofmt
