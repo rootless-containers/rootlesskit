@@ -15,9 +15,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
-	"time"
-
-	"golang.org/x/sync/errgroup"
 
 	"github.com/containers/gvisor-tap-vsock/pkg/types"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
@@ -122,28 +119,6 @@ func (d *driver) unexposePort(protocol types.TransportProtocol, local string) er
 	return nil
 }
 
-func httpServe(ctx context.Context, g *errgroup.Group, ln net.Listener, mux http.Handler) {
-	g.Go(func() error {
-		<-ctx.Done()
-		return ln.Close()
-	})
-	g.Go(func() error {
-		s := &http.Server{
-			Handler:      mux,
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		}
-		err := s.Serve(ln)
-		if err != nil {
-			if err != http.ErrServerClosed {
-				return err
-			}
-			return err
-		}
-		return nil
-	})
-}
-
 // NewChildDriver creates a new child driver for gvisor-tap-vsock port forwarding.
 func NewChildDriver() port.ChildDriver {
 	return &childDriver{}
@@ -201,7 +176,7 @@ func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{
 	}
 
 	if d.servicesMux == nil {
-		return fmt.Errorf("Virtual network services mux not available in child context")
+		return fmt.Errorf("virtual network services mux not available in child context")
 	}
 
 	d.mu.Unlock()
@@ -253,7 +228,7 @@ func (d *driver) AddPort(ctx context.Context, spec port.Spec) (*port.Status, err
 	remoteAddr := fmt.Sprintf("%s:%d", spec.ChildIP, spec.ChildPort)
 
 	// Determine the protocol
-	var protocol types.TransportProtocol = types.TCP
+	var protocol = types.TCP
 	if strings.HasPrefix(spec.Proto, "udp") {
 		protocol = types.UDP
 		// Add UDP prefix to the key for tracking in forwardsMap
@@ -307,7 +282,7 @@ func (d *driver) RemovePort(ctx context.Context, id int) error {
 	localAddr := fmt.Sprintf("%s:%d", st.Spec.ParentIP, st.Spec.ParentPort)
 
 	// Determine the protocol
-	var protocol types.TransportProtocol = types.TCP
+	var protocol = types.TCP
 	if strings.HasPrefix(proto, "udp") {
 		protocol = types.UDP
 		// Add UDP prefix to the key for tracking in forwardsMap

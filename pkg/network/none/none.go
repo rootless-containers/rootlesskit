@@ -48,8 +48,8 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	}
 
 	cmds := [][]string{
-		[]string{"nsenter", "-t", strconv.Itoa(childPID), "-n", "-m", "-U", "--no-fork", "--preserve-credentials", "ip", "address", "add", "127.0.0.1/8", "dev", "lo"},
-		[]string{"nsenter", "-t", strconv.Itoa(childPID), "-n", "-m", "-U", "--no-fork", "--preserve-credentials", "ip", "link", "set", "lo", "up"},
+		{"nsenter", "-t", strconv.Itoa(childPID), "-n", "-m", "-U", "--no-fork", "--preserve-credentials", "ip", "address", "add", "127.0.0.1/8", "dev", "lo"},
+		{"nsenter", "-t", strconv.Itoa(childPID), "-n", "-m", "-U", "--no-fork", "--preserve-credentials", "ip", "link", "set", "lo", "up"},
 	}
 	if err := common.Execs(os.Stderr, os.Environ(), cmds); err != nil {
 		return nil, nil, err
