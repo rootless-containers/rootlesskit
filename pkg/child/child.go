@@ -381,7 +381,7 @@ func Child(opt Opt) error {
 	if ok, err := hasCaps(); err != nil {
 		return err
 	} else if !ok {
-		msg, err = messages.WaitFor(pipeR, messages.Name(messages.ParentHello{}))
+		_, err = messages.WaitFor(pipeR, messages.Name(messages.ParentHello{}))
 		if err != nil {
 			return err
 		}
@@ -395,14 +395,14 @@ func Child(opt Opt) error {
 			return err
 		}
 
-		msg, err = messages.WaitFor(pipeR, messages.Name(messages.ParentInitIdmapCompleted{}))
+		_, err = messages.WaitFor(pipeR, messages.Name(messages.ParentInitIdmapCompleted{}))
 		if err != nil {
 			return err
 		}
 
-		if err := gainCaps(); err != nil {
-			return fmt.Errorf("failed to gain the caps inside the user namespace: %w", err)
-		}
+		// gainCaps re-executes the process on success and only returns on failure,
+		// so reaching here always means an error.
+		return fmt.Errorf("failed to gain the caps inside the user namespace: %w", gainCaps())
 	}
 
 	if opt.MountProcfs {

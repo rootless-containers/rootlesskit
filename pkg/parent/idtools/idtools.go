@@ -29,10 +29,10 @@ func GetSubIDRanges(uid int, username string) ([]SubIDRange, []SubIDRange, error
 		return nil, nil, err
 	}
 	if len(subuidRanges) == 0 {
-		return nil, nil, fmt.Errorf("No subuid ranges found for user %d (%q)", uid, username)
+		return nil, nil, fmt.Errorf("no subuid ranges found for user %d (%q)", uid, username)
 	}
 	if len(subgidRanges) == 0 {
-		return nil, nil, fmt.Errorf("No subgid ranges found for user %d (%q)", uid, username)
+		return nil, nil, fmt.Errorf("no subgid ranges found for user %d (%q)", uid, username)
 	}
 	return subuidRanges, subgidRanges, nil
 }
@@ -65,16 +65,16 @@ func parseSubidFile(path string, uid int, username string) ([]SubIDRange, error)
 		}
 		parts := strings.Split(text, ":")
 		if len(parts) != 3 {
-			return rangeList, fmt.Errorf("Cannot parse subuid/gid information: Format not correct for %s file", path)
+			return rangeList, fmt.Errorf("cannot parse subuid/gid information: Format not correct for %s file", path)
 		}
 		if parts[0] == uidS || (username != "" && parts[0] == username) {
 			startid, err := strconv.Atoi(parts[1])
 			if err != nil {
-				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
+				return rangeList, fmt.Errorf("string to int conversion failed during subuid/gid parsing of %s: %v", path, err)
 			}
 			length, err := strconv.Atoi(parts[2])
 			if err != nil {
-				return rangeList, fmt.Errorf("String to int conversion failed during subuid/gid parsing of %s: %v", path, err)
+				return rangeList, fmt.Errorf("string to int conversion failed during subuid/gid parsing of %s: %v", path, err)
 			}
 			rangeList = append(rangeList, SubIDRange{startid, length})
 		}
