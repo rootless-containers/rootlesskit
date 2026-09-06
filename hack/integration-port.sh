@@ -214,8 +214,28 @@ test_port pesto http://127.0.0.1:8080 "should success" -p :8080:80/tcp
 INFO "=== a port that is not published must not be reachable ==="
 test_port pesto http://127.0.0.1:9090 "should fail" -p 0.0.0.0:8080:80/tcp
 
-INFO "=== unsupported proto (tcp6) makes the startup fail ==="
+INFO "=== IPv6 requires --ipv6, as the pasta network driver is v4-only without it ==="
 test_port pesto http://[::1]:8080 "should fail" -p [::]:8080:80/tcp6
+
+INFO "=== protocol \"tcp6\" is strictly v6-only ==="
+test_port pesto http://[::1]:8080 "should success" --ipv6 -p [::]:8080:80/tcp6
+test_port pesto http://127.0.0.1:8080 "should fail" --ipv6 -p [::]:8080:80/tcp6
+test_port pesto http://127.0.0.1:8080 "should fail" --ipv6 -p 0.0.0.0:8080:80/tcp6
+
+INFO "=== protocol \"tcp4\" is strictly v4-only ==="
+test_port pesto http://[::1]:8080 "should fail" --ipv6 -p [::]:8080:80/tcp4
+
+INFO "=== the parent IP defaults to \"::\" for tcp6 ==="
+test_port pesto http://[::1]:8080 "should success" --ipv6 -p :8080:80/tcp6
+
+INFO "=== protocol \"tcp\" follows the address family of the parent IP ==="
+test_port pesto http://[::1]:8080 "should success" --ipv6 -p [::]:8080:80/tcp
+test_port pesto http://127.0.0.1:8080 "should fail" --ipv6 -p [::]:8080:80/tcp
+test_port pesto http://127.0.0.1:8080 "should success" --ipv6 -p 0.0.0.0:8080:80/tcp
+test_port pesto http://[::1]:8080 "should fail" --ipv6 -p 0.0.0.0:8080:80/tcp
+
+INFO "=== specifying ChildIP is not supported ==="
+test_port pesto http://[::1]:8080 "should fail" --ipv6 -p [::]:8080:[::1]:80/tcp6
 
 INFO "=== dynamic port management via rootlessctl ==="
 test_pesto_dynamic

@@ -663,7 +663,7 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 		if _, err := exec.LookPath(binary); err != nil {
 			return opt, err
 		}
-		opt.PortDriver, err = pasta_port.NewParentDriver(&logrusDebugWriter{label: "port/pesto"}, binary, pestoSocketPath)
+		opt.PortDriver, err = pasta_port.NewParentDriver(&logrusDebugWriter{label: "port/pesto"}, binary, pestoSocketPath, ipv6)
 		if err != nil {
 			return opt, err
 		}
