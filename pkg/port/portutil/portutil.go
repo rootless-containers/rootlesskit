@@ -133,10 +133,10 @@ func ValidatePortSpec(spec port.Spec, existingPorts map[int]*port.Status) error 
 		}
 	}
 	if spec.ParentPort <= 0 || spec.ParentPort > 65535 {
-		return fmt.Errorf("invalid ParentPort: %q", spec.ParentPort)
+		return fmt.Errorf("invalid ParentPort: %d", spec.ParentPort)
 	}
 	if spec.ChildPort <= 0 || spec.ChildPort > 65535 {
-		return fmt.Errorf("invalid ChildPort: %q", spec.ChildPort)
+		return fmt.Errorf("invalid ChildPort: %d", spec.ChildPort)
 	}
 	for id, p := range existingPorts {
 		sp := p.Spec
