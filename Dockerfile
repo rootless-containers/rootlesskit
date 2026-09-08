@@ -1,10 +1,10 @@
 ARG GO_VERSION=1.26
 ARG UBUNTU_VERSION=24.04
-ARG SHADOW_VERSION=4.17.4
-ARG SLIRP4NETNS_VERSION=v1.3.4
+ARG SHADOW_VERSION=4.20.2
+ARG SLIRP4NETNS_VERSION=v1.3.5
 ARG VPNKIT_VERSION=0.6.0
 ARG PASST_VERSION=2026_07_28.f8df3f1
-ARG DOCKER_VERSION=29.5.2
+ARG DOCKER_VERSION=29.8.0
 ARG DOCKER_CHANNEL=stable
 
 FROM golang:${GO_VERSION}-alpine AS build
@@ -44,7 +44,7 @@ RUN git clone https://github.com/shadow-maint/shadow.git /shadow
 WORKDIR /shadow
 ARG SHADOW_VERSION
 RUN git pull && git checkout $SHADOW_VERSION
-RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux --without-acl --without-attr --without-tcb --without-nscd && \
+RUN ./autogen.sh --disable-nls --disable-man --without-audit --without-selinux --without-acl --without-attr --without-tcb && \
   make && \
   cp src/newuidmap src/newgidmap /usr/bin
 
