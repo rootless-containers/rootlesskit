@@ -45,16 +45,11 @@ func Run(socketPath string, spec port.Spec, stopCh <-chan struct{}, stoppedCh ch
 	}
 	go udpp.Run()
 	go func() {
-		for {
-			select {
-			case <-stopCh:
-				// udpp.Close closes ln as well
-				udpp.Close()
-				stoppedCh <- nil
-				close(stoppedCh)
-				return
-			}
-		}
+		<-stopCh
+		// udpp.Close closes ln as well
+		udpp.Close()
+		stoppedCh <- nil
+		close(stoppedCh)
 	}()
 	// no wait
 	return nil

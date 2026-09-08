@@ -109,7 +109,7 @@ func WaitFor(r io.Reader, name string) (*Message, error) {
 
 func Name(x interface{}) string {
 	t := reflect.TypeOf(x)
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		return t.Elem().Name()
 	}
 	return t.Name()
