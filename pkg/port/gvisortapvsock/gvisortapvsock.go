@@ -31,19 +31,24 @@ func NewParentDriver(logWriter io.Writer, stateDir string) (port.ParentDriver, e
 		logWriter: logWriter,
 		stateDir:  stateDir,
 		ports:     make(map[int]*port.Status),
+		tcp:       make(map[string]io.Closer),
 		portSeq:   1,
 		ctx:       context.Background(),
 	}
 	return d, nil
 }
 
-// exposePort uses the HTTP API to expose a port
+// exposePort uses a buffered TCP proxy or the UDP expose API.
 func (d *driver) exposePort(protocol types.TransportProtocol, local, remote string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	if d.servicesMux == nil {
 		return errors.New("services mux not initialized")
+	}
+
+	if protocol == types.TCP {
+		return d.exposeTCP(local, remote)
 	}
 
 	// Create a request to the PortsForwarder's HTTP API
@@ -80,13 +85,22 @@ func (d *driver) exposePort(protocol types.TransportProtocol, local, remote stri
 	return nil
 }
 
-// unexposePort uses the HTTP API to unexpose a port
+// unexposePort closes the TCP proxy or uses the UDP unexpose API.
 func (d *driver) unexposePort(protocol types.TransportProtocol, local string) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	if d.servicesMux == nil {
 		return errors.New("services mux not initialized")
+	}
+
+	if protocol == types.TCP {
+		proxy, ok := d.tcp[local]
+		if !ok {
+			return errors.New("TCP proxy not found")
+		}
+		delete(d.tcp, local)
+		return proxy.Close()
 	}
 
 	// Create a request to the PortsForwarder's HTTP API
@@ -160,6 +174,8 @@ type driver struct {
 	childIP     string
 	gatewayIP   net.IP
 	servicesMux http.Handler
+	tcp         map[string]io.Closer
+	tcpDialer   tcpDialer
 }
 
 func (d *driver) Info(_ context.Context) (*api.PortDriverInfo, error) {
@@ -197,6 +213,7 @@ func (d *driver) RunParentDriver(initComplete chan struct{}, quit <-chan struct{
 	// Get the virtual network from the child context
 	if cctx != nil && cctx.Network != nil {
 		d.servicesMux = cctx.Network.Mux()
+		d.tcpDialer, _ = cctx.Network.(tcpDialer)
 		logrus.Debug("Using services mux from child context")
 	}
 

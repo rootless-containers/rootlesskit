@@ -9,6 +9,7 @@ require (
 	github.com/gofrs/flock v0.13.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
+	github.com/inetaf/tcpproxy v0.0.0-20250222171855-c4b9df066048
 	github.com/insomniacslk/dhcp v0.0.0-20250919081422-f80a1952f48e
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/moby/vpnkit v0.6.0
@@ -27,7 +28,6 @@ require (
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/gopacket v1.1.19 // indirect
-	github.com/inetaf/tcpproxy v0.0.0-20250222171855-c4b9df066048 // indirect
 	github.com/miekg/dns v1.1.72 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
