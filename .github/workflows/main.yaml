@@ -273,7 +273,7 @@ jobs:
         # rootlesskit-docker-proxy is no longer used since Docker v28.
         #
         # The design of netns handling was changed in Docker v29.5.
-        docker_version: [27.5.1, 29.4.3, 29.5.2]
+        docker_version: [27.5.1, 29.4.3, 29.8.0]
     steps:
     - name: "Set up AppArmor"
       run: |
