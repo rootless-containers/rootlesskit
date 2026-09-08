@@ -454,17 +454,12 @@ func (d *childDriver) ConfigureNetworkChild(netmsg *messages.ParentInitNetworkDr
 
 // forwardTapToSocket forwards packets from the tap device to the Unix socket
 func (d *childDriver) forwardTapToSocket() {
-	size := make([]byte, 2)
+	// Reserve header space so each packet can be sent without another allocation or copy.
+	buf := make([]byte, 2+defaultBufferSize)
 
 	for {
-		// Get buffer from pool
-		bufInterface := d.bufferPool.Get()
-		buf := bufInterface.([]byte)
-
-		n, err := d.tap.Read(buf)
+		n, err := d.tap.Read(buf[2:])
 		if err != nil {
-			// Return buffer to pool before exiting
-			d.bufferPool.Put(buf)
 			if err != io.EOF {
 				logrus.Errorf("reading from tap: %v", err)
 			}
@@ -472,27 +467,20 @@ func (d *childDriver) forwardTapToSocket() {
 		}
 
 		if n < 0 || n > math.MaxUint16 {
-			// Return buffer to pool and continue
-			d.bufferPool.Put(buf)
 			logrus.Errorf("invalid frame length: %d", n)
 			continue
 		}
 
 		// Encode size as 16-bit little-endian
-		binary.LittleEndian.PutUint16(size, uint16(n))
+		binary.LittleEndian.PutUint16(buf[:2], uint16(n))
 
 		// Write size+packet to socket
-		if _, err := d.conn.Write(append(size, buf[:n]...)); err != nil {
-			// Return buffer to pool before exiting
-			d.bufferPool.Put(buf)
+		if _, err := d.conn.Write(buf[:2+n]); err != nil {
 			if err != io.EOF {
 				logrus.Errorf("writing to socket: %v", err)
 			}
 			return
 		}
-
-		// Return buffer to pool for reuse
-		d.bufferPool.Put(buf)
 	}
 }
 
