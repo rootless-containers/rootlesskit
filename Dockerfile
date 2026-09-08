@@ -26,8 +26,11 @@ COPY --from=cross /go/src/github.com/rootless-containers/rootlesskit/_artifact/*
 
 # `go test -race` requires non-Alpine
 FROM golang:${GO_VERSION} AS test-unit
-# iptables: used for source-ip-transparent
-RUN apt-get update && apt-get install -y git iproute2 netcat-openbsd iptables
+# iptables, nftables: used for source-ip-transparent (nft preferred, iptables as fallback).
+# TEST_UNIT_APT_EXTRA can be overridden to "iptables" only, to exercise the
+# fallback path in CI when nft isn't available.
+ARG TEST_UNIT_APT_EXTRA="iptables nftables"
+RUN apt-get update && apt-get install -y git iproute2 netcat-openbsd $TEST_UNIT_APT_EXTRA
 ADD . /go/src/github.com/rootless-containers/rootlesskit
 WORKDIR /go/src/github.com/rootless-containers/rootlesskit
 RUN go mod verify && go vet ./...
@@ -65,8 +68,9 @@ FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # libcap2-bin and curl: used by the RUN instructions in this Dockerfile.
 # bind9-dnsutils: for `nslookup` command used by integration-net.sh
 # systemd and uuid-runtime: for systemd-socket-activate used by integration-systemd-socket.sh
-# iptables: for source-ip-transparent. Also for Docker.
-RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl bind9-dnsutils systemd uuid-runtime iptables
+# iptables: for Docker (dockerd-rootless itself still uses iptables).
+# nftables: for source-ip-transparent (rootlesskit's own builtin port driver).
+RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl bind9-dnsutils systemd uuid-runtime iptables nftables
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \

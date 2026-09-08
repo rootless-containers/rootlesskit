@@ -303,6 +303,23 @@ func Parent(opt Opt) error {
 				portDriverQuit, cctx)
 		}()
 	}
+	// after child is fully configured, write PID to child_pid file
+	childPIDPath := filepath.Join(opt.StateDir, StateFileChildPID)
+	if err := os.WriteFile(childPIDPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0444); err != nil {
+		return fmt.Errorf("failed to write the child PID %d to %s: %w", cmd.Process.Pid, childPIDPath, err)
+	}
+	// listens the API
+	apiSockPath := filepath.Join(opt.StateDir, StateFileAPISock)
+	apiCloser, err := listenServeAPI(apiSockPath, &router.Backend{
+		StateDir:      opt.StateDir,
+		ChildPID:      cmd.Process.Pid,
+		NetworkDriver: opt.NetworkDriver,
+		PortDriver:    opt.PortDriver,
+	})
+	if err != nil {
+		return err
+	}
+
 	if err := messages.Send(pipeW, msgParentInitPortDriverCompleted); err != nil {
 		return err
 	}
@@ -328,22 +345,6 @@ func Parent(opt Opt) error {
 		}
 	}
 
-	// after child is fully configured, write PID to child_pid file
-	childPIDPath := filepath.Join(opt.StateDir, StateFileChildPID)
-	if err := os.WriteFile(childPIDPath, []byte(strconv.Itoa(cmd.Process.Pid)), 0444); err != nil {
-		return fmt.Errorf("failed to write the child PID %d to %s: %w", cmd.Process.Pid, childPIDPath, err)
-	}
-	// listens the API
-	apiSockPath := filepath.Join(opt.StateDir, StateFileAPISock)
-	apiCloser, err := listenServeAPI(apiSockPath, &router.Backend{
-		StateDir:      opt.StateDir,
-		ChildPID:      cmd.Process.Pid,
-		NetworkDriver: opt.NetworkDriver,
-		PortDriver:    opt.PortDriver,
-	})
-	if err != nil {
-		return err
-	}
 	// block until the child exits
 	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("child exited: %w", err)

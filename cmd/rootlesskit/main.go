@@ -218,6 +218,11 @@ See https://rootlesscontaine.rs/getting-started/common/ .
 			Usage: "preserve real client source IP using IP_TRANSPARENT (builtin port driver, TCP only)",
 			Value: true,
 		}, CategoryPort),
+		Categorize(&cli.StringFlag{
+			Name:  "source-ip-transparent-backend",
+			Usage: "firewall backend for --source-ip-transparent (builtin port driver) [auto, nft, iptables]",
+			Value: "auto",
+		}, CategoryPort),
 		Categorize(&cli.BoolFlag{
 			Name:  "pidns",
 			Usage: "create a PID namespace",
@@ -642,7 +647,14 @@ func createParentOpt(clicontext *cli.Context) (parent.Opt, error) {
 		if opt.NetworkDriver == nil {
 			return opt, errors.New("port driver requires non-host network")
 		}
-		opt.PortDriver, err = builtin.NewParentDriver(&logrusDebugWriter{label: "port/builtin"}, opt.StateDir, clicontext.Bool("source-ip-transparent"))
+		sourceIPTransparentBackend := clicontext.String("source-ip-transparent-backend")
+		switch sourceIPTransparentBackend {
+		case "auto", "nft", "iptables":
+			// OK
+		default:
+			return opt, fmt.Errorf("unknown source-ip-transparent-backend: %s", sourceIPTransparentBackend)
+		}
+		opt.PortDriver, err = builtin.NewParentDriver(&logrusDebugWriter{label: "port/builtin"}, opt.StateDir, clicontext.Bool("source-ip-transparent"), sourceIPTransparentBackend)
 		if err != nil {
 			return opt, err
 		}

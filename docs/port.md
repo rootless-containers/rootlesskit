@@ -7,7 +7,7 @@ The default value is `none` (do not expose ports).
 | `--port-driver`      |  Throughput | Source IP | Notes
 |----------------------|-------------|----------|-------
 | `slirp4netns`        | 7.56 Gbps   | Propagated |
-| `builtin`            | 29.3 Gbps   | Propagated for TCP (since v3.0) | Source IP propagation (`--source-ip-transparent`) applies to TCP only; UDP is not propagated. In the case of Rootless Docker, userland-proxy has to be disabled for propagating the source IP.
+| `builtin`            | 29.3 Gbps   | Propagated for TCP (since v3.0) | Source IP propagation (`--source-ip-transparent`) applies to TCP only; UDP is not propagated. In the case of Rootless Docker, userland-proxy has to be disabled for propagating the source IP. The underlying firewall rules use `nft`, falling back to `iptables` if `nft` is unavailable; the backend name is resolved eagerly at startup but rules are installed lazily on first transparent connection. `--source-ip-transparent-backend` can be used to force one or the other. The resolved backend is reported via the REST API (`PortDriverInfo.Extra["sourceIPTransparentBackend"]`).
 | `implicit`           | 39.9 Gbps   | Propagated | Requires `pasta` network
 | `pesto` (Experimental) | 45.2 Gbps | Propagated | Requires `pasta` network and passt `2026_05_07.1afd4ed` or later. Supports explicit port management through `rootlessctl`.
 | `gvisor-tap-vsock` (Experimental) | 3.77 Gbps | Not propagated | Throughput is currently limited; see issue link below for improvement ideas.
