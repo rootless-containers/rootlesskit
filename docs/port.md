@@ -22,7 +22,8 @@ ports should be exposed:
 * Use `pesto` to expose only explicitly published ports using `rootlessctl list-ports`, `add-ports`, and `remove-ports`.
 * Use `implicit` to automatically expose ports listened on in the network namespace. This may expose ports that were not intended to be reachable from the host.
 
-The `pesto` port driver is experimental and currently supports IPv4 port forwarding only. Both the `pasta` and `pesto` executables must be installed.
+The `pesto` port driver is experimental. Both the `pasta` and `pesto` executables must be installed.
+IPv6 port forwarding additionally requires the `--ipv6` flag, as the `pasta` network driver is IPv4-only without it.
 
 > [!NOTE]
 > The `gvisor-tap-vsock` port driver is experimental.
@@ -67,7 +68,16 @@ To specify IPv4 explicitly, use `tcp4` instead of `tcp`, e.g., `0.0.0.0:8080:80/
 To specify IPv6 explicitly, use `tcp6`, e.g., `[::]:8080:80/tcp6`.
 
 The `tcp4` and `tcp6` forms were introduced in RootlessKit v0.14.0.
-The `tcp6` is currently supported only for `builtin` port driver.
+The `tcp6` is currently supported only for the `builtin` and `pesto` port drivers.
+
+The dual-stack behavior described above is specific to the `builtin` port driver.
+For `pesto`, the address family is determined only by the parent IP:
+`0.0.0.0:8080:80/tcp` listens on IPv4 only, and `[::]:8080:80/tcp` listens on IPv6 only.
+When the parent IP is omitted, it defaults to `0.0.0.0` for `tcp`, `tcp4`, `udp`, and `udp4`,
+and to `::` for `tcp6` and `udp6`.
+Specifying a child IP other than the namespace address is not supported by `pesto`.
+
+IPv6 support in `pesto` has been only verified for loopback parent addresses (`::1`, `[::]`).
 
 ## Build tags to omit port drivers
 

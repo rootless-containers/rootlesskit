@@ -15,7 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func NewParentDriver(logWriter io.Writer, binary, socketPath string) (port.ParentDriver, error) {
+func NewParentDriver(logWriter io.Writer, binary, socketPath string, enableIPv6 bool) (port.ParentDriver, error) {
 	if socketPath == "" {
 		return nil, errors.New("configuration socket path is not set")
 	}
@@ -33,6 +33,7 @@ func NewParentDriver(logWriter io.Writer, binary, socketPath string) (port.Paren
 		apiSocketPath: socketPath,
 		binary:        binary,
 		nextID:        1,
+		enableIPv6:    enableIPv6,
 	}
 
 	return &d, nil
@@ -46,13 +47,17 @@ type driver struct {
 	ports         map[int]*port.Status
 	binary        string
 	nextID        int
+	enableIPv6    bool
 }
 
 func (d *driver) Info(ctx context.Context) (*api.PortDriverInfo, error) {
+	protos := []string{"tcp", "tcp4", "udp", "udp4"}
+	if d.enableIPv6 {
+		protos = append(protos, "tcp6", "udp6")
+	}
 	info := &api.PortDriverInfo{
-		Driver: "pesto",
-		// No IPv6 support yet
-		Protos:                  []string{"tcp", "tcp4", "udp", "udp4"},
+		Driver:                  "pesto",
+		Protos:                  protos,
 		DisallowLoopbackChildIP: true,
 	}
 	return info, nil
@@ -79,24 +84,38 @@ func (d *driver) createArgs(method string, spec port.Spec) ([]string, error) {
 	o := ""
 
 	switch spec.Proto {
-	case "tcp", "tcp4":
+	case "tcp", "tcp4", "tcp6":
 		o += "--tcp-ports="
-	case "udp", "udp4":
+	case "udp", "udp4", "udp6":
 		o += "--udp-ports="
 	default:
 		return nil, fmt.Errorf("unsupported protocol: %s", spec.Proto)
 	}
 	parentIP := spec.ParentIP
 	if parentIP == "" {
-		parentIP = "0.0.0.0"
+		switch spec.Proto {
+		case "tcp", "tcp4", "udp", "udp4":
+			parentIP = "0.0.0.0"
+		case "tcp6", "udp6":
+			parentIP = "::"
+		}
 	}
 	p := net.ParseIP(parentIP)
 	if p == nil {
 		return nil, fmt.Errorf("invalid IP: %q", parentIP)
 	}
-	p = p.To4()
-	if p == nil {
-		return nil, fmt.Errorf("unsupported IP: %s", parentIP)
+	if !d.enableIPv6 && p.To4() == nil {
+		return nil, fmt.Errorf("IPv6 port forwarding (proto %q, parent IP %q) requires --ipv6", spec.Proto, parentIP)
+	}
+	switch spec.Proto {
+	case "tcp4", "udp4":
+		if p.To4() == nil {
+			return nil, fmt.Errorf("unsupported IP: %s", parentIP)
+		}
+	case "tcp6", "udp6":
+		if p.To4() != nil {
+			return nil, fmt.Errorf("unsupported IP: %s", parentIP)
+		}
 	}
 	o += fmt.Sprintf("%s/%d:%d", p.String(), spec.ParentPort, spec.ChildPort)
 	opts = append(opts, o)
