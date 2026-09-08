@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
+	"math/big"
 	"net"
 )
 
@@ -19,5 +20,20 @@ func AddIPInt(ip net.IP, i int) (net.IP, error) {
 	}
 	res := make(net.IP, 4)
 	binary.BigEndian.PutUint32(res, uint32(resInt64))
+	return res, nil
+}
+
+func AddIPInt6(ip net.IP, i int) (net.IP, error) {
+	ip6 := ip.To16()
+	if ip.To4() != nil || ip6 == nil {
+		return nil, fmt.Errorf("expected IPv6 address, got %s", ip.String())
+	}
+	b := new(big.Int).SetBytes(ip6)
+	b.Add(b, big.NewInt(int64(i)))
+	if b.Sign() < 0 || b.BitLen() > 128 {
+		return nil, fmt.Errorf("%s + %d overflows", ip.String(), i)
+	}
+	res := make(net.IP, net.IPv6len)
+	b.FillBytes(res)
 	return res, nil
 }
