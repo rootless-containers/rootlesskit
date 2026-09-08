@@ -9,7 +9,7 @@ require (
 	github.com/gofrs/flock v0.13.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/inetaf/tcpproxy v0.0.0-20250222171855-c4b9df066048
+	github.com/inetaf/tcpproxy v0.0.0-20260515195445-c159a6051109
 	github.com/insomniacslk/dhcp v0.0.0-20260901064844-234b97448fae
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/moby/vpnkit v0.6.0
