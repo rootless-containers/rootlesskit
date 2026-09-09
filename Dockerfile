@@ -1,5 +1,5 @@
 ARG GO_VERSION=1.26
-ARG UBUNTU_VERSION=24.04
+ARG UBUNTU_VERSION=26.04
 ARG SHADOW_VERSION=4.20.2
 ARG SLIRP4NETNS_VERSION=v1.3.5
 ARG VPNKIT_VERSION=0.6.0
@@ -39,7 +39,7 @@ CMD ["go","test","-v","-race","github.com/rootless-containers/rootlesskit/..."]
 # idmap runnable without --privileged (but still requires seccomp=unconfined apparmor=unconfined)
 FROM ubuntu:${UBUNTU_VERSION} AS idmap
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y automake autopoint bison gettext git gcc libbsd-dev libcap-dev libtool make pkg-config
+RUN apt-get update && apt-get install -y automake autopoint bison gettext git gcc libbsd-dev libcap-dev libcrypt-dev libtool make pkg-config
 RUN git clone https://github.com/shadow-maint/shadow.git /shadow
 WORKDIR /shadow
 ARG SHADOW_VERSION
@@ -61,7 +61,7 @@ RUN make && make install
 
 FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # iproute2: for `ip` command that rootlesskit needs to exec
-# liblxc-common and lxc-utils: for `lxc-user-nic` binary required for --net=lxc-user-nic
+# lxc: for `lxc-user-nic` binary required for --net=lxc-user-nic
 # iperf3: only for benchmark purpose
 # busybox: only for debugging purpose
 # sudo: only for lxc-user-nic benchmark and rootful veth benchmark (for comparison)
@@ -70,7 +70,7 @@ FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # systemd and uuid-runtime: for systemd-socket-activate used by integration-systemd-socket.sh
 # iptables: for Docker (dockerd-rootless itself still uses iptables).
 # nftables: for source-ip-transparent (rootlesskit's own builtin port driver).
-RUN apt-get update && apt-get install -y iproute2 liblxc-common lxc-utils iperf3 busybox sudo libcap2-bin curl bind9-dnsutils systemd uuid-runtime iptables nftables
+RUN apt-get update && apt-get install -y iproute2 lxc iperf3 busybox sudo libcap2-bin curl bind9-dnsutils systemd uuid-runtime iptables nftables
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \

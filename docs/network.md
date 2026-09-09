@@ -269,6 +269,17 @@ and executes the child command in the host's network namespace.
 
 The child command can enter `$ROOTLESSKIT_STATE_DIR/netns` by itself to create nested network namespaces.
 
+As the child command runs in the host's network namespace, `$ROOTLESSKIT_STATE_DIR/resolv.conf` is
+**not** bind-mounted to `/etc/resolv.conf`, so that the child command keeps following the DNS
+configuration of the host.
+
+A caveat is that `--copy-up=/run` redirects `/run/systemd` (and the other entries of `/run`) to the
+copy-up directory `/run/.roXXXXXXXXXX`. When `/etc/resolv.conf` on the host is a symlink to a file
+under `/run`, e.g., systemd-resolved's `/run/systemd/resolve/stub-resolv.conf`, it is resolved to a
+path under the copy-up directory inside the namespace.
+This confuses AppArmor-confined programs such as `nslookup` from bind9-dnsutils (Ubuntu 25.10 and
+later), as their profiles only allow reading the well-known paths.
+
 
 ## Build tags to omit drivers
 
