@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"math/big"
 	"net"
+	"net/netip"
 )
 
 func AddIPInt(ip net.IP, i int) (net.IP, error) {
@@ -28,12 +28,18 @@ func AddIPInt6(ip net.IP, i int) (net.IP, error) {
 	if ip.To4() != nil || ip6 == nil {
 		return nil, fmt.Errorf("expected IPv6 address, got %s", ip.String())
 	}
-	b := new(big.Int).SetBytes(ip6)
-	b.Add(b, big.NewInt(int64(i)))
-	if b.Sign() < 0 || b.BitLen() > 128 {
-		return nil, fmt.Errorf("%s + %d overflows", ip.String(), i)
+	if i < 0 {
+		return nil, fmt.Errorf("expected non-negative integer, got %d", i)
 	}
-	res := make(net.IP, net.IPv6len)
-	b.FillBytes(res)
-	return res, nil
+	addr, ok := netip.AddrFromSlice(ip6)
+	if !ok {
+		return nil, fmt.Errorf("expected IPv6 address, got %s", ip.String())
+	}
+	for n := 0; n < i; n++ {
+		addr = addr.Next()
+		if !addr.IsValid() {
+			return nil, fmt.Errorf("%s + %d overflows", ip.String(), i)
+		}
+	}
+	return net.IP(addr.AsSlice()), nil
 }

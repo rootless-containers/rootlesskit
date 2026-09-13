@@ -73,6 +73,11 @@ func TestAddIPInt6(t *testing.T) {
 			"fd00::1:0",
 		},
 		{
+			"fd00::ffff",
+			-1,
+			"",
+		},
+		{
 			"ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
 			0x1,
 			"",
