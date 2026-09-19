@@ -144,7 +144,7 @@ func TestNewugidmapArgsFromSubIDRangesWarnsAboutSelfID(t *testing.T) {
 	entries := hook.AllEntries()
 	assert.Equal(t, 2, len(entries))
 	assert.Equal(t, logrus.WarnLevel, entries[0].Level)
-	assert.Equal(t, "/etc/subuid: the range 1000:10 contains the own UID 1001, which is already mapped to UID 0 in the user namespace. RootlessKit ignores the UID 1001 in this range. Remove the own UID from /etc/subuid.", entries[0].Message)
+	assert.Equal(t, "subuid: the range 1000:10 contains the own UID 1001, which is already mapped to UID 0 in the user namespace. RootlessKit ignores the UID 1001 in this range. Remove the own UID from subuid configuration.", entries[0].Message)
 	assert.Equal(t, logrus.WarnLevel, entries[1].Level)
-	assert.Equal(t, "/etc/subgid: the range 1001:1 contains the own GID 1001, which is already mapped to GID 0 in the user namespace. RootlessKit ignores the GID 1001 in this range. Remove the own GID from /etc/subgid.", entries[1].Message)
+	assert.Equal(t, "subgid: the range 1001:1 contains the own GID 1001, which is already mapped to GID 0 in the user namespace. RootlessKit ignores the GID 1001 in this range. Remove the own GID from subgid configuration.", entries[1].Message)
 }

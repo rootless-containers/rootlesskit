@@ -11,6 +11,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/gofrs/flock"
@@ -420,11 +421,11 @@ func withoutSelfID(ranges []idtools.SubIDRange, id int) (res, removed []idtools.
 }
 
 // warnSelfIDRanges prints a warning for each range that contained the own ID.
-// kind is "UID" or "GID". file is the subid file that defines the ranges.
-func warnSelfIDRanges(removed []idtools.SubIDRange, id int, kind, file string) {
+// kind is "UID" or "GID".
+func warnSelfIDRanges(removed []idtools.SubIDRange, id int, kind string) {
 	for _, f := range removed {
-		logrus.Warnf("%s: the range %d:%d contains the own %s %d, which is already mapped to %s 0 in the user namespace. RootlessKit ignores the %s %d in this range. Remove the own %s from %s.",
-			file, f.Start, f.Length, kind, id, kind, kind, id, kind, file)
+		logrus.Warnf("sub%s: the range %d:%d contains the own %s %d, which is already mapped to %s 0 in the user namespace. RootlessKit ignores the %s %d in this range. Remove the own %s from sub%s configuration.",
+			strings.ToLower(kind), f.Start, f.Length, kind, id, kind, kind, id, kind, strings.ToLower(kind))
 	}
 }
 
@@ -449,9 +450,9 @@ func newugidmapArgsFromSubIDRanges(u *user.User, subuidRanges, subgidRanges []id
 	}
 
 	subuidRanges, removedSubuidRanges := withoutSelfID(subuidRanges, uid)
-	warnSelfIDRanges(removedSubuidRanges, uid, "UID", "/etc/subuid")
+	warnSelfIDRanges(removedSubuidRanges, uid, "UID")
 	subgidRanges, removedSubgidRanges := withoutSelfID(subgidRanges, gid)
-	warnSelfIDRanges(removedSubgidRanges, gid, "GID", "/etc/subgid")
+	warnSelfIDRanges(removedSubgidRanges, gid, "GID")
 
 	uidMapLast := 1
 	for _, f := range subuidRanges {
