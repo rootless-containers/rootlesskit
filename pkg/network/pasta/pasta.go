@@ -1,6 +1,8 @@
 package pasta
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -245,6 +247,10 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 					exitErr.ExitCode(), string(out))
 		}
 		return nil, common.Seq(cleanups), fmt.Errorf("executing %v: %w", cmd, err)
+	}
+	s := bufio.NewScanner(bytes.NewReader(out))
+	for s.Scan() {
+		fmt.Fprintln(d.logWriter, s.Text())
 	}
 
 	netmsg := messages.ParentInitNetworkDriverCompleted{
