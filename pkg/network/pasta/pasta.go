@@ -166,7 +166,6 @@ func (d *parentDriver) ConfigureNetwork(childPID int, stateDir, detachedNetNSPat
 	}
 
 	opts := []string{
-		"--stderr",
 		"--ns-ifname=" + d.ifname,
 		"--mtu=" + strconv.Itoa(d.mtu),
 		"--config-net",
