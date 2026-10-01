@@ -155,6 +155,7 @@ func xmain(f *os.File) error {
 	if err != nil {
 		return fmt.Errorf("error while connecting to RootlessKit API socket: %w", err)
 	}
+	defer c.Close()
 
 	info, err := c.Info(context.Background())
 	if err != nil {

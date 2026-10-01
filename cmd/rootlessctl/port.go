@@ -33,6 +33,8 @@ func listPortsAction(clicontext *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	defer c.Close()
+
 	pm := c.PortManager()
 	portStatuses, err := pm.ListPorts(ctx)
 	if err != nil {
@@ -95,6 +97,8 @@ func addPortsAction(clicontext *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	defer c.Close()
+
 	pm := c.PortManager()
 	for _, sp := range portSpecs {
 		portStatus, err := pm.AddPort(ctx, sp)
@@ -138,6 +142,8 @@ func removePortsAction(clicontext *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	defer c.Close()
+
 	pm := c.PortManager()
 	for _, id := range ids {
 		if err := pm.RemovePort(ctx, id); err != nil {
