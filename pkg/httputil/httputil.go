@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 )
 
 // ErrorJSON is returned with "application/json" content type and non-2XX status code
@@ -70,16 +71,23 @@ func Successful(resp *http.Response) error {
 	return nil
 }
 
+// NewHTTPClient returns an HTTP client configured to communicate with the
+// RootlessKit API over the Unix socket at socketPath.
 func NewHTTPClient(socketPath string) (*http.Client, error) {
 	if _, err := os.Stat(socketPath); err != nil {
 		return nil, err
 	}
+
+	dialer := &net.Dialer{
+		Timeout: 30 * time.Second,
+	}
+
 	return &http.Client{
 		Transport: &http.Transport{
 			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				var d net.Dialer
-				return d.DialContext(ctx, "unix", socketPath)
+				return dialer.DialContext(ctx, "unix", socketPath)
 			},
+			IdleConnTimeout: 90 * time.Second,
 		},
 	}, nil
 }
