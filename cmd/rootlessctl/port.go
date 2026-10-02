@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,12 +28,12 @@ var listPortsCommand = cli.Command{
 }
 
 func listPortsAction(clicontext *cli.Context) error {
+	ctx := clicontext.Context
 	c, err := newClient(clicontext)
 	if err != nil {
 		return err
 	}
 	pm := c.PortManager()
-	ctx := context.Background()
 	portStatuses, err := pm.ListPorts(ctx)
 	if err != nil {
 		return err
@@ -79,6 +78,7 @@ var addPortsCommand = cli.Command{
 }
 
 func addPortsAction(clicontext *cli.Context) error {
+	ctx := clicontext.Context
 	if clicontext.NArg() < 1 {
 		return errors.New("no port specified")
 	}
@@ -96,7 +96,6 @@ func addPortsAction(clicontext *cli.Context) error {
 		return err
 	}
 	pm := c.PortManager()
-	ctx := context.Background()
 	for _, sp := range portSpecs {
 		portStatus, err := pm.AddPort(ctx, sp)
 		if err != nil {
@@ -123,6 +122,7 @@ var removePortsCommand = cli.Command{
 }
 
 func removePortsAction(clicontext *cli.Context) error {
+	ctx := clicontext.Context
 	if clicontext.NArg() < 1 {
 		return errors.New("no ID specified")
 	}
@@ -139,7 +139,6 @@ func removePortsAction(clicontext *cli.Context) error {
 		return err
 	}
 	pm := c.PortManager()
-	ctx := context.Background()
 	for _, id := range ids {
 		if err := pm.RemovePort(ctx, id); err != nil {
 			return err

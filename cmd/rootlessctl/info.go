@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 
@@ -22,12 +21,12 @@ var infoCommand = cli.Command{
 }
 
 func infoAction(clicontext *cli.Context) error {
+	ctx := clicontext.Context
 	w := clicontext.App.Writer
 	c, err := newClient(clicontext)
 	if err != nil {
 		return err
 	}
-	ctx := context.Background()
 	info, err := c.Info(ctx)
 	if err != nil {
 		return err
