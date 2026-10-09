@@ -82,11 +82,25 @@ func (d *childDriver) RunChildDriver(opaque map[string]string, quit <-chan struc
 	// blocked. handleConnectInit waits on backendResolved before
 	// reading resolvedBackend -- by that point the probe has had the
 	// entire parent-side setup time to complete concurrently.
+	//
+	// The probe has to run in the same netns as the rule installation
+	// (see routine), i.e., in the detached netns if it is set.
+	// Otherwise the probe fails with EPERM, as the current netns is not
+	// owned by the current userns.
 	d.backendResolved = make(chan struct{})
 	if d.sourceIPTransparent {
 		go func() {
-			d.resolveBackendName()
-			close(d.backendResolved)
+			defer close(d.backendResolved)
+			if detachedNetNSPath == "" {
+				d.resolveBackendName()
+				return
+			}
+			if err := ns.WithNetNSPath(detachedNetNSPath, func(_ ns.NetNS) error {
+				d.resolveBackendName()
+				return nil
+			}); err != nil {
+				fmt.Fprintf(d.logWriter, "source IP transparent: failed to enter the detached netns %q: %v\n", detachedNetNSPath, err)
+			}
 		}()
 	} else {
 		close(d.backendResolved)
