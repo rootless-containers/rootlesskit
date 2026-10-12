@@ -70,7 +70,8 @@ FROM ubuntu:${UBUNTU_VERSION} AS test-integration
 # systemd and uuid-runtime: for systemd-socket-activate used by integration-systemd-socket.sh
 # iptables: for Docker (dockerd-rootless itself still uses iptables).
 # nftables: for source-ip-transparent (rootlesskit's own builtin port driver).
-RUN apt-get update && apt-get install -y iproute2 lxc iperf3 busybox sudo libcap2-bin curl bind9-dnsutils systemd uuid-runtime iptables nftables
+# jq: for parsing `rootlessctl info --json` in integration-port-source-ip.sh
+RUN apt-get update && apt-get install -y iproute2 lxc iperf3 busybox sudo libcap2-bin curl bind9-dnsutils systemd uuid-runtime iptables nftables jq
 COPY --from=idmap /usr/bin/newuidmap /usr/bin/newuidmap
 COPY --from=idmap /usr/bin/newgidmap /usr/bin/newgidmap
 RUN /sbin/setcap cap_setuid+eip /usr/bin/newuidmap && \
