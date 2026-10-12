@@ -33,8 +33,6 @@ github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 h1:EEHtgt9IwisQ2AZ4pI
 github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6/go.mod h1:I6V7YzU0XDpsHqbsyrghnFZLO1gwK6NPTNvmetQIk9U=
 github.com/google/uuid v1.6.0 h1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=
 github.com/google/uuid v1.6.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/gorilla/mux v1.8.1 h1:TuBL49tXwgrFYWhqrNgrUNEY92u81SPhu7sTdzQEiWY=
-github.com/gorilla/mux v1.8.1/go.mod h1:AKf9I4AEqPTmMytcMc0KkNouC66V3BtZ4qD5fmWSiMQ=
 github.com/inetaf/tcpproxy v0.0.0-20260515195445-c159a6051109 h1:H3ztMPCBcyG60Ks0plTncU3Vs6jIrxhn3nEThpMEpo4=
 github.com/inetaf/tcpproxy v0.0.0-20260515195445-c159a6051109/go.mod h1:Di7LXRyUcnvAcLicFhtM9/MlZl/TNgRSDHORM2c6CMI=
 github.com/insomniacslk/dhcp v0.0.0-20260901064844-234b97448fae h1:nXGg65fXsylSUTNNWwvHuQsXev7mhIzQTnZREPTbWzs=
