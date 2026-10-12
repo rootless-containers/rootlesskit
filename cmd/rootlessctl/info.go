@@ -27,6 +27,8 @@ func infoAction(clicontext *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	defer c.Close()
+
 	info, err := c.Info(ctx)
 	if err != nil {
 		return err
