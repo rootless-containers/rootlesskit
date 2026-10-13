@@ -42,3 +42,5 @@ require (
 	golang.org/x/time v0.13.0 // indirect
 	gvisor.dev/gvisor v0.0.0-20260413194555-9680d69bf798 // indirect
 )
+
+replace github.com/containers/gvisor-tap-vsock => github.com/AkihiroSuda/gvisor-tap-vsock v0.3.1-0.20261013022343-f9a335509534

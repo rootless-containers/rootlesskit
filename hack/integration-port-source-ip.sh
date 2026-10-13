@@ -1,6 +1,7 @@
 #!/bin/bash
-# Test source IP propagation of the builtin port driver (--source-ip-transparent).
-# https://github.com/rootless-containers/rootlesskit/issues/648
+# Test source IP propagation of port drivers.
+# - builtin (--source-ip-transparent): https://github.com/rootless-containers/rootlesskit/issues/648
+# - gvisor-tap-vsock: https://github.com/rootless-containers/rootlesskit/issues/573
 source $(realpath $(dirname $0))/common.inc.sh
 
 ROOTLESSCTL="rootlessctl"
@@ -8,12 +9,13 @@ ROOTLESSCTL="rootlessctl"
 # The source IP is not propagated for loopback addresses
 nonloopback="$(hostname -I | awk '{print $1}')"
 
-# test_source_ip NET [ROOTLESSKIT ARGS...]
+# test_source_ip NET PORT_DRIVER [ROOTLESSKIT ARGS...]
 function test_source_ip() {
 	net="$1"
-	shift
+	port_driver="$2"
+	shift 2
 	rootlesskit_args="$@"
-	INFO "Testing net=\"${net}\" rootlesskit_args=\"${rootlesskit_args}\""
+	INFO "Testing net=\"${net}\" port_driver=\"${port_driver}\" rootlesskit_args=\"${rootlesskit_args}\""
 	tmp=$(mktemp -d)
 	state_dir=${tmp}/state
 	html_dir=${tmp}/html
@@ -35,7 +37,7 @@ EOF
 		--net=${net} \
 		--disable-host-loopback \
 		--copy-up=/etc \
-		--port-driver=builtin \
+		--port-driver=${port_driver} \
 		--debug \
 		-p 0.0.0.0:8080:80/tcp \
 		${rootlesskit_args} \
@@ -55,9 +57,11 @@ EOF
 	wait $pid >/dev/null 2>&1 || true
 	rm -rf $tmp
 
-	if [ "${backend}" = "none" ] || [ "${backend}" = "null" ] || [ -z "${backend}" ]; then
-		ERROR "sourceIPTransparentBackend is \"${backend}\""
-		exit 1
+	if [ "${port_driver}" = "builtin" ]; then
+		if [ "${backend}" = "none" ] || [ "${backend}" = "null" ] || [ -z "${backend}" ]; then
+			ERROR "sourceIPTransparentBackend is \"${backend}\""
+			exit 1
+		fi
 	fi
 	if [ "${remote_addr}" != "${nonloopback}" ]; then
 		ERROR "Expected REMOTE_ADDR to be \"${nonloopback}\", got \"${remote_addr}\""
@@ -66,9 +70,11 @@ EOF
 	INFO "OK: sourceIPTransparentBackend=\"${backend}\", REMOTE_ADDR=\"${remote_addr}\""
 }
 
-test_source_ip slirp4netns
-test_source_ip slirp4netns --detach-netns
-test_source_ip gvisor-tap-vsock
-test_source_ip gvisor-tap-vsock --detach-netns
+test_source_ip slirp4netns builtin
+test_source_ip slirp4netns builtin --detach-netns
+test_source_ip gvisor-tap-vsock builtin
+test_source_ip gvisor-tap-vsock builtin --detach-netns
+test_source_ip gvisor-tap-vsock gvisor-tap-vsock
+test_source_ip gvisor-tap-vsock gvisor-tap-vsock --detach-netns
 
 INFO "===== PASSING ====="

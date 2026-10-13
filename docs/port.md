@@ -10,7 +10,7 @@ The default value is `none` (do not expose ports).
 | `builtin`            | 29.3 Gbps   | Propagated for TCP (since v3.0) | Source IP propagation (`--source-ip-transparent`) applies to TCP only; UDP is not propagated. In the case of Rootless Docker, userland-proxy has to be disabled for propagating the source IP. The underlying firewall rules use `nft`, falling back to `iptables` if `nft` is unavailable; the backend name is resolved eagerly at startup but rules are installed lazily on first transparent connection. `--source-ip-transparent-backend` can be used to force one or the other. The resolved backend is reported via the REST API (`PortDriverInfo.Extra["sourceIPTransparentBackend"]`).
 | `implicit`           | 39.9 Gbps   | Propagated | Requires `pasta` network
 | `pesto` (Experimental) | 45.2 Gbps | Propagated | Requires `pasta` network and passt `2026_05_07.1afd4ed` or later. Supports explicit port management through `rootlessctl`.
-| `gvisor-tap-vsock` (Experimental) | 3.77 Gbps | Not propagated | Throughput is currently limited; see issue link below for improvement ideas.
+| `gvisor-tap-vsock` (Experimental) | 3.77 Gbps | Propagated | Throughput is currently limited; see issue link below for improvement ideas. Source IP is not propagated for loopback clients (e.g., 127.0.0.1).
 
 Benchmark: iperf3 from the parent to the child is measured on GitHub Actions ([Aug 4, 2026](https://github.com/rootless-containers/rootlesskit/actions/runs/30896585927/job/91950824205))
 
@@ -27,7 +27,6 @@ IPv6 port forwarding additionally requires the `--ipv6` flag, as the `pasta` net
 
 > [!NOTE]
 > The `gvisor-tap-vsock` port driver is experimental.
-> - Source IP is not propagated: https://github.com/rootless-containers/rootlesskit/issues/573
 > - Current throughput is known to be slower than other drivers. We are tracking ideas for improving throughput here: https://github.com/rootless-containers/rootlesskit/issues/529
 
 * To be documented: [`bypass4netns`](https://github.com/rootless-containers/bypass4netns) for native performance.
