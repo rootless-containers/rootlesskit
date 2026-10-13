@@ -40,7 +40,7 @@ type Manager interface {
 // that provide an in-process virtual network implementation usable by port drivers.
 // For drivers that do not expose such a network object, this can be nil.
 type VirtualNetworkProvider interface {
-	Mux() *http.ServeMux
+	Mux() http.Handler
 }
 
 // ChildContext is used for RunParentDriver

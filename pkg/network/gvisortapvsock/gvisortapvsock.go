@@ -28,7 +28,12 @@ import (
 	"github.com/rootless-containers/rootlesskit/v3/pkg/network"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/network/iputils"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/network/parentutils"
+	"github.com/rootless-containers/rootlesskit/v3/pkg/port"
 )
+
+// Ensure that *virtualnetwork.VirtualNetwork satisfies port.VirtualNetworkProvider,
+// as pkg/parent silently drops the network object otherwise.
+var _ port.VirtualNetworkProvider = (*virtualnetwork.VirtualNetwork)(nil)
 
 const (
 	DriverName = "gvisor-tap-vsock"
@@ -294,9 +299,9 @@ func (d *parentDriver) handleConnection(conn net.Conn) {
 func (d *parentDriver) createCleanupFunc(vn *virtualnetwork.VirtualNetwork) func() error {
 	return func() error {
 		logrus.Debug("closing gvisor-tap-vsock virtual network")
-		// The VirtualNetwork struct doesn't have an explicit Close method,
-		// but we'll keep a reference to it to prevent garbage collection
-		_ = vn
+		if err := vn.Close(); err != nil {
+			logrus.Errorf("closing virtual network: %v", err)
+		}
 
 		// Close the socket
 		if d.cancel != nil {
