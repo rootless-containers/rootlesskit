@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/api"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/httputil"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/port"
@@ -94,11 +93,7 @@ func (b *Backend) DeletePort(w http.ResponseWriter, r *http.Request) {
 		b.onPortDriverNil(w, r)
 		return
 	}
-	idStr, ok := mux.Vars(r)["id"]
-	if !ok {
-		httputil.WriteError(w, r, errors.New("id not specified"), http.StatusBadRequest)
-		return
-	}
+	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		httputil.WriteError(w, r, fmt.Errorf("bad id %s: %w", idStr, err), http.StatusBadRequest)
@@ -144,10 +139,9 @@ func (b *Backend) GetInfo(w http.ResponseWriter, r *http.Request) {
 	w.Write(m)
 }
 
-func AddRoutes(r *mux.Router, b *Backend) {
-	v1 := r.PathPrefix("/v1").Subrouter()
-	v1.Path("/ports").Methods("GET").HandlerFunc(b.GetPorts)
-	v1.Path("/ports").Methods("POST").HandlerFunc(b.PostPort)
-	v1.Path("/ports/{id}").Methods("DELETE").HandlerFunc(b.DeletePort)
-	v1.Path("/info").Methods("GET").HandlerFunc(b.GetInfo)
+func AddRoutes(r *http.ServeMux, b *Backend) {
+	r.HandleFunc("GET /v1/ports", b.GetPorts)
+	r.HandleFunc("POST /v1/ports", b.PostPort)
+	r.HandleFunc("DELETE /v1/ports/{id}", b.DeletePort)
+	r.HandleFunc("GET /v1/info", b.GetInfo)
 }

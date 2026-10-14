@@ -15,7 +15,6 @@ import (
 	"syscall"
 
 	"github.com/gofrs/flock"
-	"github.com/gorilla/mux"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/api/router"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/messages"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/network"
@@ -503,7 +502,7 @@ type apiCloser interface {
 }
 
 func listenServeAPI(socketPath string, backend *router.Backend) (apiCloser, error) {
-	r := mux.NewRouter()
+	r := http.NewServeMux()
 	router.AddRoutes(r, backend)
 	srv := &http.Server{Handler: r}
 	err := os.RemoveAll(socketPath)
