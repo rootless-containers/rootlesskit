@@ -18,7 +18,7 @@ type testTCPDialer struct {
 	addr string
 }
 
-func (d testTCPDialer) DialContextTCP(ctx context.Context, addr string) (net.Conn, error) {
+func (d testTCPDialer) DialContextTCPFrom(ctx context.Context, _ net.Addr, addr string) (net.Conn, error) {
 	return (&net.Dialer{}).DialContext(ctx, "tcp", d.addr)
 }
 

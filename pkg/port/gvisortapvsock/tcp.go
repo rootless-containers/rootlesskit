@@ -17,7 +17,7 @@ import (
 const tcpCopyBufferSize = 256 * 1024
 
 type tcpDialer interface {
-	DialContextTCP(context.Context, string) (net.Conn, error)
+	DialContextTCPFrom(context.Context, net.Addr, string) (net.Conn, error)
 }
 
 // exposeTCP is called with d.mu held, like the upstream expose API.
@@ -33,7 +33,8 @@ func (d *driver) exposeTCP(local, remote string) error {
 	proxy.AddRoute(local, &tcpproxy.DialProxy{
 		Addr: remote,
 		DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
-			conn, err := dialer.DialContextTCP(ctx, addr)
+			src, _ := ctx.Value(tcpproxy.SourceAddrContextKey).(net.Addr)
+			conn, err := dialer.DialContextTCPFrom(ctx, src, addr)
 			if err != nil {
 				return nil, err
 			}
