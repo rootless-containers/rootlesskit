@@ -1,12 +1,15 @@
 package tcp
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"os"
 	"strconv"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/rootless-containers/rootlesskit/v3/pkg/port"
 	"github.com/rootless-containers/rootlesskit/v3/pkg/port/builtin/msg"
@@ -19,17 +22,7 @@ func Run(socketPath string, spec port.Spec, stopCh <-chan struct{}, stoppedCh ch
 		return err
 	}
 	newConns := make(chan net.Conn)
-	go func() {
-		for {
-			c, err := ln.Accept()
-			if err != nil {
-				fmt.Fprintf(logWriter, "accept: %v\n", err)
-				close(newConns)
-				return
-			}
-			newConns <- c
-		}
-	}()
+	go acceptConnections(ln, newConns, stopCh, logWriter)
 	go func() {
 		defer func() {
 			stoppedCh <- ln.Close()
@@ -54,6 +47,63 @@ func Run(socketPath string, spec port.Spec, stopCh <-chan struct{}, stoppedCh ch
 	}()
 	// no wait
 	return nil
+}
+
+const (
+	minAcceptRetryDelay = 5 * time.Millisecond
+	maxAcceptRetryDelay = time.Second
+)
+
+func acceptConnections(ln net.Listener, newConns chan<- net.Conn, stopCh <-chan struct{}, logWriter io.Writer) {
+	defer close(newConns)
+
+	var retryDelay time.Duration
+	for {
+		c, err := ln.Accept()
+		if err != nil {
+			select {
+			case <-stopCh:
+				return
+			default:
+			}
+
+			if errors.Is(err, syscall.EMFILE) || errors.Is(err, syscall.ENFILE) {
+				if retryDelay == 0 {
+					retryDelay = minAcceptRetryDelay
+				} else {
+					retryDelay *= 2
+					if retryDelay > maxAcceptRetryDelay {
+						retryDelay = maxAcceptRetryDelay
+					}
+				}
+				fmt.Fprintf(logWriter, "accept: %v; retrying in %s\n", err, retryDelay)
+				timer := time.NewTimer(retryDelay)
+				select {
+				case <-timer.C:
+				case <-stopCh:
+					if !timer.Stop() {
+						select {
+						case <-timer.C:
+						default:
+						}
+					}
+					return
+				}
+				continue
+			}
+
+			fmt.Fprintf(logWriter, "accept: %v\n", err)
+			return
+		}
+		retryDelay = 0
+
+		select {
+		case newConns <- c:
+		case <-stopCh:
+			c.Close()
+			return
+		}
+	}
 }
 
 func copyConnToChild(c net.Conn, socketPath string, spec port.Spec, stopCh <-chan struct{}) error {
