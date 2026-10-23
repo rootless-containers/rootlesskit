@@ -177,6 +177,9 @@ func Parent(opt Opt) error {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Pdeathsig:  syscall.SIGKILL,
 		Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS,
+		// The child keeps the caps across exec, even when no_new_privs is set
+		// (where the child cannot gain the caps by re-execution after uid_map is written).
+		AmbientCaps: allCaps(),
 	}
 
 	if opt.NetworkDriver != nil {
@@ -544,4 +547,23 @@ func InitStateDir(stateDir string) error {
 		}
 	}
 	return nil
+}
+
+// allCaps returns all the capabilities supported by the kernel,
+// or nil if the kernel does not support ambient caps (added in Linux 4.3).
+func allCaps() []uintptr {
+	if _, err := unix.PrctlRetInt(unix.PR_CAP_AMBIENT, unix.PR_CAP_AMBIENT_IS_SET, 0, 0, 0); err == unix.EINVAL {
+		return nil
+	}
+	last := unix.CAP_LAST_CAP
+	if b, err := os.ReadFile("/proc/sys/kernel/cap_last_cap"); err == nil {
+		if n, err := strconv.Atoi(strings.TrimSpace(string(b))); err == nil {
+			last = n
+		}
+	}
+	caps := make([]uintptr, 0, last+1)
+	for i := 0; i <= last; i++ {
+		caps = append(caps, uintptr(i))
+	}
+	return caps
 }

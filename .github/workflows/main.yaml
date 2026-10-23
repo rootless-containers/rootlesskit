@@ -63,6 +63,8 @@ jobs:
       run: DOCKER_BUILDKIT=1 docker build -t rootlesskit:test-integration --target test-integration .
     - name: "Integration test: exit-code"
       run: docker run --rm --privileged rootlesskit:test-integration ./integration-exit-code.sh
+    - name: "Integration test: no-new-privs"
+      run: docker run --rm --privileged rootlesskit:test-integration ./integration-no-new-privs.sh
     - name: "Integration test: propagation"
       run: docker run --rm --privileged rootlesskit:test-integration ./integration-propagation.sh
     - name: "Integration test: propagation (with `mount --make-rshared /`)"
