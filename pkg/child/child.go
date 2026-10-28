@@ -306,12 +306,13 @@ func hasCaps() (bool, error) {
 		Version: unix.LINUX_CAPABILITY_VERSION_3,
 		Pid:     int32(pid),
 	}
-	var data unix.CapUserData
-	if err := unix.Capget(&hdr, &data); err != nil {
+	// LINUX_CAPABILITY_VERSION_3 needs two CapUserData: the kernel writes both (caps 0-31 and 32-63)
+	var data [2]unix.CapUserData
+	if err := unix.Capget(&hdr, &data[0]); err != nil {
 		return false, fmt.Errorf("failed to get the current caps: %w", err)
 	}
 	logrus.Debugf("Capabilities: %+v", data)
-	return data.Effective != 0, nil
+	return data[0].Effective != 0 || data[1].Effective != 0, nil
 }
 
 // gainCaps gains the caps inside the user namespace.
