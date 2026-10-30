@@ -45,8 +45,8 @@ github.com/mdlayher/socket v0.5.1 h1:VZaqt6RkGkt2OE9l3GcC6nZkqD3xKeQLyfleW/uBcos
 github.com/mdlayher/socket v0.5.1/go.mod h1:TjPLHI1UgwEv5J1B5q0zTZq12A/6H7nKmtTanQE37IQ=
 github.com/miekg/dns v1.1.72 h1:vhmr+TF2A3tuoGNkLDFK9zi36F2LS+hKTRW0Uf8kbzI=
 github.com/miekg/dns v1.1.72/go.mod h1:+EuEPhdHOsfk6Wk5TT2CzssZdqkmFhf8r+aVyDEToIs=
-github.com/moby/sys/mountinfo v0.7.2 h1:1shs6aH5s4o5H2zQLn796ADW1wMrIwHsyJ2v9KouLrg=
-github.com/moby/sys/mountinfo v0.7.2/go.mod h1:1YOa8w8Ih7uW0wALDUgT1dTTSBrZ+HiBLGws92L2RU4=
+github.com/moby/sys/mountinfo v0.7.3 h1:e0lin8d05kLgtUES/4cS/F70KlbZX/G3aZjLsV7WAgA=
+github.com/moby/sys/mountinfo v0.7.3/go.mod h1:dEJRr+H+hx0lNG0BE+Smz95u/FDzjJv4/RjA2I456Iw=
 github.com/moby/vpnkit v0.6.0 h1:HEh3iQ57oigvPNbR89R14pw3difgPyFOMMD3JAoqPoY=
 github.com/moby/vpnkit v0.6.0/go.mod h1:CNuEpfSK4ZY/NKFWD5M79GUZcYFydh81XQ2GZnT44cQ=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
