@@ -1,6 +1,9 @@
 GO=go
 GO_FILES=$(shell find . -name *.go)
 BINARIES=rootlesskit rootlessctl rootlesskit-docker-proxy
+VERSION_PACKAGE=github.com/rootless-containers/rootlesskit/v3/pkg/version
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo unknown)
+GO_BUILD_FLAGS=-ldflags=-X=$(VERSION_PACKAGE).Version=$(VERSION)
 
 .PHONY: all
 all: $(addprefix bin/, $(BINARIES))
@@ -10,15 +13,15 @@ clean:
 	$(RM) -r bin/ _artifact/
 
 bin/rootlesskit: $(GO_FILES)
-	$(GO) build -o $@ -v ./cmd/rootlesskit
+	$(GO) build $(GO_BUILD_FLAGS) -o $@ -v ./cmd/rootlesskit
 
 bin/rootlessctl: $(GO_FILES)
-	$(GO) build -o $@ -v ./cmd/rootlessctl
+	$(GO) build $(GO_BUILD_FLAGS) -o $@ -v ./cmd/rootlessctl
 
 bin/rootlesskit-docker-proxy: $(GO_FILES)
 	@echo "NOTE: rootlesskit-docker-proxy is required only if you use Docker prior to v28."
 	@echo "NOTE: rootlesskit-docker-proxy is DEPRECATED and will be removed in RootlessKit v4."
-	$(GO) build -o $@ -v ./cmd/rootlesskit-docker-proxy
+	$(GO) build $(GO_BUILD_FLAGS) -o $@ -v ./cmd/rootlesskit-docker-proxy
 
 .PHONY: cross
 cross:
