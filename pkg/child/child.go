@@ -315,16 +315,40 @@ func hasCaps() (bool, error) {
 	return data[0].Effective != 0 || data[1].Effective != 0, nil
 }
 
-// gainCaps gains the caps inside the user namespace.
-// The caps are gained on re-execution after the child's uid_map and gid_map are fully written.
-func gainCaps() error {
-	pid := os.Getpid()
+// dropInheritableAndAmbientCaps prevents the ambient caps (set by the parent) from leaking to the workload.
+func dropInheritableAndAmbientCaps() error {
+	// EINVAL means that the kernel does not support ambient caps (added in Linux 4.3)
+	if err := unix.Prctl(unix.PR_CAP_AMBIENT, unix.PR_CAP_AMBIENT_CLEAR_ALL, 0, 0, 0); err != nil && err != unix.EINVAL {
+		return fmt.Errorf("failed to clear the ambient caps: %w", err)
+	}
+	hdr := unix.CapUserHeader{
+		Version: unix.LINUX_CAPABILITY_VERSION_3,
+	}
+	var data [2]unix.CapUserData
+	if err := unix.Capget(&hdr, &data[0]); err != nil {
+		return fmt.Errorf("failed to get the current caps: %w", err)
+	}
+	data[0].Inheritable, data[1].Inheritable = 0, 0
+	if err := unix.Capset(&hdr, &data[0]); err != nil {
+		return fmt.Errorf("failed to clear the inheritable caps: %w", err)
+	}
+	return nil
+}
+
+func reexecCountEnvName(pid int) string {
 	pidns, err := statPIDNS(pid)
 	if err != nil {
 		logrus.WithError(err).Debug("Failed to stat pidns (negligible when unsharing pidns)")
 		pidns = 0
 	}
-	envName := fmt.Sprintf("_ROOTLESSKIT_REEXEC_COUNT_%d_%d", pidns, pid)
+	return fmt.Sprintf("_ROOTLESSKIT_REEXEC_COUNT_%d_%d", pidns, pid)
+}
+
+// gainCaps gains the caps inside the user namespace.
+// The caps are gained on re-execution after the child's uid_map and gid_map are fully written.
+func gainCaps() error {
+	pid := os.Getpid()
+	envName := reexecCountEnvName(pid)
 	logrus.Debugf("Re-executing the RootlessKit child process (PID=%d) to gain the caps", pid)
 
 	var envValueInt int
@@ -379,9 +403,13 @@ func Child(opt Opt) error {
 		msg *messages.Message
 		err error
 	)
-	if ok, err := hasCaps(); err != nil {
-		return err
-	} else if !ok {
+	// The parent starts the child with ambient caps, so the child usually has the caps
+	// already, even when no_new_privs is set. Otherwise the caps are gained by re-execution.
+	// A re-executed child has already completed the handshake below.
+	// The retry counter is cleared before the workload starts, so it is never inherited
+	// by a nested RootlessKit.
+	reexecEnvName := reexecCountEnvName(os.Getpid())
+	if os.Getenv(reexecEnvName) == "" {
 		_, err = messages.WaitFor(pipeR, messages.Name(messages.ParentHello{}))
 		if err != nil {
 			return err
@@ -400,10 +428,18 @@ func Child(opt Opt) error {
 		if err != nil {
 			return err
 		}
-
+	}
+	if ok, err := hasCaps(); err != nil {
+		return err
+	} else if !ok {
 		// gainCaps re-executes the process on success and only returns on failure,
 		// so reaching here always means an error.
 		return fmt.Errorf("failed to gain the caps inside the user namespace: %w", gainCaps())
+	}
+	// Do not leak the retry counter to the workload or to a nested RootlessKit.
+	os.Unsetenv(reexecEnvName)
+	if err := dropInheritableAndAmbientCaps(); err != nil {
+		return err
 	}
 
 	if opt.MountProcfs {
@@ -489,6 +525,12 @@ func Child(opt Opt) error {
 			runtime.LockOSThread()
 			defer runtime.UnlockOSThread()
 
+			// The caps are per-thread, so they need to be cleared on this thread too
+			if err := dropInheritableAndAmbientCaps(); err != nil {
+				cmdErrCh <- err
+				return
+			}
+
 			// Set the parent death signal
 			if err := unix.Prctl(unix.PR_SET_PDEATHSIG, uintptr(unix.SIGKILL), 0, 0, 0); err != nil {
 				cmdErrCh <- err
@@ -509,6 +551,12 @@ func Child(opt Opt) error {
 			// Lock the goroutine to the OS thread
 			runtime.LockOSThread()
 			defer runtime.UnlockOSThread()
+
+			// The caps are per-thread, so they need to be cleared on this thread too
+			if err := dropInheritableAndAmbientCaps(); err != nil {
+				cmdErrCh <- err
+				return
+			}
 
 			// Set the parent death signal
 			if err := unix.Prctl(unix.PR_SET_PDEATHSIG, uintptr(unix.SIGKILL), 0, 0, 0); err != nil {
